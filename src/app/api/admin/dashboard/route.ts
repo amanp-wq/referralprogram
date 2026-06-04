@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // Get counts
     const [affiliatesRes, referralsRes, commissionsRes, payoutsRes, programsRes, pendingPayoutsRes, activitiesRes] = await Promise.all([
-      supabase.from('Affiliate').select('id, totalEarnings, totalReferrals, totalConversions, status, tier', { count: 'exact' }),
+      supabase.from('Affiliate').select('id, referralCode, totalEarnings, totalReferrals, totalConversions, status, tier, userId, User!Affiliate_userId_fkey(id, name, email, avatarUrl)', { count: 'exact' }),
       supabase.from('Referral').select('id, status, createdAt', { count: 'exact' }),
       supabase.from('Commission').select('id, amount, status, createdAt'),
       supabase.from('Payout').select('id, amount, status, createdAt'),
@@ -38,18 +38,21 @@ export async function GET(request: NextRequest) {
     const conversionRate = totalReferrals > 0 ? ((conversions / totalReferrals) * 100).toFixed(1) : '0'
     const pendingPayoutAmount = pendingPayouts.reduce((sum: number, p: any) => sum + p.amount, 0)
 
-    // Top affiliates by earnings
+    // Top affiliates by earnings (include user name/email)
     const topAffiliates = [...affiliates]
       .sort((a: any, b: any) => b.totalEarnings - a.totalEarnings)
       .slice(0, 5)
       .map((a: any) => ({
         id: a.id,
-        referralCode: a.referralCode,
+        referralCode: a.referralCode || '',
         tier: a.tier,
-        totalEarnings: a.totalEarnings,
-        totalReferrals: a.totalReferrals,
-        totalConversions: a.totalConversions,
+        totalEarnings: a.totalEarnings || 0,
+        totalReferrals: a.totalReferrals || 0,
+        totalConversions: a.totalConversions || 0,
         status: a.status,
+        name: (a as any).User?.name || a.referralCode || 'Unknown',
+        email: (a as any).User?.email || '',
+        avatarUrl: (a as any).User?.avatarUrl || null,
       }))
 
     // Programs with affiliate count

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getInitials } from "./shared";
 import {
   ChartPie, Users, Share2, Target, DollarSign, Wallet, Link2, FileText, Settings,
   ShoppingBag, CreditCard, Receipt, HelpCircle, Search, Bell, LogOut, Menu, X, ChevronRight,
@@ -55,8 +56,8 @@ export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, 
   const navGroups = role === "admin" ? adminNavGroups : affiliateNavGroups;
   const displayName = userName || (role === "admin" ? "Admin" : "Affiliate");
   const userInfo = role === "admin" 
-    ? { name: displayName, role: "Program Manager", initials: displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2) || "AD" } 
-    : { name: displayName, role: "Pro Affiliate", initials: displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2) || "AF" };
+    ? { name: displayName, role: "Program Manager", initials: getInitials(displayName) } 
+    : { name: displayName, role: "Pro Affiliate", initials: getInitials(displayName) };
   const breadcrumbMap: Record<string, string> = {
     dashboard: "Dashboard", affiliates: "Affiliate Management", commissions: "Commission Management",
     referrals: role === "admin" ? "Referral Tracking" : "Referrals", programs: "Campaign Programs",

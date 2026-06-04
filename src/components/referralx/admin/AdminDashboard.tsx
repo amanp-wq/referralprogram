@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ProgressBar, SectionCard, ErrorWithRetry, EmptyState, formatCurrency, formatDate, timeAgo } from "../shared";
+import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ProgressBar, SectionCard, ErrorWithRetry, EmptyState, formatCurrency, formatDate, timeAgo, getInitials } from "../shared";
 import { DollarSign, MousePointer, ShoppingBag, Percent, Users, Share2, Target, Link2, Zap, Plus, Download, Filter, ArrowRight, TrendingUp } from "lucide-react";
 
 interface DashboardKpis {
@@ -254,16 +254,16 @@ export function AdminDashboard() {
                 <thead><tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50"><th className="px-5 py-3">Affiliate</th><th className="px-5 py-3">Referrals</th><th className="px-5 py-3">Earnings</th><th className="px-5 py-3">Progress</th><th className="px-5 py-3">Status</th></tr></thead>
                 <tbody>
                   {topAffiliates.map((a) => {
-                    const name = (a as any).User?.name || a.referralCode;
-                    const email = (a as any).User?.email || "";
-                    const initials = name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
+                    const name = (a as any).name || (a as any).User?.name || a.referralCode || "Unknown";
+                    const email = (a as any).email || (a as any).User?.email || "";
+                    const initials = getInitials(name);
                     const maxEarnings = topAffiliates[0]?.totalEarnings || 1;
-                    const progress = maxEarnings > 0 ? Math.round((a.totalEarnings / maxEarnings) * 100) : 0;
+                    const progress = maxEarnings > 0 ? Math.round(((a.totalEarnings || 0) / maxEarnings) * 100) : 0;
                     return (
                       <tr key={a.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
-                        <td className="px-5 py-3.5"><div className="flex items-center gap-3"><Avatar initials={initials} src={(a as any).User?.avatarUrl} /><div><div className="text-sm font-semibold text-rx-gray-800">{name}</div><div className="text-xs text-rx-gray-500">{email}</div></div></div></td>
-                        <td className="px-5 py-3.5 text-sm text-rx-gray-700">{a.totalReferrals}</td>
-                        <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(a.totalEarnings)}</td>
+                        <td className="px-5 py-3.5"><div className="flex items-center gap-3"><Avatar initials={initials} src={(a as any).avatarUrl || (a as any).User?.avatarUrl} /><div><div className="text-sm font-semibold text-rx-gray-800">{name}</div><div className="text-xs text-rx-gray-500">{email}</div></div></div></td>
+                        <td className="px-5 py-3.5 text-sm text-rx-gray-700">{a.totalReferrals || 0}</td>
+                        <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(a.totalEarnings || 0)}</td>
                         <td className="px-5 py-3.5"><ProgressBar value={progress} color="primary" /></td>
                         <td className="px-5 py-3.5"><StatusBadge status={a.status as any} /></td>
                       </tr>

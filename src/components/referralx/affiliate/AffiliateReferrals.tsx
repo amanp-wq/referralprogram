@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, StatusBadge, Avatar, CopyButton } from "../shared";
+import { KpiCard, StatusBadge, Avatar, CopyButton, getInitials } from "../shared";
 import {
   Users, UserPlus, Share2, Copy, Link2,
   RefreshCw, AlertCircle,
@@ -174,12 +174,7 @@ export function AffiliateReferrals() {
               <tbody>
                 {referrals.map((r) => {
                   const displayName = r.visitorName || r.visitorEmail || "Anonymous";
-                  const initials = displayName
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .substring(0, 2)
-                    .toUpperCase();
+                  const initials = getInitials(displayName);
                   return (
                     <tr key={r.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
                       <td className="px-5 py-3.5">

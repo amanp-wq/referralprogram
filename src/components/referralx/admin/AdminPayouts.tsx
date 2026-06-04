@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
+import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, getInitials } from "../shared";
 import { Wallet, CheckCircle, Clock, XCircle, Filter, Download, Eye, Check, X } from "lucide-react";
 
 interface Payout {
@@ -170,7 +170,7 @@ export function AdminPayouts() {
               <tbody>
                 {payouts.map((p) => {
                   const affName = p.Affiliate?.User?.name || p.Affiliate?.referralCode || "Unknown";
-                  const initials = affName.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
+                  const initials = getInitials(affName);
                   return (
                     <tr key={p.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
                       <td className="px-5 py-3.5">

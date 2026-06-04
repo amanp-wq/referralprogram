@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ProgressBar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
+import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ProgressBar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, getInitials } from "../shared";
 import { Users, UserPlus, UserCheck, UserX, Filter, Download, Search, Plus } from "lucide-react";
 
 interface AffiliateUser {
@@ -173,7 +173,7 @@ export function AdminAffiliates() {
                 {affiliates.map((a) => {
                   const name = a.User?.name || "Unknown";
                   const email = a.User?.email || "";
-                  const initials = name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
+                  const initials = getInitials(name);
                   const maxEarnings = Math.max(...affiliates.map((af) => af.totalEarnings), 1);
                   const progress = maxEarnings > 0 ? Math.round((a.totalEarnings / maxEarnings) * 100) : 0;
                   return (
