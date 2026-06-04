@@ -46,14 +46,17 @@ const affiliateNavGroups: NavGroup[] = [
 
 interface AppShellProps {
   role: "admin" | "affiliate"; activePage: string; onPageChange: (page: string) => void;
-  pageTitle: string; onLogout: () => void; children: React.ReactNode;
+  pageTitle: string; onLogout: () => void; children: React.ReactNode; userName?: string;
 }
 
-export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, children }: AppShellProps) {
+export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, children, userName }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navGroups = role === "admin" ? adminNavGroups : affiliateNavGroups;
-  const userInfo = role === "admin" ? { name: "John Doe", role: "Program Manager", initials: "JD" } : { name: "John Doe", role: "Pro Affiliate", initials: "JD" };
+  const displayName = userName || (role === "admin" ? "Admin" : "Affiliate");
+  const userInfo = role === "admin" 
+    ? { name: displayName, role: "Program Manager", initials: displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2) || "AD" } 
+    : { name: displayName, role: "Pro Affiliate", initials: displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2) || "AF" };
   const breadcrumbMap: Record<string, string> = {
     dashboard: "Dashboard", affiliates: "Affiliate Management", commissions: "Commission Management",
     referrals: role === "admin" ? "Referral Tracking" : "Referrals", programs: "Campaign Programs",
@@ -67,8 +70,8 @@ export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, 
       {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />}
       <aside className={`fixed top-0 left-0 h-full z-50 bg-white border-r border-rx-gray-200 flex flex-col transition-all duration-300 ${sidebarCollapsed ? "w-[72px]" : "w-[260px]"} ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="p-5 border-b border-rx-gray-100 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rx-primary to-rx-primary-dark flex items-center justify-center text-white font-bold text-lg flex-shrink-0">R</div>
-          {!sidebarCollapsed && <span className="font-bold text-xl text-rx-gray-900 tracking-tight">ReferralX</span>}
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rx-primary to-rx-primary-dark flex items-center justify-center text-white font-bold text-lg flex-shrink-0">E</div>
+          {!sidebarCollapsed && <span className="font-bold text-xl text-rx-gray-900 tracking-tight">ElevateMe</span>}
         </div>
         <nav className="flex-1 overflow-y-auto p-3">
           {navGroups.map((group, gi) => (
