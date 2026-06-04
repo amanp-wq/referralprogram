@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Send, BookOpen, Link2, CreditCard, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { ChevronDown, ChevronUp, Send, BookOpen, Link2, CreditCard, Shield, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 const categories = [
   { icon: <BookOpen className="w-5 h-5" />, color: "bg-rx-primary-light text-rx-primary", title: "Getting Started", desc: "Learn the basics of using ElevateMe Referral", articles: 5 },
@@ -21,7 +23,47 @@ const faqs = [
 ];
 
 export function AffiliateHelp() {
+  const { token } = useAuth();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  // Contact form state
+  const [subject, setSubject] = useState("");
+  const [priority, setPriority] = useState("medium");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const handleSendMessage = async () => {
+    if (!token) return;
+    if (!subject.trim() || !message.trim()) {
+      setSendError("Please fill in the subject and message fields");
+      return;
+    }
+    setSending(true);
+    setSendError(null);
+    try {
+      const res = await fetch("/api/affiliate/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ subject, priority, message }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to send message");
+      }
+      toast({ title: "Message sent!", description: "We will get back to you within 24 hours." });
+      setSubject("");
+      setPriority("medium");
+      setMessage("");
+    } catch (err: any) {
+      setSendError(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -93,16 +135,22 @@ export function AffiliateHelp() {
             <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Subject</label>
             <input
               type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
               placeholder="What do you need help with?"
               className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Priority</label>
-            <select className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light bg-white">
-              <option>Low</option>
-              <option>Medium</option>
-              <option>High</option>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light bg-white"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
             </select>
           </div>
         </div>
@@ -110,12 +158,21 @@ export function AffiliateHelp() {
           <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Message</label>
           <textarea
             rows={4}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
             placeholder="Describe your issue in detail..."
             className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light resize-vertical"
           />
         </div>
-        <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">
-          <Send className="w-4 h-4" /> Send Message
+        {sendError && (
+          <div className="mb-4 p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg">{sendError}</div>
+        )}
+        <button
+          onClick={handleSendMessage}
+          disabled={sending}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50"
+        >
+          {sending ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</> : <><Send className="w-4 h-4" /> Send Message</>}
         </button>
       </div>
     </div>

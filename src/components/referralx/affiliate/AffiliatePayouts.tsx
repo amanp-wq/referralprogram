@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusBadge } from "../shared";
 import {
-  CreditCard, Building, Wallet, Filter, Download, ArrowUpRight,
+  CreditCard, Building, Wallet, Download, ArrowUpRight,
   RefreshCw, AlertCircle, X, Loader2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
 
 interface Payout {
   id: string;
@@ -34,6 +35,17 @@ function formatCurrency(amount: number): string {
 function formatDate(dateStr: string): string {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export function AffiliatePayouts() {
@@ -93,6 +105,8 @@ export function AffiliatePayouts() {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || "Failed to request payout");
       }
+      const result = await res.json();
+      toast({ title: "Payout requested", description: `Your payout of $${result.amount?.toFixed(2) || "0.00"} has been submitted for processing.` });
       setShowRequestDialog(false);
       setRequestAmount("");
       setRequestMethod("");
@@ -102,6 +116,20 @@ export function AffiliatePayouts() {
     } finally {
       setRequesting(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    const payouts = data?.payouts || [];
+    const headers = ["Date", "Amount", "Method", "Reference", "Status"];
+    const rows = payouts.map((p) => [
+      formatDate(p.createdAt),
+      formatCurrency(p.amount),
+      p.method,
+      p.reference || "—",
+      p.status,
+    ]);
+    downloadCSV("payout-history.csv", headers, rows);
+    toast({ title: "Export complete", description: "Payout history CSV downloaded" });
   };
 
   // Determine payout methods from affiliate settings
@@ -269,10 +297,16 @@ export function AffiliatePayouts() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Payout History</h3>
           <div className="flex gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">
-              <Filter className="w-3 h-3" /> Filter
+            <button
+              onClick={fetchData}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
+              <RefreshCw className="w-3 h-3" /> Refresh
             </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
               <Download className="w-3 h-3" /> Export
             </button>
           </div>

@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusBadge, ErrorWithRetry, EmptyState, CardSkeleton, formatCurrency, formatDate } from "../shared";
-import { Target, Users, DollarSign, Calendar, Plus, ArrowRight } from "lucide-react";
+import { Target, Users, DollarSign, Calendar, Plus, ArrowRight, X, Globe, Cookie, FileText, Edit, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface Program {
   id: string;
@@ -33,6 +34,12 @@ export function AdminPrograms() {
   const [createForm, setCreateForm] = useState({ name: "", slug: "", description: "", commissionType: "percentage", commissionValue: "10", minPayout: "50", cookieDuration: "30", landingPageUrl: "", terms: "" });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", description: "", commissionType: "percentage", commissionValue: "10", minPayout: "50", cookieDuration: "30", landingPageUrl: "", terms: "", isActive: true });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -72,6 +79,7 @@ export function AdminPrograms() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to create program");
+      toast({ title: "Program created", description: `${createForm.name} has been created successfully` });
       setShowCreate(false);
       setCreateForm({ name: "", slug: "", description: "", commissionType: "percentage", commissionValue: "10", minPayout: "50", cookieDuration: "30", landingPageUrl: "", terms: "" });
       fetchData();
@@ -89,8 +97,66 @@ export function AdminPrograms() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ id: program.id, isActive: !program.isActive }),
       });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        toast({ title: "Program updated", description: `${program.name} is now ${!program.isActive ? "active" : "inactive"}` });
+        fetchData();
+      }
     } catch {}
+  };
+
+  const handleViewDetails = (program: Program) => {
+    setSelectedProgram(program);
+    setShowDetails(true);
+  };
+
+  const handleOpenEdit = (program: Program) => {
+    setEditForm({
+      name: program.name,
+      description: program.description || "",
+      commissionType: program.commissionType,
+      commissionValue: String(program.commissionValue),
+      minPayout: String(program.minPayout),
+      cookieDuration: String(program.cookieDuration),
+      landingPageUrl: program.landingPageUrl || "",
+      terms: program.terms || "",
+      isActive: program.isActive,
+    });
+    setEditError(null);
+    setShowDetails(false);
+    setShowEdit(true);
+  };
+
+  const handleEdit = async () => {
+    if (!selectedProgram) return;
+    setEditLoading(true);
+    setEditError(null);
+    try {
+      const res = await fetch("/api/admin/programs", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedProgram.id,
+          name: editForm.name,
+          description: editForm.description,
+          commissionType: editForm.commissionType,
+          commissionValue: parseFloat(editForm.commissionValue),
+          minPayout: parseFloat(editForm.minPayout),
+          cookieDuration: parseInt(editForm.cookieDuration),
+          landingPageUrl: editForm.landingPageUrl,
+          terms: editForm.terms,
+          isActive: editForm.isActive,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update program");
+      toast({ title: "Program updated", description: `${editForm.name} has been updated successfully` });
+      setShowEdit(false);
+      fetchData();
+    } catch (err: any) {
+      setEditError(err.message);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   if (error) {
@@ -169,12 +235,120 @@ export function AdminPrograms() {
                     <div className="w-7 h-7 rounded-full bg-rx-gray-100 border-2 border-white flex items-center justify-center text-rx-gray-600 text-[10px] font-semibold">+{p.affiliateCount - 1}</div>
                   )}
                 </div>
-                <span className="text-rx-primary text-[13px] font-semibold flex items-center gap-1 hover:gap-2 transition-all cursor-pointer">View Details <ArrowRight className="w-3 h-3" /></span>
+                <span onClick={() => handleViewDetails(p)} className="text-rx-primary text-[13px] font-semibold flex items-center gap-1 hover:gap-2 transition-all cursor-pointer">View Details <ArrowRight className="w-3 h-3" /></span>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Program Details Dialog */}
+      {showDetails && selectedProgram && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowDetails(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Program Details</h3>
+              <button onClick={() => setShowDetails(false)} className="text-rx-gray-400 hover:text-rx-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <span className="text-sm text-rx-gray-500">Name</span>
+                <span className="text-sm font-semibold text-rx-gray-800 text-right max-w-[60%]">{selectedProgram.name}</span>
+              </div>
+              <div className="flex items-start justify-between">
+                <span className="text-sm text-rx-gray-500">Slug</span>
+                <span className="text-sm font-mono text-rx-gray-700 text-right max-w-[60%]">{selectedProgram.slug}</span>
+              </div>
+              {selectedProgram.description && (
+                <div className="flex items-start justify-between">
+                  <span className="text-sm text-rx-gray-500">Description</span>
+                  <span className="text-sm text-rx-gray-700 text-right max-w-[60%]">{selectedProgram.description}</span>
+                </div>
+              )}
+              <div className="border-t border-rx-gray-100 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-rx-gray-500 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" /> Commission Type</span>
+                  <span className="text-sm font-semibold text-rx-gray-800 capitalize">{selectedProgram.commissionType}</span>
+                </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-rx-gray-500 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" /> Commission Value</span>
+                  <span className="text-sm font-semibold text-rx-gray-800">
+                    {selectedProgram.commissionType === "percentage" ? `${selectedProgram.commissionValue}%` : formatCurrency(selectedProgram.commissionValue)}
+                  </span>
+                </div>
+              </div>
+              <div className="border-t border-rx-gray-100 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-rx-gray-500 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" /> Min Payout</span>
+                  <span className="text-sm font-semibold text-rx-gray-800">{formatCurrency(selectedProgram.minPayout)}</span>
+                </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-rx-gray-500 flex items-center gap-1.5"><Cookie className="w-3.5 h-3.5" /> Cookie Duration</span>
+                  <span className="text-sm font-semibold text-rx-gray-800">{selectedProgram.cookieDuration} days</span>
+                </div>
+              </div>
+              {selectedProgram.landingPageUrl && (
+                <div className="flex items-start justify-between border-t border-rx-gray-100 pt-4">
+                  <span className="text-sm text-rx-gray-500 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> Landing Page</span>
+                  <a href={selectedProgram.landingPageUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-rx-primary hover:underline text-right max-w-[60%] break-all">{selectedProgram.landingPageUrl}</a>
+                </div>
+              )}
+              <div className="border-t border-rx-gray-100 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-rx-gray-500">Status</span>
+                  <StatusBadge status={selectedProgram.isActive ? "active" : "inactive"} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-rx-gray-500 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Created</span>
+                  <span className="text-sm font-semibold text-rx-gray-800">{formatDate(selectedProgram.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowDetails(false)} className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50">Close</button>
+              <button onClick={() => handleOpenEdit(selectedProgram)} className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark inline-flex items-center justify-center gap-2"><Edit className="w-4 h-4" /> Edit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Program Dialog */}
+      {showEdit && selectedProgram && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Edit Program</h3>
+              <button onClick={() => setShowEdit(false)} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
+            </div>
+            {editError && <div className="mb-4 p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg">{editError}</div>}
+            <div className="space-y-4">
+              <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Program Name</label><input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" /></div>
+              <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Description</label><textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" rows={3} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Commission Type</label><select value={editForm.commissionType} onChange={(e) => setEditForm({ ...editForm, commissionType: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"><option value="percentage">Percentage</option><option value="fixed">Fixed Amount</option></select></div>
+                <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Commission Value</label><input type="number" value={editForm.commissionValue} onChange={(e) => setEditForm({ ...editForm, commissionValue: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Min Payout ($)</label><input type="number" value={editForm.minPayout} onChange={(e) => setEditForm({ ...editForm, minPayout: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" /></div>
+                <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Cookie Duration (days)</label><input type="number" value={editForm.cookieDuration} onChange={(e) => setEditForm({ ...editForm, cookieDuration: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" /></div>
+              </div>
+              <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Landing Page URL</label><input type="text" value={editForm.landingPageUrl} onChange={(e) => setEditForm({ ...editForm, landingPageUrl: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" placeholder="https://..." /></div>
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-rx-gray-700">Active</label>
+                <button onClick={() => setEditForm({ ...editForm, isActive: !editForm.isActive })} className={`w-11 h-6 rounded-full relative transition-colors ${editForm.isActive ? "bg-rx-primary" : "bg-rx-gray-300"}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${editForm.isActive ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowEdit(false)} className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50">Cancel</button>
+              <button onClick={handleEdit} disabled={editLoading} className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                {editLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Program Dialog */}
       {showCreate && (

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('Payout')
-      .select('*, Affiliate!Payout_affiliateId_fkey(id, referralCode, payoutMethod, User!Affiliate_userId_fkey(name, email))')
+      .select('*, Affiliate!Payout_affiliateId_fkey(id, referralCode, payoutMethod, User!Affiliate_userId_fkey(name, email))', { count: 'exact' })
       .order('createdAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 

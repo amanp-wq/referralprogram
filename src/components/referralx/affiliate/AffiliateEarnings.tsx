@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, ProgressBar, StatusBadge } from "../shared";
 import {
-  DollarSign, TrendingUp, Wallet, Clock, Download, Filter,
-  RefreshCw, AlertCircle,
+  DollarSign, TrendingUp, Wallet, Clock, Download, RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
 
 interface Commission {
   id: string;
@@ -49,18 +50,30 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function AffiliateEarnings() {
   const { token } = useAuth();
   const [data, setData] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<"7D" | "30D" | "90D">("30D");
 
   const fetchData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/affiliate/earnings", {
+      const res = await fetch(`/api/affiliate/earnings?period=${period}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -74,11 +87,26 @@ export function AffiliateEarnings() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, period]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleExportCSV = () => {
+    const commissions = data?.commissions || [];
+    const headers = ["Date", "Description", "Type", "Rate", "Amount", "Status"];
+    const rows = commissions.map((c) => [
+      formatDate(c.createdAt),
+      c.description || c.type,
+      c.type,
+      `${c.rate}%`,
+      c.amount < 0 ? `-${formatCurrency(Math.abs(c.amount))}` : formatCurrency(c.amount),
+      c.status,
+    ]);
+    downloadCSV("earnings-history.csv", headers, rows);
+    toast({ title: "Export complete", description: "Earnings CSV downloaded successfully" });
+  };
 
   if (error) {
     return (
@@ -147,11 +175,12 @@ export function AffiliateEarnings() {
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-semibold text-rx-gray-800">Earnings Over Time</h3>
           <div className="flex gap-2">
-            {["7D", "30D", "90D"].map((p, i) => (
+            {(["7D", "30D", "90D"] as const).map((p) => (
               <button
                 key={p}
+                onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 border rounded-lg text-xs font-medium ${
-                  i === 1 ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"
+                  period === p ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"
                 }`}
               >
                 {p}
@@ -235,10 +264,16 @@ export function AffiliateEarnings() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Earnings History</h3>
           <div className="flex gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">
-              <Filter className="w-3 h-3" /> Filter
+            <button
+              onClick={fetchData}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
+              <RefreshCw className="w-3 h-3" /> Refresh
             </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
               <Download className="w-3 h-3" /> Export
             </button>
           </div>

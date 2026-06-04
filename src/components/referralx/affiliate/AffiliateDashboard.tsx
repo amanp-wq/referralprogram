@@ -5,9 +5,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, StatusBadge, CopyButton, ProgressBar } from "../shared";
 import {
   DollarSign, MousePointer, ShoppingBag, Percent, Copy, BarChart3,
-  RefreshCw, AlertCircle, ExternalLink, Link2, TrendingUp,
+  RefreshCw, AlertCircle, ExternalLink, Link2, TrendingUp, Download,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
 
 interface DashboardKpis {
   totalEarnings: number;
@@ -84,18 +85,30 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function AffiliateDashboard() {
   const { affiliate, token } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<"7D" | "30D" | "90D">("30D");
 
   const fetchData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/affiliate/dashboard", {
+      const res = await fetch(`/api/affiliate/dashboard?period=${period}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -109,7 +122,7 @@ export function AffiliateDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, period]);
 
   useEffect(() => {
     fetchData();
@@ -125,6 +138,19 @@ export function AffiliateDashboard() {
   const avgCommission = totalConversions > 0 && data
     ? data.kpis.totalEarnings / totalConversions
     : 0;
+
+  const handleExportCSV = () => {
+    const referrals = data?.recentReferrals || [];
+    const headers = ["Visitor", "Source", "Date", "Status"];
+    const rows = referrals.map((r) => [
+      r.visitorName || r.visitorEmail || "Anonymous",
+      r.source || "direct",
+      formatDate(r.createdAt),
+      r.status,
+    ]);
+    downloadCSV("recent-referrals.csv", headers, rows);
+    toast({ title: "Export complete", description: "Referrals CSV downloaded successfully" });
+  };
 
   if (error) {
     return (
@@ -165,7 +191,10 @@ export function AffiliateDashboard() {
           </div>
           <div className="flex gap-3">
             <CopyButton text={referralLink} label={<><Copy className="w-4 h-4" /> Copy Link</>} />
-            <button className="px-4 py-2.5 border border-white/40 rounded-lg text-sm font-semibold hover:bg-white/10 flex items-center gap-2">
+            <button
+              onClick={() => window.location.href = "/dashboard?tab=earnings"}
+              className="px-4 py-2.5 border border-white/40 rounded-lg text-sm font-semibold hover:bg-white/10 flex items-center gap-2"
+            >
               <BarChart3 className="w-4 h-4" /> View Report
             </button>
           </div>
@@ -271,11 +300,12 @@ export function AffiliateDashboard() {
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-base font-semibold text-rx-gray-800">Earnings Overview</h3>
             <div className="flex gap-2">
-              {["7D", "30D", "90D"].map((p, i) => (
+              {(["7D", "30D", "90D"] as const).map((p) => (
                 <button
                   key={p}
+                  onClick={() => setPeriod(p)}
                   className={`px-3 py-1.5 border rounded-lg text-xs font-medium ${
-                    i === 1 ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"
+                    period === p ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"
                   }`}
                 >
                   {p}
@@ -412,8 +442,18 @@ export function AffiliateDashboard() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Recent Referrals</h3>
           <div className="flex gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">Filter</button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">Export CSV</button>
+            <button
+              onClick={fetchData}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
+              <RefreshCw className="w-3 h-3" /> Refresh
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
+              <Download className="w-3 h-3" /> Export CSV
+            </button>
           </div>
         </div>
         {loading ? (
