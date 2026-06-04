@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatDate, getInitials } from "../shared";
-import { Share2, UserPlus, RefreshCw, ArrowRight, Filter, Download } from "lucide-react";
+import { Share2, UserPlus, RefreshCw, ArrowRight, Download } from "lucide-react";
 
 interface Referral {
   id: string;
@@ -20,6 +20,17 @@ interface Referral {
   updatedAt: string;
   Affiliate?: { id: string; referralCode: string; User?: { name: string; email: string } };
   Program?: { id: string; name: string; slug: string };
+}
+
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 interface ReferralsResponse {
@@ -100,8 +111,21 @@ export function AdminReferrals() {
               <option value="inactive">Inactive</option>
               <option value="cancelled">Cancelled</option>
             </select>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Filter className="w-3 h-3" /> Filter</button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3" /> Export</button>
+            <button
+              onClick={() => {
+                const headers = ["Affiliate", "Referred Person", "Program", "Source", "Date", "Status"];
+                const rows = referrals.map(r => [
+                  r.Affiliate?.User?.name || r.referralCode || "Unknown",
+                  r.visitorName || r.visitorEmail || "-",
+                  r.Program?.name || "-",
+                  r.source || "direct",
+                  formatDate(r.createdAt),
+                  r.status,
+                ]);
+                downloadCSV("referrals.csv", headers, rows);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            ><Download className="w-3 h-3" /> Export</button>
           </div>
         </div>
 

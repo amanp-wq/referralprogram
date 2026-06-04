@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('Referral')
-      .select('*, Affiliate!Referral_affiliateId_fkey(id, referralCode, userId, User!Affiliate_userId_fkey(name, email)), Program!Referral_programId_fkey(id, name, slug)')
+      .select('*, Affiliate!Referral_affiliateId_fkey(id, referralCode, userId, User!Affiliate_userId_fkey(name, email)), Program!Referral_programId_fkey(id, name, slug)', { count: 'exact' })
       .order('createdAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 

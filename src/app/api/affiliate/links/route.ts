@@ -11,13 +11,23 @@ export async function GET(request: NextRequest) {
     const supabase = getServerClient()
     const { data: links, error: dbError } = await supabase
       .from('Link')
-      .select('*, Program!Link_programId_fkey(id, name, slug)')
+      .select('*, Program!Link_programId_fkey(id, name, slug, commissionType, commissionValue)')
       .eq('affiliateId', affiliate.id)
       .order('createdAt', { ascending: false })
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
 
-    return NextResponse.json({ links: links || [] })
+    // Also fetch available programs for the create link dialog
+    const { data: programs } = await supabase
+      .from('Program')
+      .select('id, name, slug, commissionType, commissionValue, isActive')
+      .eq('isActive', true)
+      .order('createdAt', { ascending: false })
+
+    return NextResponse.json({
+      links: links || [],
+      programs: programs || [],
+    })
   } catch (error: any) {
     console.error('Affiliate links error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -32,7 +42,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { programId, label } = body
 
-    if (!programId) return NextResponse.json({ error: 'Program ID is required' }, { status: 400 })
+    if (!programId) return NextResponse.json({ error: 'Please select a program for this link' }, { status: 400 })
 
     const supabase = getServerClient()
 
@@ -40,10 +50,10 @@ export async function POST(request: NextRequest) {
     const { data: program } = await supabase.from('Program').select('*').eq('id', programId).eq('isActive', true).single()
     if (!program) return NextResponse.json({ error: 'Program not found or inactive' }, { status: 404 })
 
-    // Generate unique link code
+    // Generate unique link code - standardized format: /ref/{code}
     const code = `${affiliate.referralCode}-${uuidv4().substring(0, 8)}`
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://referral.elevateme.pro'
-    const url = `${baseUrl}/referral?code=${code}`
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://referral.elevateme.pro'
+    const url = `${baseUrl}/ref/${code}`
 
     // Create link
     const linkId = `lnk_${uuidv4().substring(0, 12)}`
@@ -62,6 +72,17 @@ export async function POST(request: NextRequest) {
     })
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
+
+    // Log activity
+    await supabase.from('Activity').insert({
+      id: `act_${uuidv4().substring(0, 12)}`,
+      userId: user.id,
+      action: 'created_link',
+      entity: 'link',
+      entityId: linkId,
+      details: `Affiliate created tracking link for program ${program.name}`,
+      createdAt: new Date().toISOString(),
+    })
 
     return NextResponse.json({ id: linkId, code, url, message: 'Link created successfully' }, { status: 201 })
   } catch (error: any) {

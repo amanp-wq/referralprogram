@@ -87,6 +87,14 @@ export function AffiliateSettings() {
         setFormUpiId(json.affiliate.upiId || "");
         setFormPayoutEmail(json.affiliate.payoutEmail || "");
       }
+      // Load notification settings from API
+      if (json.notifications) {
+        setEmailNotifications(json.notifications.emailNotifications ?? true);
+        setConversionAlerts(json.notifications.conversionAlerts ?? true);
+        setPayoutAlerts(json.notifications.payoutAlerts ?? true);
+        setWeeklyReport(json.notifications.weeklyReport ?? true);
+        setMonthlyReport(json.notifications.monthlyReport ?? false);
+      }
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -118,6 +126,11 @@ export function AffiliateSettings() {
           bankIfsc: formBankIfsc,
           upiId: formUpiId,
           payoutEmail: formPayoutEmail,
+          emailNotifications,
+          conversionAlerts,
+          payoutAlerts,
+          weeklyReport,
+          monthlyReport,
         }),
       });
       if (!res.ok) {

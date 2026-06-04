@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ProgressBar, SectionCard, ErrorWithRetry, EmptyState, formatCurrency, formatDate, timeAgo, getInitials } from "../shared";
-import { DollarSign, MousePointer, ShoppingBag, Percent, Users, Share2, Target, Link2, Zap, Plus, Download, Filter, ArrowRight, TrendingUp } from "lucide-react";
+import { DollarSign, MousePointer, ShoppingBag, Percent, Users, Share2, Target, Link2, Zap, Plus, Download, Filter, ArrowRight, TrendingUp, RefreshCw, X, Cookie, CalendarDays, Activity } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface DashboardKpis {
   totalRevenue: number;
@@ -31,6 +32,7 @@ interface ProgramStat {
   isActive: boolean;
   affiliateCount: number;
   revenue: number;
+  cookieDuration?: number;
 }
 
 interface Activity {
@@ -70,18 +72,34 @@ function getActivityMeta(action: string) {
 const sourceLabels: Record<string, string> = { social: "Social Media", email: "Email", website: "Website", direct: "Direct" };
 const sourceColors: Record<string, string> = { social: "bg-rx-primary", email: "bg-rx-secondary", website: "bg-rx-warning", direct: "bg-rx-info" };
 
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function AdminDashboard() {
   const { token } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revenuePeriod, setRevenuePeriod] = useState<"7D" | "30D" | "90D">("30D");
+  const [selectedProgram, setSelectedProgram] = useState<ProgramStat | null>(null);
+  const [showProgramDialog, setShowProgramDialog] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (period?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/dashboard", {
+      const params = new URLSearchParams();
+      if (period) params.set("period", period);
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/admin/dashboard${query}`, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
       if (!res.ok) {
@@ -97,10 +115,54 @@ export function AdminDashboard() {
     }
   }, [token]);
 
-  useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
+  useEffect(() => { if (token) fetchData(revenuePeriod); }, [token, fetchData, revenuePeriod]);
+
+  const handlePeriodChange = (p: "7D" | "30D" | "90D") => {
+    setRevenuePeriod(p);
+  };
+
+  const handleExportAffiliates = () => {
+    if (!topAffiliates || topAffiliates.length === 0) {
+      toast({ title: "No data to export", description: "There are no affiliates to export." });
+      return;
+    }
+    const headers = ["Name", "Email", "Referral Code", "Tier", "Referrals", "Conversions", "Earnings", "Status"];
+    const rows = topAffiliates.map((a) => {
+      const name = (a as any).name || (a as any).User?.name || a.referralCode || "Unknown";
+      const email = (a as any).email || (a as any).User?.email || "";
+      return [
+        `"${name}"`,
+        `"${email}"`,
+        a.referralCode || "",
+        a.tier || "",
+        String(a.totalReferrals || 0),
+        String(a.totalConversions || 0),
+        String(a.totalEarnings || 0),
+        a.status || "",
+      ];
+    });
+    downloadCSV("top-affiliates.csv", headers, rows);
+    toast({ title: "Export complete", description: "Top affiliates CSV downloaded." });
+  };
+
+  const handleRefresh = () => {
+    fetchData(revenuePeriod);
+  };
+
+  const handleViewProgram = (p: ProgramStat) => {
+    setSelectedProgram(p);
+    setShowProgramDialog(true);
+  };
+
+  const quickActionRoutes: Record<string, string> = {
+    "Invite Affiliate": "/dashboard?tab=affiliates",
+    "Create Program": "/dashboard?tab=programs",
+    "Generate Link": "/dashboard?tab=links",
+    "Run Report": "/dashboard?tab=reports",
+  };
 
   if (error) {
-    return <ErrorWithRetry message={error} onRetry={fetchData} />;
+    return <ErrorWithRetry message={error} onRetry={() => fetchData(revenuePeriod)} />;
   }
 
   const kpis = data?.kpis;
@@ -136,7 +198,7 @@ export function AdminDashboard() {
             <h3 className="text-base font-semibold text-rx-gray-800">Revenue Trend</h3>
             <div className="flex gap-2">
               {(["7D", "30D", "90D"] as const).map((p) => (
-                <button key={p} onClick={() => setRevenuePeriod(p)} className={`px-3 py-1.5 border rounded-lg text-xs font-medium transition-all ${revenuePeriod === p ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"}`}>{p}</button>
+                <button key={p} onClick={() => handlePeriodChange(p)} className={`px-3 py-1.5 border rounded-lg text-xs font-medium transition-all ${revenuePeriod === p ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"}`}>{p}</button>
               ))}
             </div>
           </div>
@@ -212,12 +274,62 @@ export function AdminDashboard() {
                 <div className="flex -space-x-2">
                   <Avatar useLogo /><div className="w-7 h-7 rounded-full bg-rx-gray-100 border-2 border-white flex items-center justify-center text-rx-gray-600 text-[10px] font-semibold">+{Math.max(0, p.affiliateCount - 1)}</div>
                 </div>
-                <span className="text-rx-primary text-[13px] font-semibold flex items-center gap-1 hover:gap-2 transition-all cursor-pointer">View <ArrowRight className="w-3 h-3" /></span>
+                <span onClick={() => handleViewProgram(p)} className="text-rx-primary text-[13px] font-semibold flex items-center gap-1 hover:gap-2 transition-all cursor-pointer">View <ArrowRight className="w-3 h-3" /></span>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Program Details Dialog */}
+      {showProgramDialog && selectedProgram && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowProgramDialog(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Program Details</h3>
+              <button onClick={() => setShowProgramDialog(false)} className="text-rx-gray-400 hover:text-rx-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-rx-gray-500">Name</span>
+                <span className="text-sm font-semibold text-rx-gray-800">{selectedProgram.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-rx-gray-500">Commission Type</span>
+                <span className="text-sm font-semibold text-rx-gray-800 capitalize">{selectedProgram.commissionType}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-rx-gray-500">Commission Value</span>
+                <span className="text-sm font-semibold text-rx-gray-800">
+                  {selectedProgram.commissionType === "percentage" ? `${selectedProgram.commissionValue}%` : formatCurrency(selectedProgram.commissionValue)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-rx-gray-500">Affiliates</span>
+                <span className="text-sm font-semibold text-rx-gray-800">{selectedProgram.affiliateCount}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-rx-gray-500">Revenue</span>
+                <span className="text-sm font-semibold text-rx-gray-800">{formatCurrency(selectedProgram.revenue)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-rx-gray-500">Status</span>
+                <StatusBadge status={selectedProgram.isActive ? "active" : "inactive"} />
+              </div>
+              {selectedProgram.cookieDuration != null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-rx-gray-500">Cookie Duration</span>
+                  <span className="text-sm font-semibold text-rx-gray-800">{selectedProgram.cookieDuration} days</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowProgramDialog(false)} className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50">Close</button>
+              <button onClick={() => { setShowProgramDialog(false); window.location.href = "/dashboard?tab=programs"; }} className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">Edit Program</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -227,7 +339,10 @@ export function AdminDashboard() {
           { icon: <Link2 className="w-5 h-5" />, color: "bg-[#f3e8ff] text-[#9333ea]", title: "Generate Link", desc: "Create tracking link" },
           { icon: <Zap className="w-5 h-5" />, color: "bg-[#ffedd5] text-[#ea580c]", title: "Run Report", desc: "Generate analytics" },
         ].map((a) => (
-          <div key={a.title} className="bg-white rounded-xl p-4 border border-rx-gray-200 flex items-center gap-3 cursor-pointer hover:border-rx-primary hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div key={a.title} onClick={() => {
+            const route = quickActionRoutes[a.title];
+            if (route) window.location.href = route;
+          }} className="bg-white rounded-xl p-4 border border-rx-gray-200 flex items-center gap-3 cursor-pointer hover:border-rx-primary hover:shadow-md hover:-translate-y-0.5 transition-all">
             <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${a.color}`}>{a.icon}</div>
             <div><div className="text-sm font-semibold text-rx-gray-800">{a.title}</div><div className="text-xs text-rx-gray-500">{a.desc}</div></div>
           </div>
@@ -240,8 +355,8 @@ export function AdminDashboard() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
             <h3 className="text-base font-semibold text-rx-gray-800">Top Affiliates</h3>
             <div className="flex gap-2">
-              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Filter className="w-3 h-3" /> Filter</button>
-              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3" /> Export</button>
+              <button onClick={handleRefresh} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><RefreshCw className="w-3 h-3" /> Refresh</button>
+              <button onClick={handleExportAffiliates} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3" /> Export</button>
             </div>
           </div>
           {loading ? (

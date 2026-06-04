@@ -2,7 +2,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ProgressBar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, getInitials } from "../shared";
-import { Users, UserPlus, UserCheck, UserX, Filter, Download, Search, Plus } from "lucide-react";
+import { Users, UserPlus, UserCheck, UserX, Download, Search, Plus } from "lucide-react";
+
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 interface AffiliateUser {
   id: string;
@@ -141,7 +152,25 @@ export function AdminAffiliates() {
               <option value="inactive">Inactive</option>
               <option value="suspended">Suspended</option>
             </select>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Filter className="w-3 h-3" /> Filter</button>
+            <button
+              onClick={() => {
+                const headers = ["Name", "Email", "Referral Code", "Tier", "Commission Rate", "Referrals", "Conversions", "Earnings", "Status", "Joined Date"];
+                const rows = affiliates.map(a => [
+                  a.User?.name || "Unknown",
+                  a.User?.email || "-",
+                  a.referralCode,
+                  a.tier,
+                  a.commissionRate.toString(),
+                  a.totalReferrals.toString(),
+                  a.totalConversions.toString(),
+                  a.totalEarnings.toString(),
+                  a.status,
+                  formatDate(a.joinedAt),
+                ]);
+                downloadCSV("affiliates.csv", headers, rows);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            ><Download className="w-3 h-3" /> Export</button>
             <button
               onClick={() => setShowInvite(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark"
@@ -217,7 +246,7 @@ export function AdminAffiliates() {
               <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Referral Code</label><input type="text" value={inviteForm.referralCode} onChange={(e) => setInviteForm({ ...inviteForm, referralCode: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" placeholder="e.g. john2024" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Commission Rate</label><input type="number" value={inviteForm.commissionRate} onChange={(e) => setInviteForm({ ...inviteForm, commissionRate: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" /></div>
-                <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Tier</label><select value={inviteForm.tier} onChange={(e) => setInviteForm({ ...inviteForm, tier: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"><option value="standard">Standard</option><option value="premium">Premium</option><option value="vip">VIP</option></select></div>
+                <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Tier</label><select value={inviteForm.tier} onChange={(e) => setInviteForm({ ...inviteForm, tier: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"><option value="standard">Standard</option><option value="pro">Pro</option><option value="elite">Elite</option></select></div>
               </div>
             </div>
             <div className="flex gap-3 mt-6">

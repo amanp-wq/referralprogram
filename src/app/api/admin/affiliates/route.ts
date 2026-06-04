@@ -18,14 +18,32 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
+    // If search term provided, first find matching user IDs by name/email
+    let matchingUserIds: string[] | null = null
+    if (search) {
+      const { data: usersByName } = await supabase
+        .from('User')
+        .select('id')
+        .or(`name.ilike.%${search}%,email.ilike.%${search}%`)
+      matchingUserIds = (usersByName || []).map((u: any) => u.id)
+    }
+
     let query = supabase
       .from('Affiliate')
-      .select('*, User!Affiliate_userId_fkey(id, email, name, avatarUrl, status, createdAt)')
+      .select('*, User!Affiliate_userId_fkey(id, email, name, avatarUrl, status, createdAt)', { count: 'exact' })
       .order('joinedAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
     if (status) query = query.eq('status', status)
-    if (search) query = query.ilike('referralCode', `%${search}%`)
+
+    // Apply search filter - by referralCode OR by matching user IDs
+    if (search) {
+      if (matchingUserIds && matchingUserIds.length > 0) {
+        query = query.or(`referralCode.ilike.%${search}%,userId.in.(${matchingUserIds.join(',')})`)
+      } else {
+        query = query.ilike('referralCode', `%${search}%`)
+      }
+    }
 
     const { data: affiliates, error: dbError, count } = await query
 
@@ -83,6 +101,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Referral code already exists' }, { status: 409 })
     }
 
+    // Validate tier value
+    const validTiers = ['standard', 'pro', 'elite']
+    const affiliateTier = validTiers.includes(tier) ? tier : 'standard'
+
     // Create user with default password
     const userId = `usr_${uuidv4().substring(0, 12)}`
     const passwordHash = await bcrypt.hash('affiliate123', 10)
@@ -109,7 +131,7 @@ export async function POST(request: NextRequest) {
       id: affiliateId,
       userId,
       referralCode,
-      tier: tier || 'standard',
+      tier: affiliateTier,
       commissionRate: commissionRate || 10,
       totalEarnings: 0,
       totalReferrals: 0,
@@ -132,7 +154,7 @@ export async function POST(request: NextRequest) {
       action: 'created_affiliate',
       entity: 'affiliate',
       entityId: affiliateId,
-      details: `Created affiliate ${name} (${email})`,
+      details: `Created affiliate ${name} (${email}) with tier ${affiliateTier}`,
       createdAt: new Date().toISOString(),
     })
 

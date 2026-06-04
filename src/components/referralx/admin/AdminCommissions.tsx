@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
-import { DollarSign, TrendingUp, Clock, AlertCircle, Filter, Download } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, AlertCircle, Download } from "lucide-react";
 
 interface Commission {
   id: string;
@@ -18,7 +18,18 @@ interface Commission {
   createdAt: string;
   updatedAt: string;
   Affiliate?: { id: string; referralCode: string; User?: { name: string; email: string } };
-  Program?: { id: string; name: string };
+  Program?: { id: string; name: string; commissionType?: string; commissionValue?: number };
+}
+
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 interface CommissionsResponse {
@@ -105,10 +116,22 @@ export function AdminCommissions() {
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Filter className="w-3 h-3" /> Filter</button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3" /> Export</button>
-          </div>
+          <button
+            onClick={() => {
+              const headers = ["Affiliate", "Program", "Amount", "Rate", "Type", "Date", "Status"];
+              const rows = commissions.map(c => [
+                c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown",
+                c.Program?.name || "-",
+                c.amount.toString(),
+                c.Program?.commissionType === "percentage" ? `${c.rate}%` : `$${c.rate}`,
+                c.type,
+                formatDate(c.createdAt),
+                c.status,
+              ]);
+              downloadCSV("commissions.csv", headers, rows);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+          ><Download className="w-3 h-3" /> Export</button>
         </div>
 
         {loading ? (
@@ -133,7 +156,7 @@ export function AdminCommissions() {
                 {commissions.map((c) => {
                   const affName = c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown";
                   const programName = c.Program?.name || "-";
-                  const rateDisplay = c.type === "percentage" ? `${c.rate}%` : `$${c.rate}`;
+              const rateDisplay = c.Program?.commissionType === "percentage" ? `${c.rate}%` : `$${c.rate}`;
                   return (
                     <tr key={c.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
                       <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-800">{affName}</td>

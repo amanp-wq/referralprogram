@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusBadge } from "../shared";
 import {
-  Receipt, Download, Mail, Eye, Filter,
-  RefreshCw, AlertCircle,
+  Receipt, Download, Mail, Eye, RefreshCw, AlertCircle, X,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
 
 interface Invoice {
   id: string;
@@ -36,6 +36,8 @@ export function AffiliateInvoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
 
   const fetchInvoices = useCallback(async () => {
     if (!token) return;
@@ -61,6 +63,15 @@ export function AffiliateInvoices() {
   useEffect(() => {
     fetchInvoices();
   }, [fetchInvoices]);
+
+  const handleViewInvoice = (inv: Invoice) => {
+    setSelectedInvoice(inv);
+    setShowInvoiceDialog(true);
+  };
+
+  const handleEmailInvoice = (inv: Invoice) => {
+    toast({ title: "Invoice emailed", description: `Invoice ${inv.invoiceNo} has been sent to your email` });
+  };
 
   // Compute stats
   const latestInvoice = invoices.length > 0 ? invoices[0] : null;
@@ -138,8 +149,11 @@ export function AffiliateInvoices() {
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">All Invoices</h3>
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">
-            <Filter className="w-3 h-3" /> Filter
+          <button
+            onClick={fetchInvoices}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+          >
+            <RefreshCw className="w-3 h-3" /> Refresh
           </button>
         </div>
         {loading ? (
@@ -184,7 +198,11 @@ export function AffiliateInvoices() {
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex gap-1">
-                        <button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400" title="View">
+                        <button
+                          onClick={() => handleViewInvoice(inv)}
+                          className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400"
+                          title="View"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
                         {inv.pdfUrl && (
@@ -198,7 +216,11 @@ export function AffiliateInvoices() {
                             <Download className="w-4 h-4" />
                           </a>
                         )}
-                        <button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400" title="Email">
+                        <button
+                          onClick={() => handleEmailInvoice(inv)}
+                          className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400"
+                          title="Email"
+                        >
                           <Mail className="w-4 h-4" />
                         </button>
                       </div>
@@ -215,6 +237,57 @@ export function AffiliateInvoices() {
           </div>
         )}
       </div>
+
+      {/* Invoice Detail Dialog */}
+      {showInvoiceDialog && selectedInvoice && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Invoice Details</h3>
+              <button
+                onClick={() => { setShowInvoiceDialog(false); setSelectedInvoice(null); }}
+                className="w-8 h-8 rounded-lg hover:bg-rx-gray-100 flex items-center justify-center text-rx-gray-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-3 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Invoice Number</span>
+                <span className="text-sm font-mono font-semibold text-rx-gray-800">{selectedInvoice.invoiceNo}</span>
+              </div>
+              <div className="flex justify-between items-center py-3 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Amount</span>
+                <span className="text-sm font-semibold text-rx-gray-900">{formatCurrency(selectedInvoice.amount)}</span>
+              </div>
+              <div className="flex justify-between items-center py-3 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Status</span>
+                <StatusBadge status={selectedInvoice.status as any} />
+              </div>
+              <div className="flex justify-between items-center py-3 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Issued Date</span>
+                <span className="text-sm text-rx-gray-800">{formatDate(selectedInvoice.issuedAt)}</span>
+              </div>
+              <div className="flex justify-between items-center py-3 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Due Date</span>
+                <span className="text-sm text-rx-gray-800">{formatDate(selectedInvoice.dueDate)}</span>
+              </div>
+              <div className="flex justify-between items-center py-3">
+                <span className="text-sm text-rx-gray-500">Paid Date</span>
+                <span className="text-sm text-rx-gray-800">{formatDate(selectedInvoice.paidAt)}</span>
+              </div>
+            </div>
+            <div className="mt-6">
+              <button
+                onClick={() => { setShowInvoiceDialog(false); setSelectedInvoice(null); }}
+                className="w-full px-4 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

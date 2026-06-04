@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, getInitials } from "../shared";
-import { Wallet, CheckCircle, Clock, XCircle, Filter, Download, Eye, Check, X } from "lucide-react";
+import { Wallet, CheckCircle, Clock, XCircle, Download, Eye, Check, X } from "lucide-react";
 
 interface Payout {
   id: string;
@@ -18,6 +18,17 @@ interface Payout {
   Affiliate?: { id: string; referralCode: string; payoutMethod: string; User?: { name: string; email: string } };
 }
 
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 interface PayoutsResponse {
   payouts: Payout[];
   total: number;
@@ -31,6 +42,8 @@ export function AdminPayouts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
+  const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
+  const [showPayoutDialog, setShowPayoutDialog] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -144,8 +157,21 @@ export function AdminPayouts() {
               <option value="completed">Completed</option>
               <option value="failed">Failed</option>
             </select>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Filter className="w-3 h-3" /> Filter</button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3" /> Export</button>
+            <button
+              onClick={() => {
+                const headers = ["Affiliate", "Amount", "Method", "Requested Date", "Processed Date", "Status"];
+                const rows = payouts.map(p => [
+                  p.Affiliate?.User?.name || p.Affiliate?.referralCode || "Unknown",
+                  p.amount.toString(),
+                  p.method || "-",
+                  formatDate(p.createdAt),
+                  p.processedAt ? formatDate(p.processedAt) : "-",
+                  p.status,
+                ]);
+                downloadCSV("payouts.csv", headers, rows);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            ><Download className="w-3 h-3" /> Export</button>
           </div>
         </div>
 
@@ -192,7 +218,14 @@ export function AdminPayouts() {
                               <button onClick={() => handleReject(p.id)} className="p-1.5 rounded-lg hover:bg-rx-danger-light text-rx-danger" title="Reject"><X className="w-4 h-4" /></button>
                             </>
                           )}
-                          <button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400" title="View"><Eye className="w-4 h-4" /></button>
+                          <button
+                            onClick={() => {
+                              setSelectedPayout(p);
+                              setShowPayoutDialog(true);
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400"
+                            title="View"
+                          ><Eye className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>
@@ -203,6 +236,55 @@ export function AdminPayouts() {
           </div>
         )}
       </div>
+
+      {/* Payout Details Dialog */}
+      {showPayoutDialog && selectedPayout && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Payout Details</h3>
+              <button onClick={() => { setShowPayoutDialog(false); setSelectedPayout(null); }} className="w-8 h-8 rounded-lg hover:bg-rx-gray-100 flex items-center justify-center text-rx-gray-500">&times;</button>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between py-2 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Affiliate</span>
+                <span className="text-sm font-semibold text-rx-gray-800">{selectedPayout.Affiliate?.User?.name || selectedPayout.Affiliate?.referralCode || "Unknown"}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Amount</span>
+                <span className="text-sm font-semibold text-rx-gray-800">{formatCurrency(selectedPayout.amount)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Method</span>
+                <span className="text-sm text-rx-gray-700 capitalize">{selectedPayout.method || "-"}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Reference</span>
+                <span className="text-sm text-rx-gray-700 font-mono">{selectedPayout.reference || "-"}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Notes</span>
+                <span className="text-sm text-rx-gray-700">{selectedPayout.notes || "-"}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Status</span>
+                <StatusBadge status={selectedPayout.status as any} />
+              </div>
+              <div className="flex justify-between py-2 border-b border-rx-gray-100">
+                <span className="text-sm text-rx-gray-500">Requested Date</span>
+                <span className="text-sm text-rx-gray-700">{formatDate(selectedPayout.createdAt)}</span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-sm text-rx-gray-500">Processed Date</span>
+                <span className="text-sm text-rx-gray-700">{selectedPayout.processedAt ? formatDate(selectedPayout.processedAt) : "-"}</span>
+              </div>
+            </div>
+            <div className="mt-6">
+              <button onClick={() => { setShowPayoutDialog(false); setSelectedPayout(null); }} className="w-full py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

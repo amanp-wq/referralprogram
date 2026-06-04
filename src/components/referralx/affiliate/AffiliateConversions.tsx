@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, StatusBadge } from "../shared";
 import {
-  ShoppingBag, CheckCircle, Clock, XCircle, Filter, Download,
-  RefreshCw, AlertCircle,
+  ShoppingBag, CheckCircle, Clock, XCircle, Download, RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
 
 interface Referral {
   id: string;
@@ -27,6 +28,17 @@ interface Referral {
 function formatDate(dateStr: string): string {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export function AffiliateConversions() {
@@ -76,6 +88,19 @@ export function AffiliateConversions() {
         if (activeFilter === "Refunded") return r.status === "refunded";
         return true;
       });
+
+  const handleExportCSV = () => {
+    const headers = ["Visitor", "Source", "Date", "Converted At", "Status"];
+    const rows = filteredReferrals.map((r) => [
+      r.visitorName || "Anonymous",
+      r.source || "direct",
+      formatDate(r.createdAt),
+      r.convertedAt ? formatDate(r.convertedAt) : "—",
+      r.status,
+    ]);
+    downloadCSV("conversions.csv", headers, rows);
+    toast({ title: "Export complete", description: "Conversions CSV downloaded successfully" });
+  };
 
   if (error) {
     return (
@@ -154,10 +179,16 @@ export function AffiliateConversions() {
             ))}
           </div>
           <div className="flex gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">
-              <Filter className="w-3 h-3" /> Filter
+            <button
+              onClick={fetchReferrals}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
+              <RefreshCw className="w-3 h-3" /> Refresh
             </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
               <Download className="w-3 h-3" /> Export
             </button>
           </div>

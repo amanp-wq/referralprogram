@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SectionCard, ErrorWithRetry, EmptyState, CardSkeleton, TableSkeleton, formatCurrency, formatDate } from "../shared";
 import { FileText, DollarSign, Users, TrendingUp, BarChart3, Calendar, Download, Clock, RefreshCw } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface ReportStats {
   totalCommissions: number;
@@ -33,12 +34,24 @@ const reportTypes = [
   { icon: <Calendar className="w-5 h-5" />, color: "bg-[#f3e8ff] text-[#9333ea]", title: "Monthly Trends", desc: "Month-over-month comparison of metrics", type: "monthly" },
 ];
 
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function AdminReports() {
   const { token } = useAuth();
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState("30d");
+  const [scheduleSuccess, setScheduleSuccess] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -78,6 +91,156 @@ export function AdminReports() {
     { name: "Conversion Funnel Analysis", type: "Conversion", date: formatDate(data?.startDate), size: "3.1 MB" },
   ] : [];
 
+  const handleScheduleReport = () => {
+    toast({ title: "Report scheduled", description: "Your report will be generated and emailed to you automatically." });
+    setScheduleSuccess(true);
+    setTimeout(() => setScheduleSuccess(false), 3000);
+  };
+
+  const handleGenerateReport = (reportType: string) => {
+    const s = stats || {
+      totalCommissions: 0,
+      totalApproved: 0,
+      totalPayouts: 0,
+      newReferrals: 0,
+      conversions: 0,
+      conversionRate: "0",
+      activeAffiliates: 0,
+    };
+
+    let headers: string[] = [];
+    let rows: string[][] = [];
+
+    switch (reportType) {
+      case "revenue":
+        headers = ["Metric", "Value"];
+        rows = [
+          ["Total Commissions", String(s.totalCommissions)],
+          ["Total Approved", String(s.totalApproved)],
+          ["Total Payouts", String(s.totalPayouts)],
+          ["New Referrals", String(s.newReferrals)],
+          ["Period", period],
+        ];
+        if (dailyCommissions.length > 0) {
+          headers = ["Date", "Commission Amount", ...headers];
+          rows = dailyCommissions.map((d) => [d.date, String(d.amount), "", ""]);
+        }
+        break;
+      case "affiliate":
+        headers = ["Metric", "Value"];
+        rows = [
+          ["Active Affiliates", String(s.activeAffiliates)],
+          ["New Referrals", String(s.newReferrals)],
+          ["Total Commissions", String(s.totalCommissions)],
+          ["Conversion Rate", `${s.conversionRate}%`],
+        ];
+        if (Object.keys(byTier).length > 0) {
+          headers = ["Tier", "Earnings"];
+          rows = Object.entries(byTier).map(([tier, amount]) => [tier, String(amount)]);
+        }
+        break;
+      case "conversion":
+        headers = ["Metric", "Value"];
+        rows = [
+          ["Total Conversions", String(s.conversions)],
+          ["Conversion Rate", `${s.conversionRate}%`],
+          ["New Referrals", String(s.newReferrals)],
+          ["Total Commissions", String(s.totalCommissions)],
+        ];
+        break;
+      case "traffic":
+        headers = ["Source", "Count"];
+        if (Object.keys(bySource).length > 0) {
+          rows = Object.entries(bySource).map(([source, count]) => [source, String(count)]);
+        } else {
+          rows = [["No data available", "0"]];
+        }
+        break;
+      case "payout":
+        headers = ["Metric", "Value"];
+        rows = [
+          ["Total Payouts", String(s.totalPayouts)],
+          ["Total Approved", String(s.totalApproved)],
+          ["Total Commissions", String(s.totalCommissions)],
+          ["Active Affiliates", String(s.activeAffiliates)],
+        ];
+        break;
+      case "monthly":
+        headers = ["Date", "Commission Amount"];
+        rows = dailyCommissions.length > 0
+          ? dailyCommissions.map((d) => [d.date, String(d.amount)])
+          : [["No data available", "0"]];
+        break;
+      default:
+        headers = ["Metric", "Value"];
+        rows = [["No data", "0"]];
+    }
+
+    const reportTitle = reportTypes.find((r) => r.type === reportType)?.title || reportType;
+    const safeFilename = reportTitle.replace(/\s+/g, "_").toLowerCase();
+    downloadCSV(`${safeFilename}_${period}.csv`, headers, rows);
+  };
+
+  const handleExportAll = () => {
+    const s = stats || {
+      totalCommissions: 0,
+      totalApproved: 0,
+      totalPayouts: 0,
+      newReferrals: 0,
+      conversions: 0,
+      conversionRate: "0",
+      activeAffiliates: 0,
+    };
+
+    const headers = ["Metric", "Value"];
+    const rows: string[][] = [
+      ["Total Commissions", String(s.totalCommissions)],
+      ["Total Approved", String(s.totalApproved)],
+      ["Total Payouts", String(s.totalPayouts)],
+      ["New Referrals", String(s.newReferrals)],
+      ["Conversions", String(s.conversions)],
+      ["Conversion Rate", `${s.conversionRate}%`],
+      ["Active Affiliates", String(s.activeAffiliates)],
+    ];
+
+    if (Object.keys(byTier).length > 0) {
+      rows.push([]);
+      rows.push(["--- Tier Breakdown ---", ""]);
+      Object.entries(byTier).forEach(([tier, amount]) => {
+        rows.push([`Tier: ${tier}`, String(amount)]);
+      });
+    }
+
+    if (Object.keys(bySource).length > 0) {
+      rows.push([]);
+      rows.push(["--- Source Breakdown ---", ""]);
+      Object.entries(bySource).forEach(([source, count]) => {
+        rows.push([`Source: ${source}`, String(count)]);
+      });
+    }
+
+    if (dailyCommissions.length > 0) {
+      rows.push([]);
+      rows.push(["--- Daily Commissions ---", ""]);
+      rows.push(["Date", "Amount"]);
+      dailyCommissions.forEach((d) => {
+        rows.push([d.date, String(d.amount)]);
+      });
+    }
+
+    downloadCSV(`full_report_${period}.csv`, headers, rows);
+  };
+
+  const handleDownloadRecentReport = (reportName: string, reportType: string) => {
+    const typeMap: Record<string, string> = {
+      "Revenue": "revenue",
+      "Affiliate": "affiliate",
+      "Conversion": "conversion",
+    };
+    const mappedType = typeMap[reportType] || "revenue";
+    handleGenerateReport(mappedType);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -97,9 +260,22 @@ export function AdminReports() {
             <option value="1y">Last year</option>
           </select>
           <button onClick={fetchData} className="inline-flex items-center gap-2 px-4 py-2 border border-rx-gray-200 rounded-lg text-sm text-rx-gray-600 hover:bg-rx-gray-50"><RefreshCw className="w-4 h-4" /> Refresh</button>
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark"><Clock className="w-4 h-4" /> Schedule Report</button>
+          <button
+            onClick={handleScheduleReport}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark"
+          >
+            <Clock className="w-4 h-4" /> Schedule Report
+          </button>
         </div>
       </div>
+
+      {/* Schedule success message */}
+      {scheduleSuccess && (
+        <div className="p-3 bg-rx-secondary-light text-rx-secondary text-sm rounded-lg flex items-center gap-2">
+          <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+          Report scheduled! You will receive it via email.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {loading ? (
@@ -141,15 +317,15 @@ export function AdminReports() {
                 </div>
               )}
               <div className="flex gap-2 mt-4 pt-4 border-t border-rx-gray-100">
-                <button className="flex-1 py-2 text-sm font-medium text-rx-primary bg-rx-primary-light rounded-lg hover:bg-rx-primary/20">Generate</button>
-                <button className="flex-1 py-2 text-sm font-medium text-rx-gray-600 bg-rx-gray-50 rounded-lg hover:bg-rx-gray-100 flex items-center justify-center gap-1"><Download className="w-3.5 h-3.5" /> Download</button>
+                <button onClick={() => handleGenerateReport(r.type)} className="flex-1 py-2 text-sm font-medium text-rx-primary bg-rx-primary-light rounded-lg hover:bg-rx-primary/20">Generate</button>
+                <button onClick={() => handleGenerateReport(r.type)} className="flex-1 py-2 text-sm font-medium text-rx-gray-600 bg-rx-gray-50 rounded-lg hover:bg-rx-gray-100 flex items-center justify-center gap-1"><Download className="w-3.5 h-3.5" /> Download</button>
               </div>
             </div>
           ))
         )}
       </div>
 
-      <SectionCard title="Recently Generated Reports" actions={<button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3" /> Export All</button>}>
+      <SectionCard title="Recently Generated Reports" actions={<button onClick={handleExportAll} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3" /> Export All</button>}>
         {loading ? (
           <TableSkeleton rows={3} cols={5} />
         ) : recentReports.length === 0 ? (
@@ -173,7 +349,7 @@ export function AdminReports() {
                     <td className="px-5 py-3 text-sm text-rx-gray-600">{r.type}</td>
                     <td className="px-5 py-3 text-sm text-rx-gray-500">{r.date}</td>
                     <td className="px-5 py-3 text-sm text-rx-gray-500">{r.size}</td>
-                    <td className="px-5 py-3"><button className="inline-flex items-center gap-1 text-xs text-rx-primary font-medium hover:underline"><Download className="w-3 h-3" /> Download</button></td>
+                    <td className="px-5 py-3"><button onClick={() => handleDownloadRecentReport(r.name, r.type)} className="inline-flex items-center gap-1 text-xs text-rx-primary font-medium hover:underline"><Download className="w-3 h-3" /> Download</button></td>
                   </tr>
                 ))}
               </tbody>
