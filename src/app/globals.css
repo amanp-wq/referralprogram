@@ -41,27 +41,28 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --color-rx-primary: #6366f1;
-  --color-rx-primary-dark: #4f46e5;
-  --color-rx-primary-light: #e0e7ff;
-  --color-rx-secondary: #10b981;
-  --color-rx-secondary-light: #d1fae5;
-  --color-rx-danger: #ef4444;
-  --color-rx-danger-light: #fee2e2;
-  --color-rx-warning: #f59e0b;
-  --color-rx-warning-light: #fef3c7;
-  --color-rx-info: #3b82f6;
-  --color-rx-info-light: #dbeafe;
-  --color-rx-gray-50: #f8fafc;
-  --color-rx-gray-100: #f1f5f9;
-  --color-rx-gray-200: #e2e8f0;
-  --color-rx-gray-300: #cbd5e1;
-  --color-rx-gray-400: #94a3b8;
-  --color-rx-gray-500: #64748b;
+  /* ElevateMe Brand Colors */
+  --color-rx-primary: #C44838;
+  --color-rx-primary-dark: #A83A2D;
+  --color-rx-primary-light: #FDECEA;
+  --color-rx-secondary: #689775;
+  --color-rx-secondary-light: #E8F3EB;
+  --color-rx-danger: #E53935;
+  --color-rx-danger-light: #FFEBEE;
+  --color-rx-warning: #F59E0B;
+  --color-rx-warning-light: #FEF3C7;
+  --color-rx-info: #3B82F6;
+  --color-rx-info-light: #DBEAFE;
+  --color-rx-gray-50: #F8FAFC;
+  --color-rx-gray-100: #F1F5F9;
+  --color-rx-gray-200: #E2E8F0;
+  --color-rx-gray-300: #CBD5E1;
+  --color-rx-gray-400: #94A3B8;
+  --color-rx-gray-500: #64748B;
   --color-rx-gray-600: #475569;
   --color-rx-gray-700: #334155;
-  --color-rx-gray-800: #1e293b;
-  --color-rx-gray-900: #0f172a;
+  --color-rx-gray-800: #1E293B;
+  --color-rx-gray-900: #0F172A;
 }
 
 :root {

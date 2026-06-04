@@ -1,25 +1,208 @@
 "use client";
-import { KpiCard, StatusBadge, Avatar } from "../shared";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
 import { Wallet, CheckCircle, Clock, XCircle, Filter, Download, Eye, Check, X } from "lucide-react";
-const kpis = [
-  { label: "Total Payouts", value: "$18,960", trend: { value: "12.3%", direction: "up" as const }, context: "vs last month", iconColor: "primary" as const, icon: <Wallet className="w-[18px] h-[18px]" /> },
-  { label: "Completed", value: "$15,240", trend: { value: "8.5%", direction: "up" as const }, context: "vs last month", iconColor: "success" as const, icon: <CheckCircle className="w-[18px] h-[18px]" /> },
-  { label: "Pending", value: "$3,420", trend: { value: "5.2%", direction: "up" as const }, context: "this month", iconColor: "warning" as const, icon: <Clock className="w-[18px] h-[18px]" /> },
-  { label: "Failed", value: "$300", trend: { value: "2.1%", direction: "down" as const }, context: "vs last month", iconColor: "danger" as const, icon: <XCircle className="w-[18px] h-[18px]" /> },
-];
-const payouts = [
-  { affiliate: "Sarah Johnson", amount: "$495.00", method: "Bank Transfer", requestDate: "May 12, 2026", processDate: "May 14, 2026", status: "paid" as const },
-  { affiliate: "Mike Chen", amount: "$285.00", method: "PayPal", requestDate: "May 11, 2026", processDate: "-", status: "pending" as const },
-  { affiliate: "Anna Smith", amount: "$198.00", method: "Bank Transfer", requestDate: "May 10, 2026", processDate: "May 12, 2026", status: "paid" as const },
-  { affiliate: "Tom Wilson", amount: "$340.00", method: "PayPal", requestDate: "May 9, 2026", processDate: "-", status: "processing" as const },
-  { affiliate: "Lisa Brown", amount: "$120.00", method: "Stripe", requestDate: "May 8, 2026", processDate: "-", status: "failed" as const },
-];
+
+interface Payout {
+  id: string;
+  affiliateId: string;
+  amount: number;
+  method: string;
+  status: string;
+  reference: string | null;
+  notes: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  Affiliate?: { id: string; referralCode: string; payoutMethod: string; User?: { name: string; email: string } };
+}
+
+interface PayoutsResponse {
+  payouts: Payout[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export function AdminPayouts() {
-  return (<div className="space-y-6">
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">{kpis.map(k=><KpiCard key={k.label} {...k}/>)}</div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">{[{label:"Next Payout Date",value:"May 15, 2026",sub:"3 pending requests"},{label:"Average Payout",value:"$245.00",sub:"Per affiliate"},{label:"Min. Payout",value:"$50.00",sub:"Configured threshold"}].map(i=><div key={i.label} className="bg-white rounded-2xl p-6 border border-rx-gray-200 hover:shadow-md transition-shadow"><div className="text-xs text-rx-gray-500 font-medium mb-1">{i.label}</div><div className="text-2xl font-bold text-rx-gray-900 mb-1">{i.value}</div><div className="text-xs text-rx-gray-400">{i.sub}</div></div>)}</div>
-    <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100"><h3 className="text-base font-semibold text-rx-gray-800">Payout History</h3><div className="flex gap-2"><button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Filter className="w-3 h-3"/> Filter</button><button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3"/> Export</button></div></div>
-      <div className="overflow-x-auto"><table className="w-full"><thead><tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50"><th className="px-5 py-3">Affiliate</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Method</th><th className="px-5 py-3">Request</th><th className="px-5 py-3">Processed</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Actions</th></tr></thead><tbody>{payouts.map((p,i)=><tr key={i} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50"><td className="px-5 py-3.5"><div className="flex items-center gap-3"><Avatar initials={p.affiliate.split(" ").map(n=>n[0]).join("")}/><span className="text-sm font-semibold text-rx-gray-800">{p.affiliate}</span></div></td><td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{p.amount}</td><td className="px-5 py-3.5 text-sm text-rx-gray-700">{p.method}</td><td className="px-5 py-3.5 text-sm text-rx-gray-500">{p.requestDate}</td><td className="px-5 py-3.5 text-sm text-rx-gray-500">{p.processDate}</td><td className="px-5 py-3.5"><StatusBadge status={p.status}/></td><td className="px-5 py-3.5"><div className="flex gap-1">{p.status==="pending"&&<><button className="p-1.5 rounded-lg hover:bg-rx-secondary-light text-rx-secondary"><Check className="w-4 h-4"/></button><button className="p-1.5 rounded-lg hover:bg-rx-danger-light text-rx-danger"><X className="w-4 h-4"/></button></>}<button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400"><Eye className="w-4 h-4"/></button></div></td></tr>)}</tbody></table></div>
-    </div></div>);
+  const { token } = useAuth();
+  const [data, setData] = useState<PayoutsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter) params.set("status", statusFilter);
+      const res = await fetch(`/api/admin/payouts?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to load payouts");
+      }
+      const json = await res.json();
+      setData(json);
+    } catch (err: any) {
+      setError(err.message || "Failed to load payouts");
+    } finally {
+      setLoading(false);
+    }
+  }, [token, statusFilter]);
+
+  useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
+
+  const handleApprove = async (payoutId: string) => {
+    try {
+      const res = await fetch("/api/admin/payouts", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: payoutId, status: "completed" }),
+      });
+      if (res.ok) fetchData();
+    } catch {}
+  };
+
+  const handleReject = async (payoutId: string) => {
+    try {
+      const res = await fetch("/api/admin/payouts", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: payoutId, status: "failed" }),
+      });
+      if (res.ok) fetchData();
+    } catch {}
+  };
+
+  if (error) {
+    return <ErrorWithRetry message={error} onRetry={fetchData} />;
+  }
+
+  const payouts = data?.payouts || [];
+  const totalAmount = payouts.reduce((s, p) => s + p.amount, 0);
+  const completedAmount = payouts.filter((p) => p.status === "completed" || p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  const pendingAmount = payouts.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+  const failedAmount = payouts.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
+  const pendingCount = payouts.filter((p) => p.status === "pending").length;
+  const avgPayout = payouts.length > 0 ? totalAmount / payouts.length : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
+        ) : (
+          <>
+            <KpiCard label="Total Payouts" value={formatCurrency(totalAmount)} iconColor="primary" icon={<Wallet className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Completed" value={formatCurrency(completedAmount)} iconColor="success" icon={<CheckCircle className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Pending" value={formatCurrency(pendingAmount)} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Failed" value={formatCurrency(failedAmount)} iconColor="danger" icon={<XCircle className="w-[18px] h-[18px]" />} />
+          </>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => <div key={i} className="bg-white rounded-2xl p-6 border border-rx-gray-200 animate-pulse"><div className="h-4 w-28 bg-rx-gray-200 rounded mb-2" /><div className="h-8 w-32 bg-rx-gray-200 rounded mb-1" /><div className="h-3 w-24 bg-rx-gray-100 rounded" /></div>)
+        ) : (
+          <>
+            <div className="bg-white rounded-2xl p-6 border border-rx-gray-200 hover:shadow-md transition-shadow">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">Pending Requests</div>
+              <div className="text-2xl font-bold text-rx-gray-900 mb-1">{pendingCount}</div>
+              <div className="text-xs text-rx-gray-400">{formatCurrency(pendingAmount)} total</div>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border border-rx-gray-200 hover:shadow-md transition-shadow">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">Average Payout</div>
+              <div className="text-2xl font-bold text-rx-gray-900 mb-1">{formatCurrency(avgPayout)}</div>
+              <div className="text-xs text-rx-gray-400">Per affiliate</div>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border border-rx-gray-200 hover:shadow-md transition-shadow">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">Total Processed</div>
+              <div className="text-2xl font-bold text-rx-gray-900 mb-1">{payouts.filter((p) => p.status === "completed" || p.status === "paid").length}</div>
+              <div className="text-xs text-rx-gray-400">Payouts completed</div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+          <h3 className="text-base font-semibold text-rx-gray-800">Payout History</h3>
+          <div className="flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 bg-white hover:bg-rx-gray-50"
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Filter className="w-3 h-3" /> Filter</button>
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Download className="w-3 h-3" /> Export</button>
+          </div>
+        </div>
+
+        {loading ? (
+          <TableSkeleton rows={5} cols={7} />
+        ) : payouts.length === 0 ? (
+          <EmptyState title="No payouts found" description={statusFilter ? "Try adjusting your filter" : "Payouts will appear here once requested"} />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
+                  <th className="px-5 py-3">Affiliate</th>
+                  <th className="px-5 py-3">Amount</th>
+                  <th className="px-5 py-3">Method</th>
+                  <th className="px-5 py-3">Requested</th>
+                  <th className="px-5 py-3">Processed</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payouts.map((p) => {
+                  const affName = p.Affiliate?.User?.name || p.Affiliate?.referralCode || "Unknown";
+                  const initials = affName.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
+                  return (
+                    <tr key={p.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <Avatar initials={initials} />
+                          <span className="text-sm font-semibold text-rx-gray-800">{affName}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(p.amount)}</td>
+                      <td className="px-5 py-3.5 text-sm text-rx-gray-700 capitalize">{p.method || "-"}</td>
+                      <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(p.createdAt)}</td>
+                      <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(p.processedAt)}</td>
+                      <td className="px-5 py-3.5"><StatusBadge status={p.status as any} /></td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex gap-1">
+                          {p.status === "pending" && (
+                            <>
+                              <button onClick={() => handleApprove(p.id)} className="p-1.5 rounded-lg hover:bg-rx-secondary-light text-rx-secondary" title="Approve"><Check className="w-4 h-4" /></button>
+                              <button onClick={() => handleReject(p.id)} className="p-1.5 rounded-lg hover:bg-rx-danger-light text-rx-danger" title="Reject"><X className="w-4 h-4" /></button>
+                            </>
+                          )}
+                          <button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400" title="View"><Eye className="w-4 h-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

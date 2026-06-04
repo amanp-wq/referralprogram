@@ -1,12 +1,220 @@
 "use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { StatusBadge } from "../shared";
-import { Receipt, Download, Mail, Eye, Filter } from "lucide-react";
+import {
+  Receipt, Download, Mail, Eye, Filter,
+  RefreshCw, AlertCircle,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface Invoice {
+  id: string;
+  payoutId: string;
+  affiliateId: string;
+  amount: number;
+  invoiceNo: string;
+  status: string;
+  pdfUrl: string | null;
+  issuedAt: string | null;
+  dueDate: string | null;
+  paidAt: string | null;
+}
+
+function formatCurrency(amount: number): string {
+  return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export function AffiliateInvoices() {
-  return (<div className="space-y-6">
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-      <div className="bg-white rounded-2xl p-6 border border-rx-gray-200"><div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-lg bg-rx-secondary-light flex items-center justify-center"><Receipt className="w-5 h-5 text-rx-secondary"/></div><div><div className="text-sm font-semibold text-rx-gray-800">Recent Invoice</div><div className="text-xs text-rx-gray-500">INV-2026-012</div></div></div><div className="text-2xl font-bold text-rx-gray-900 mb-1">$495.00</div><div className="text-xs text-rx-gray-500">May 10, 2026 - Paid</div></div>
-      <div className="bg-white rounded-2xl p-6 border border-rx-gray-200"><div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-lg bg-rx-warning-light flex items-center justify-center"><Receipt className="w-5 h-5 text-rx-warning"/></div><div><div className="text-sm font-semibold text-rx-gray-800">Pending Invoices</div><div className="text-xs text-rx-gray-500">2 invoices awaiting payment</div></div></div><div className="text-2xl font-bold text-rx-gray-900 mb-1">$195.00</div><div className="text-xs text-rx-gray-500">Total pending amount</div></div>
+  const { token } = useAuth();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchInvoices = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/affiliate/invoices", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to load invoices");
+      }
+      const json = await res.json();
+      setInvoices(json.invoices || []);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  // Compute stats
+  const latestInvoice = invoices.length > 0 ? invoices[0] : null;
+  const pendingInvoices = invoices.filter((inv) => inv.status === "pending");
+  const pendingTotal = pendingInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <AlertCircle className="w-12 h-12 text-rx-danger mb-4" />
+        <h3 className="text-lg font-semibold text-rx-gray-800 mb-2">Failed to load invoices</h3>
+        <p className="text-sm text-rx-gray-500 mb-4">{error}</p>
+        <button onClick={fetchInvoices} className="inline-flex items-center gap-2 px-4 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">
+          <RefreshCw className="w-4 h-4" /> Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {loading ? (
+          [1, 2].map((i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 border border-rx-gray-200">
+              <div className="flex items-center gap-3 mb-3">
+                <Skeleton className="w-10 h-10 rounded-lg" />
+                <div>
+                  <Skeleton className="h-4 w-24 mb-1" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              </div>
+              <Skeleton className="h-8 w-24 mb-1" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+          ))
+        ) : (
+          <>
+            <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-rx-secondary-light flex items-center justify-center">
+                  <Receipt className="w-5 h-5 text-rx-secondary" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-rx-gray-800">Recent Invoice</div>
+                  <div className="text-xs text-rx-gray-500">{latestInvoice?.invoiceNo || "No invoices"}</div>
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-rx-gray-900 mb-1">
+                {latestInvoice ? formatCurrency(latestInvoice.amount) : "$0.00"}
+              </div>
+              <div className="text-xs text-rx-gray-500">
+                {latestInvoice ? `${formatDate(latestInvoice.issuedAt)} - ${latestInvoice.status === "paid" ? "Paid" : "Pending"}` : "No invoices yet"}
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-rx-warning-light flex items-center justify-center">
+                  <Receipt className="w-5 h-5 text-rx-warning" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-rx-gray-800">Pending Invoices</div>
+                  <div className="text-xs text-rx-gray-500">{pendingInvoices.length} invoice{pendingInvoices.length !== 1 ? "s" : ""} awaiting payment</div>
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-rx-gray-900 mb-1">{formatCurrency(pendingTotal)}</div>
+              <div className="text-xs text-rx-gray-500">Total pending amount</div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Invoices Table */}
+      <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+          <h3 className="text-base font-semibold text-rx-gray-800">All Invoices</h3>
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50">
+            <Filter className="w-3 h-3" /> Filter
+          </button>
+        </div>
+        {loading ? (
+          <div className="p-5 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <div className="flex gap-1">
+                  <Skeleton className="w-7 h-7 rounded-lg" />
+                  <Skeleton className="w-7 h-7 rounded-lg" />
+                  <Skeleton className="w-7 h-7 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : invoices.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
+                  <th className="px-5 py-3">Invoice</th>
+                  <th className="px-5 py-3">Date</th>
+                  <th className="px-5 py-3">Amount</th>
+                  <th className="px-5 py-3">Due Date</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr key={inv.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
+                    <td className="px-5 py-3.5 text-sm font-mono font-semibold text-rx-gray-800">{inv.invoiceNo}</td>
+                    <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(inv.issuedAt)}</td>
+                    <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(inv.amount)}</td>
+                    <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(inv.dueDate)}</td>
+                    <td className="px-5 py-3.5">
+                      <StatusBadge status={inv.status as any} />
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex gap-1">
+                        <button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400" title="View">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        {inv.pdfUrl && (
+                          <a
+                            href={inv.pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400"
+                            title="Download PDF"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        )}
+                        <button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400" title="Email">
+                          <Mail className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <Receipt className="w-10 h-10 text-rx-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-rx-gray-500">No invoices yet. Invoices are generated when payouts are processed.</p>
+          </div>
+        )}
+      </div>
     </div>
-    <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden"><div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100"><h3 className="text-base font-semibold text-rx-gray-800">All Invoices</h3><button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Filter className="w-3 h-3"/> Filter</button></div><div className="overflow-x-auto"><table className="w-full"><thead><tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50"><th className="px-5 py-3">Invoice</th><th className="px-5 py-3">Date</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Due Date</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Actions</th></tr></thead><tbody>{[{id:"INV-2026-012",date:"May 10, 2026",amount:"$495.00",due:"May 15, 2026",status:"paid" as const},{id:"INV-2026-011",date:"May 3, 2026",amount:"$285.00",due:"May 8, 2026",status:"paid" as const},{id:"INV-2026-010",date:"Apr 26, 2026",amount:"$340.00",due:"May 1, 2026",status:"paid" as const},{id:"INV-2026-009",date:"Apr 19, 2026",amount:"$120.00",due:"Apr 24, 2026",status:"pending" as const},{id:"INV-2026-008",date:"Apr 12, 2026",amount:"$75.00",due:"Apr 17, 2026",status:"pending" as const}].map(inv=><tr key={inv.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50"><td className="px-5 py-3.5 text-sm font-mono font-semibold text-rx-gray-800">{inv.id}</td><td className="px-5 py-3.5 text-sm text-rx-gray-500">{inv.date}</td><td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{inv.amount}</td><td className="px-5 py-3.5 text-sm text-rx-gray-500">{inv.due}</td><td className="px-5 py-3.5"><StatusBadge status={inv.status}/></td><td className="px-5 py-3.5"><div className="flex gap-1"><button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400"><Eye className="w-4 h-4"/></button><button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400"><Download className="w-4 h-4"/></button><button className="p-1.5 rounded-lg hover:bg-rx-gray-100 text-rx-gray-400"><Mail className="w-4 h-4"/></button></div></td></tr>)}</tbody></table></div></div>
-  </div>);
+  );
 }
