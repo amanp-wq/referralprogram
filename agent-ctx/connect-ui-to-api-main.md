@@ -1,48 +1,106 @@
-# Task: Connect UI Components to Real API Data
+# Task: Rewrite 9 Admin Components to Fetch Live API Data
+
+## Agent: Main Developer
+## Task ID: connect-ui-to-api
 
 ## Summary
-Successfully replaced all hardcoded mock data in ElevateMe Referral project components with real API fetch calls. All 20+ components now connect to their respective backend API endpoints.
+Rewrote all 9 admin components and the shared.tsx file to fetch live data from API routes instead of using hardcoded mock data. Also updated AppShell.tsx and page.tsx to use the ElevateMe logo instead of "E" text initials.
 
-## Changes Made
+## Files Modified
 
-### Core Auth Changes
-1. **AppShell.tsx** - Removed `onLogout` prop, added `signOut` from `next-auth/react` with `callbackUrl: '/'`
-2. **page.tsx** - Removed `onLogout` prop from both `<AppShell>` calls, removed unused `signOut` import
+1. **`src/components/referralx/shared.tsx`** - Complete rewrite
+   - Added `suspended` and `cancelled` to StatusBadge supported statuses
+   - Updated `Avatar` component to support `src`, `alt`, and `useLogo` props
+   - When `useLogo={true}`, shows ElevateMe logo with orange gradient background
+   - When `src` provided, shows the image
+   - Otherwise, falls back to initials
+   - Added helper components: `KpiCardSkeleton`, `ErrorWithRetry`, `EmptyState`, `TableSkeleton`, `CardSkeleton`
+   - Added utility functions: `formatCurrency`, `formatDate`, `formatDateTime`, `timeAgo`
 
-### Admin Components (9 files)
-3. **AdminDashboard.tsx** - Fetches from `/api/admin/dashboard`, maps KPIs, top affiliates, programs, and recent activities
-4. **AdminAffiliates.tsx** - Fetches from `/api/admin/affiliates`, wired search, approve/reject/deactivate actions via PATCH
-5. **AdminCommissions.tsx** - Fetches from `/api/admin/commissions`, filter tabs with query params, approve/mark-paid via PATCH
-6. **AdminReferrals.tsx** - Fetches from `/api/admin/referrals`
-7. **AdminPrograms.tsx** - Fetches from `/api/admin/programs`, "Create Program" modal with POST
-8. **AdminLinks.tsx** - Fetches from `/api/admin/links`, "Create Link" form with POST
-9. **AdminPayouts.tsx** - Fetches from `/api/admin/payouts`, approve/reject/complete actions via PATCH
-10. **AdminReports.tsx** - Fetches from `/api/admin/reports` with type param, generate report on click
-11. **AdminSettings.tsx** - Fetches from GET `/api/admin/settings`, saves via PUT, merges with defaults
+2. **`src/components/referralx/admin/AdminDashboard.tsx`** - Complete rewrite
+   - Fetches from `GET /api/admin/dashboard` with auth header
+   - Shows KPIs, revenue trend chart, referral sources breakdown, top affiliates table, program cards, quick actions, recent activity
+   - Loading skeletons for all sections
+   - Error handling with retry button
+   - Empty states for no data
 
-### Affiliate Components (9 files)
-12. **AffiliateDashboard.tsx** - Fetches from `/api/affiliate/dashboard`, shows real KPIs, referral link, balances
-13. **AffiliateLinks.tsx** - Fetches from `/api/affiliate/links`, "Create Link" form with POST
-14. **AffiliateConversions.tsx** - Fetches from `/api/affiliate/conversions`
-15. **AffiliateReferrals.tsx** - Fetches from `/api/affiliate/referrals`, shows real referral link
-16. **AffiliateEarnings.tsx** - Fetches from `/api/affiliate/earnings`, shows real balances and history
-17. **AffiliatePayouts.tsx** - Fetches from `/api/affiliate/payouts`, "Request Payout" with amount input via POST
-18. **AffiliateInvoices.tsx** - Fetches from `/api/affiliate/invoices`
-19. **AffiliateSettings.tsx** - Fetches from GET `/api/affiliate/settings`, saves via PUT
-20. **AffiliateHelp.tsx** - Static FAQs kept, "Send Message" wired up with success feedback
+3. **`src/components/referralx/admin/AdminAffiliates.tsx`** - Complete rewrite
+   - Fetches from `GET /api/admin/affiliates` with search & status filters
+   - KPIs derived from API data
+   - Table with search, status filter, and affiliate details
+   - Invite dialog that POSTs to `/api/admin/affiliates`
+   - Loading skeletons, error handling, empty states
 
-## Patterns Used
-- All components use `"use client"` directive
-- Loading state: `const [loading, setLoading] = useState(true)`
-- Data state: `const [data, setData] = useState(null)`
-- useEffect for initial data fetch
-- Separate `fetchData()` function for refresh after mutations
-- Action messages for user feedback (no toast library)
-- Inline fetch in useEffect to satisfy React hooks lint rule
-- formatDate helper for date formatting
+4. **`src/components/referralx/admin/AdminPrograms.tsx`** - Complete rewrite
+   - Fetches from `GET /api/admin/programs`
+   - Program cards with commission type, affiliate count, min payout, cookie duration
+   - Create dialog that POSTs to `/api/admin/programs`
+   - Toggle active/inactive via PUT
+   - Loading skeletons, error handling, empty states
 
-## Lint Status
-All custom files pass lint. Only 2 pre-existing errors in carousel.tsx and use-mobile.ts (not modified).
+5. **`src/components/referralx/admin/AdminReferrals.tsx`** - Complete rewrite
+   - Fetches from `GET /api/admin/referrals` with status filter
+   - KPIs derived from API data
+   - Table with affiliate, referred visitor, program, source, date, status
+   - Status filter dropdown
+   - Loading skeletons, error handling, empty states
 
-## Dev Server
-Running successfully on port 3000, page compiles without errors.
+6. **`src/components/referralx/admin/AdminCommissions.tsx`** - Complete rewrite
+   - Fetches from `GET /api/admin/commissions` with status filter
+   - Tab-style status filters (All, Pending, Approved, Paid, Processing, Failed)
+   - Approve/Reject action buttons for pending commissions via PUT
+   - Loading skeletons, error handling, empty states
+
+7. **`src/components/referralx/admin/AdminLinks.tsx`** - Complete rewrite
+   - Fetches from `GET /api/admin/links`
+   - Card grid showing each link with code, URL, clicks, conversions, rate
+   - Copy button for link URLs
+   - Shows affiliate name and program name
+   - Loading skeletons, error handling, empty states
+
+8. **`src/components/referralx/admin/AdminPayouts.tsx`** - Complete rewrite
+   - Fetches from `GET /api/admin/payouts` with status filter
+   - KPIs derived from API data
+   - Summary cards (pending requests, average payout, total processed)
+   - Approve/Reject action buttons for pending payouts via PUT
+   - Loading skeletons, error handling, empty states
+
+9. **`src/components/referralx/admin/AdminReports.tsx`** - Complete rewrite
+   - Fetches from `GET /api/admin/reports?period=X`
+   - Period selector (7d, 30d, 90d, 1y)
+   - Report type cards with live stats from API
+   - Recent reports table built from commission data
+   - Quick stats overview grid
+   - Loading skeletons, error handling, empty states
+
+10. **`src/components/referralx/admin/AdminSettings.tsx`** - Complete rewrite
+    - Fetches from `GET /api/admin/settings`
+    - Converts key-value settings to form state
+    - General settings, notification preferences, security sections
+    - Save changes via PUT to `/api/admin/settings`
+    - Success indicator on save
+    - Loading skeletons, error handling
+
+11. **`src/components/referralx/AppShell.tsx`** - Logo update
+    - Replaced "E" text initial with `<img src="/logo.svg">` in sidebar
+
+12. **`src/app/page.tsx`** - Logo updates
+    - Replaced "E" text initials with `<img src="/logo.svg">` in login form and footer
+
+## Patterns Applied
+
+All 9 admin components follow the same pattern:
+- `useAuth()` from `@/contexts/AuthContext` to get `token`
+- `useState` for data, loading, error states
+- `useEffect` with `useCallback` to fetch from API on mount
+- `Authorization: Bearer ${token}` header on all API calls
+- Loading skeletons with pulse animations while fetching
+- ErrorWithRetry component for error states
+- EmptyState component for no-data scenarios
+- Numbers formatted as currency with `$` prefix using `formatCurrency()`
+- Dates formatted nicely using `formatDate()`, `formatDateTime()`, `timeAgo()`
+- ElevateMe logo (`<img src="/logo.svg" alt="ElevateMe" />`) used in Avatar with `useLogo` prop and in AppShell/sidebar
+
+## Lint & Build Status
+- Zero lint errors in src/ directory
+- Dev server compiles successfully
