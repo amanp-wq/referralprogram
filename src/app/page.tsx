@@ -51,7 +51,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
     <div className="w-full max-w-md mx-auto">
       <div className="bg-white rounded-2xl shadow-xl p-8 border border-rx-gray-200">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-rx-primary to-rx-primary-dark flex items-center justify-center mx-auto mb-4 overflow-hidden"><img src="/logo.svg" alt="ElevateMe" className="w-9 h-9 object-contain brightness-0 invert" /></div>
+          <img src="/logo.svg" alt="ElevateMe" className="h-12 w-auto mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-rx-gray-900">Welcome Back</h2>
           <p className="text-rx-gray-500 mt-1">Sign in to your account</p>
         </div>
@@ -169,6 +169,16 @@ export default function Home() {
     <div className="min-h-screen bg-rx-gray-50">
       <div className="relative overflow-hidden bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20]">
         <div className="absolute inset-0 opacity-10"><div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl"/><div className="absolute bottom-20 right-20 w-96 h-96 bg-rx-secondary rounded-full blur-3xl"/></div>
+        {/* Navigation Header with Logo */}
+        <nav className="relative max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="ElevateMe" className="h-10 w-auto brightness-0 invert" />
+          </div>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setShowLogin(true)} className="text-white/80 hover:text-white text-sm font-medium transition-colors">Sign In</button>
+            <button onClick={() => setShowLogin(true)} className="bg-white text-rx-primary px-5 py-2 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors">Get Started</button>
+          </div>
+        </nav>
         <div className="relative max-w-7xl mx-auto px-6 py-20">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6"><Zap className="w-4 h-4 text-rx-warning"/><span className="text-white/90 text-sm font-medium">Referral Program Platform</span></div>
@@ -195,7 +205,7 @@ export default function Home() {
         <div className="text-center mb-16"><h2 className="text-3xl font-bold text-rx-gray-900 mb-4">Everything You Need</h2><p className="text-rx-gray-500 text-lg max-w-2xl mx-auto">A complete platform to launch, manage, and scale your referral programs</p></div>
         <div className="grid md:grid-cols-3 gap-8">{[{icon:Target,title:"Smart Tracking",desc:"Real-time tracking of referrals, clicks, and conversions with detailed analytics.",color:"bg-rx-primary-light text-rx-primary"},{icon:BarChart3,title:"Powerful Analytics",desc:"Comprehensive reports and insights to optimize your referral program performance.",color:"bg-rx-secondary-light text-rx-secondary"},{icon:Zap,title:"Instant Payouts",desc:"Automated commission calculations and flexible payout options for your affiliates.",color:"bg-rx-warning-light text-rx-warning"}].map((feature,i)=><div key={i} className="bg-white rounded-xl p-8 border border-rx-gray-200 hover:shadow-lg transition-shadow"><div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-4`}><feature.icon className="w-6 h-6"/></div><h3 className="text-lg font-semibold text-rx-gray-900 mb-2">{feature.title}</h3><p className="text-rx-gray-500 leading-relaxed">{feature.desc}</p></div>)}</div>
       </div>
-      <footer className="bg-white border-t border-rx-gray-200 py-8"><div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rx-primary to-rx-primary-dark flex items-center justify-center overflow-hidden"><img src="/logo.svg" alt="ElevateMe" className="w-5 h-5 object-contain brightness-0 invert" /></div><span className="font-bold text-rx-gray-900 text-lg">ElevateMe Referral</span></div><p className="text-rx-gray-500 text-sm">&copy; 2026 ElevateMe. All rights reserved.</p></div></footer>
+      <footer className="bg-white border-t border-rx-gray-200 py-8"><div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4"><div className="flex items-center gap-3"><img src="/logo.svg" alt="ElevateMe" className="h-8 w-auto" /><span className="font-bold text-rx-gray-900 text-lg">Referral</span></div><p className="text-rx-gray-500 text-sm">&copy; 2026 ElevateMe. All rights reserved.</p></div></footer>
     </div>
   );
 }

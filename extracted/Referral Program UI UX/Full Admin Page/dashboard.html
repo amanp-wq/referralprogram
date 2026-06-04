@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - ReferralX</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #e0e7ff;
+            --secondary: #10b981;
+            --secondary-light: #d1fae5;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --info: #3b82f6;
+            --info-light: #dbeafe;
+            --dark: #1e293b;
+            --gray-900: #0f172a;
+            --gray-800: #1e293b;
+            --gray-700: #334155;
+            --gray-600: #475569;
+            --gray-500: #64748b;
+            --gray-400: #94a3b8;
+            --gray-300: #cbd5e1;
+            --gray-200: #e2e8f0;
+            --gray-100: #f1f5f9;
+            --gray-50: #f8fafc;
+            --white: #ffffff;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --radius-sm: 6px;
+            --radius: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --sidebar-width: 260px;
+            --sidebar-collapsed: 72px;
+            --header-height: 64px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gray-400); }
+        .app-container { display: flex; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--white);
+            border-right: 1px solid var(--gray-200);
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        .sidebar-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px; flex-shrink: 0;
+        }
+        .logo-text {
+            font-weight: 700; font-size: 20px; color: var(--gray-900);
+            letter-spacing: -0.5px; transition: opacity 0.2s;
+        }
+        .sidebar.collapsed .logo-text { opacity: 0; width: 0; overflow: hidden; }
+        .nav-section { padding: 16px 12px; flex: 1; overflow-y: auto; }
+        .nav-label {
+            font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--gray-400);
+            padding: 0 12px 8px; transition: opacity 0.2s;
+        }
+        .sidebar.collapsed .nav-label { opacity: 0; height: 0; padding: 0; overflow: hidden; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: var(--radius);
+            cursor: pointer; transition: all 0.2s;
+            color: var(--gray-600); text-decoration: none;
+            margin-bottom: 2px; position: relative;
+        }
+        .nav-item:hover { background: var(--gray-50); color: var(--gray-800); }
+        .nav-item.active {
+            background: var(--primary-light); color: var(--primary-dark); font-weight: 600;
+        }
+        .nav-item.active::before {
+            content: ''; position: absolute; left: 0; top: 50%;
+            transform: translateY(-50%); width: 3px; height: 20px;
+            background: var(--primary); border-radius: 0 4px 4px 0;
+        }
+        .nav-item i { width: 20px; text-align: center; font-size: 18px; flex-shrink: 0; }
+        .nav-item span { font-size: 14px; white-space: nowrap; transition: opacity 0.2s; }
+        .sidebar.collapsed .nav-item span { opacity: 0; width: 0; overflow: hidden; }
+        .nav-badge {
+            margin-left: auto; background: var(--danger); color: white;
+            font-size: 11px; font-weight: 600; padding: 2px 6px;
+            border-radius: 10px; transition: opacity 0.2s;
+        }
+        .sidebar.collapsed .nav-badge { opacity: 0; position: absolute; top: 8px; right: 8px; }
+        .sidebar-footer { padding: 16px; border-top: 1px solid var(--gray-100); }
+        .user-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 8px; border-radius: var(--radius);
+            cursor: pointer; transition: background 0.2s;
+        }
+        .user-card:hover { background: var(--gray-50); }
+        .user-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 600; font-size: 14px; flex-shrink: 0;
+        }
+        .user-info { transition: opacity 0.2s; }
+        .sidebar.collapsed .user-info { opacity: 0; width: 0; overflow: hidden; }
+        .user-name { font-size: 14px; font-weight: 600; color: var(--gray-800); }
+        .user-role { font-size: 12px; color: var(--gray-500); }
+
+        /* Main Content */
+        .main-content {
+            flex: 1; margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar.collapsed + .main-content { margin-left: var(--sidebar-collapsed); }
+
+        /* Header */
+        .header {
+            height: var(--header-height); background: var(--white);
+            border-bottom: 1px solid var(--gray-200);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; position: sticky; top: 0; z-index: 50;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .toggle-sidebar {
+            width: 36px; height: 36px; border-radius: var(--radius);
+            border: 1px solid var(--gray-200); background: var(--white);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            color: var(--gray-600); transition: all 0.2s;
+        }
+        .toggle-sidebar:hover { background: var(--gray-50); color: var(--gray-800); }
+        .page-title { font-size: 20px; font-weight: 700; color: var(--gray-900); }
+        .breadcrumb {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: var(--gray-500);
+        }
+        .breadcrumb a { color: var(--gray-500); text-decoration: none; transition: color 0.2s; }
+        .breadcrumb a:hover { color: var(--primary); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .search-box { position: relative; }
+        .search-box input {
+            width: 280px; padding: 8px 12px 8px 36px;
+            border: 1px solid var(--gray-200); border-radius: var(--radius);
+            font-size: 14px; background: var(--gray-50); transition: all 0.2s;
+        }
+        .search-box input:focus {
+            outline: none; border-color: var(--primary); background: var(--white);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .search-box i {
+            position: absolute; left: 12px; top: 50%;
+            transform: translateY(-50%); color: var(--gray-400); font-size: 14px;
+        }
+        .header-btn {
+            width: 36px; height: 36px; border-radius: var(--radius);
+            border: 1px solid var(--gray-200); background: var(--white);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            color: var(--gray-600); transition: all 0.2s; position: relative;
+        }
+        .header-btn:hover { background: var(--gray-50); color: var(--gray-800); }
+        .header-btn .dot {
+            position: absolute; top: 8px; right: 8px;
+            width: 8px; height: 8px; background: var(--danger);
+            border-radius: 50%; border: 2px solid var(--white);
+        }
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px; background: var(--primary); color: white;
+            border: none; border-radius: var(--radius); font-size: 14px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark); transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        .btn-success {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px; background: var(--secondary); color: white;
+            border: none; border-radius: var(--radius); font-size: 14px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none;
+        }
+        .btn-success:hover { background: #059669; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-danger {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px; background: var(--danger); color: white;
+            border: none; border-radius: var(--radius); font-size: 14px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none;
+        }
+        .btn-danger:hover { background: #dc2626; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-outline {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border: 1px solid var(--gray-200);
+            background: var(--white); color: var(--gray-600);
+            border-radius: var(--radius); font-size: 13px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-outline:hover {
+            border-color: var(--gray-300); color: var(--gray-800); background: var(--gray-50);
+        }
+        .btn-secondary {
+            padding: 8px 16px; border: 1px solid var(--gray-200); background: var(--white);
+            color: var(--gray-700); border-radius: var(--radius); font-size: 14px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: var(--gray-50); border-color: var(--gray-300); }
+
+        /* Content */
+        .content { padding: 24px; max-width: 1440px; }
+
+        /* Cards */
+        .card {
+            background: var(--white); border-radius: var(--radius-lg);
+            border: 1px solid var(--gray-200); overflow: hidden;
+        }
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px; border-bottom: 1px solid var(--gray-100);
+        }
+        .card-title { font-size: 16px; font-weight: 600; color: var(--gray-800); }
+        .card-body { padding: 20px; }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 20px; margin-bottom: 24px;
+        }
+        .kpi-card {
+            background: var(--white); border-radius: var(--radius-lg);
+            padding: 20px; border: 1px solid var(--gray-200); transition: all 0.2s;
+        }
+        .kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .kpi-header {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .kpi-label { font-size: 13px; font-weight: 500; color: var(--gray-500); }
+        .kpi-icon {
+            width: 40px; height: 40px; border-radius: var(--radius);
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .kpi-icon.primary { background: var(--primary-light); color: var(--primary); }
+        .kpi-icon.success { background: var(--secondary-light); color: var(--secondary); }
+        .kpi-icon.warning { background: var(--warning-light); color: var(--warning); }
+        .kpi-icon.danger { background: var(--danger-light); color: var(--danger); }
+        .kpi-icon.info { background: var(--info-light); color: var(--info); }
+        .kpi-value {
+            font-size: 28px; font-weight: 700; color: var(--gray-900);
+            margin-bottom: 8px; letter-spacing: -0.5px;
+        }
+        .kpi-footer { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .trend {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-weight: 600; padding: 2px 6px; border-radius: 4px; font-size: 12px;
+        }
+        .trend.up { color: var(--secondary); background: var(--secondary-light); }
+        .trend.down { color: var(--danger); background: var(--danger-light); }
+        .kpi-context { color: var(--gray-500); }
+
+        /* Charts */
+        .charts-grid {
+            display: grid; grid-template-columns: 2fr 1fr;
+            gap: 20px; margin-bottom: 24px;
+        }
+        .chart-card {
+            background: var(--white); border-radius: var(--radius-lg);
+            padding: 20px; border: 1px solid var(--gray-200);
+        }
+        .chart-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .chart-title { font-size: 16px; font-weight: 600; color: var(--gray-800); }
+        .chart-actions { display: flex; gap: 8px; }
+        .chart-filter {
+            padding: 6px 12px; border: 1px solid var(--gray-200);
+            border-radius: var(--radius); font-size: 13px; background: var(--white);
+            color: var(--gray-600); cursor: pointer; transition: all 0.2s;
+        }
+        .chart-filter:hover, .chart-filter.active {
+            border-color: var(--primary); color: var(--primary); background: var(--primary-light);
+        }
+        .chart-container { position: relative; height: 300px; }
+
+        /* Table */
+        .table-card {
+            background: var(--white); border-radius: var(--radius-lg);
+            border: 1px solid var(--gray-200); overflow: hidden;
+        }
+        .table-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px; border-bottom: 1px solid var(--gray-100);
+        }
+        .table-title { font-size: 16px; font-weight: 600; color: var(--gray-800); }
+        .table-actions { display: flex; gap: 8px; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th {
+            text-align: left; padding: 12px 20px; font-size: 12px;
+            font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--gray-500); background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200); white-space: nowrap;
+        }
+        .data-table td {
+            padding: 14px 20px; font-size: 14px; color: var(--gray-700);
+            border-bottom: 1px solid var(--gray-100); vertical-align: middle;
+        }
+        .data-table tr:hover td { background: var(--gray-50); }
+        .data-table tr:last-child td { border-bottom: none; }
+
+        .affiliate-cell { display: flex; align-items: center; gap: 12px; }
+        .affiliate-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 600; font-size: 13px; flex-shrink: 0;
+        }
+        .affiliate-info h4 { font-size: 14px; font-weight: 600; color: var(--gray-800); margin-bottom: 2px; }
+        .affiliate-info p { font-size: 12px; color: var(--gray-500); }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        }
+        .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+        .status-badge.active { background: var(--secondary-light); color: var(--secondary); }
+        .status-badge.active::before { background: var(--secondary); }
+        .status-badge.pending { background: var(--warning-light); color: var(--warning); }
+        .status-badge.pending::before { background: var(--warning); }
+        .status-badge.inactive { background: var(--gray-100); color: var(--gray-500); }
+        .status-badge.inactive::before { background: var(--gray-400); }
+        .status-badge.paid { background: var(--secondary-light); color: var(--secondary); }
+        .status-badge.paid::before { background: var(--secondary); }
+        .status-badge.processing { background: var(--info-light); color: var(--info); }
+        .status-badge.processing::before { background: var(--info); }
+        .status-badge.failed { background: var(--danger-light); color: var(--danger); }
+        .status-badge.failed::before { background: var(--danger); }
+
+        .commission-value { font-weight: 600; color: var(--gray-900); }
+        .progress-bar {
+            width: 100px; height: 6px; background: var(--gray-200);
+            border-radius: 3px; overflow: hidden;
+        }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .progress-fill.primary { background: var(--primary); }
+        .progress-fill.success { background: var(--secondary); }
+        .progress-fill.warning { background: var(--warning); }
+        .progress-fill.danger { background: var(--danger); }
+
+        .table-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px; border-top: 1px solid var(--gray-100);
+            font-size: 13px; color: var(--gray-500);
+        }
+        .pagination { display: flex; align-items: center; gap: 4px; }
+        .page-btn {
+            width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--gray-200); background: var(--white); color: var(--gray-600);
+            border-radius: var(--radius); cursor: pointer; font-size: 13px; transition: all 0.2s;
+        }
+        .page-btn:hover { background: var(--gray-50); border-color: var(--gray-300); }
+        .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Program Cards */
+        .program-cards {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 20px; margin-bottom: 24px;
+        }
+        .program-card {
+            background: var(--white); border-radius: var(--radius-lg);
+            padding: 24px; border: 1px solid var(--gray-200);
+            transition: all 0.2s; position: relative; overflow: hidden;
+        }
+        .program-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+        .program-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 4px; background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+        .program-card.success::before {
+            background: linear-gradient(90deg, var(--secondary) 0%, #059669 100%);
+        }
+        .program-card.warning::before {
+            background: linear-gradient(90deg, var(--warning) 0%, #d97706 100%);
+        }
+        .program-header {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .program-name { font-size: 16px; font-weight: 600; color: var(--gray-800); }
+        .program-type { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+        .program-menu {
+            width: 32px; height: 32px; border-radius: var(--radius);
+            border: none; background: transparent; cursor: pointer;
+            color: var(--gray-400); display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .program-menu:hover { background: var(--gray-100); color: var(--gray-600); }
+        .program-stats {
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 16px; margin-bottom: 16px;
+        }
+        .program-stat { display: flex; flex-direction: column; gap: 4px; }
+        .program-stat-label { font-size: 12px; color: var(--gray-500); }
+        .program-stat-value { font-size: 20px; font-weight: 700; color: var(--gray-900); }
+        .program-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding-top: 16px; border-top: 1px solid var(--gray-100);
+        }
+        .program-participants { display: flex; align-items: center; }
+        .participant-avatar {
+            width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--white);
+            margin-left: -8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 10px; font-weight: 600;
+        }
+        .participant-avatar:first-child { margin-left: 0; }
+        .participant-more {
+            width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--white);
+            margin-left: -8px; background: var(--gray-100);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--gray-600); font-size: 10px; font-weight: 600;
+        }
+        .program-link {
+            font-size: 13px; color: var(--primary); text-decoration: none;
+            font-weight: 600; display: flex; align-items: center; gap: 4px;
+            transition: gap 0.2s;
+        }
+        .program-link:hover { gap: 8px; }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 16px; margin-bottom: 24px;
+        }
+        .action-card {
+            background: var(--white); border-radius: var(--radius-md);
+            padding: 16px; border: 1px solid var(--gray-200);
+            display: flex; align-items: center; gap: 12px;
+            cursor: pointer; transition: all 0.2s; text-decoration: none; color: inherit;
+        }
+        .action-card:hover {
+            border-color: var(--primary); box-shadow: var(--shadow-md); transform: translateY(-1px);
+        }
+        .action-icon {
+            width: 44px; height: 44px; border-radius: var(--radius);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+        }
+        .action-icon.blue { background: #dbeafe; color: #2563eb; }
+        .action-icon.green { background: #dcfce7; color: #16a34a; }
+        .action-icon.purple { background: #f3e8ff; color: #9333ea; }
+        .action-icon.orange { background: #ffedd5; color: #ea580c; }
+        .action-icon.red { background: var(--danger-light); color: var(--danger); }
+        .action-text { display: flex; flex-direction: column; gap: 2px; }
+        .action-title { font-size: 14px; font-weight: 600; color: var(--gray-800); }
+        .action-desc { font-size: 12px; color: var(--gray-500); }
+
+        /* Activity Feed */
+        .activity-list { display: flex; flex-direction: column; gap: 16px; }
+        .activity-item {
+            display: flex; gap: 12px; padding-bottom: 16px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .activity-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .activity-icon {
+            width: 36px; height: 36px; border-radius: var(--radius);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0;
+        }
+        .activity-icon.success { background: var(--secondary-light); color: var(--secondary); }
+        .activity-icon.primary { background: var(--primary-light); color: var(--primary); }
+        .activity-icon.warning { background: var(--warning-light); color: var(--warning); }
+        .activity-icon.danger { background: var(--danger-light); color: var(--danger); }
+        .activity-content { flex: 1; }
+        .activity-text { font-size: 14px; color: var(--gray-700); line-height: 1.5; }
+        .activity-text strong { color: var(--gray-900); font-weight: 600; }
+        .activity-time { font-size: 12px; color: var(--gray-400); margin-top: 4px; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px); z-index: 1000;
+            display: none; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal {
+            background: var(--white); border-radius: var(--radius-xl);
+            width: 100%; max-width: 520px; max-height: 90vh;
+            overflow-y: auto; transform: scale(0.95) translateY(10px);
+            transition: transform 0.3s; box-shadow: var(--shadow-xl);
+        }
+        .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+        .modal-header {
+            padding: 24px 24px 0; display: flex; align-items: center; justify-content: space-between;
+        }
+        .modal-title { font-size: 20px; font-weight: 700; color: var(--gray-900); }
+        .modal-close {
+            width: 32px; height: 32px; border-radius: var(--radius);
+            border: none; background: var(--gray-100); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--gray-500); transition: all 0.2s;
+        }
+        .modal-close:hover { background: var(--gray-200); color: var(--gray-800); }
+        .modal-body { padding: 20px 24px; }
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 10px 14px; border: 1px solid var(--gray-200);
+            border-radius: var(--radius); font-size: 14px; font-family: inherit;
+            transition: all 0.2s; background: var(--white);
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .form-textarea { resize: vertical; min-height: 80px; }
+        .form-hint { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+        .modal-footer { padding: 16px 24px 24px; display: flex; justify-content: flex-end; gap: 12px; }
+
+        /* Dropdown */
+        .dropdown { position: relative; }
+        .dropdown-menu {
+            position: absolute; top: calc(100% + 8px); right: 0; width: 360px;
+            background: var(--white); border-radius: var(--radius-lg);
+            border: 1px solid var(--gray-200); box-shadow: var(--shadow-xl);
+            z-index: 200; display: none; overflow: hidden;
+        }
+        .dropdown-menu.active { display: block; animation: fadeIn 0.2s ease-out; }
+        .dropdown-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--gray-100);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .dropdown-title { font-size: 14px; font-weight: 600; color: var(--gray-800); }
+        .dropdown-action { font-size: 13px; color: var(--primary); cursor: pointer; font-weight: 500; }
+        .dropdown-body { max-height: 400px; overflow-y: auto; }
+        .notification-item {
+            padding: 14px 20px; border-bottom: 1px solid var(--gray-100);
+            cursor: pointer; transition: background 0.2s;
+            display: flex; gap: 12px; align-items: flex-start;
+        }
+        .notification-item:hover { background: var(--gray-50); }
+        .notification-item.unread { background: var(--primary-light); }
+        .notification-item.unread:hover { background: #dbe4ff; }
+        .notification-dot {
+            width: 8px; height: 8px; border-radius: 50%; background: var(--primary);
+            margin-top: 6px; flex-shrink: 0;
+        }
+        .notification-content { flex: 1; }
+        .notification-text { font-size: 13px; color: var(--gray-700); line-height: 1.5; }
+        .notification-time { font-size: 12px; color: var(--gray-400); margin-top: 4px; }
+        .dropdown-footer { padding: 12px 20px; border-top: 1px solid var(--gray-100); text-align: center; }
+        .dropdown-footer a { font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 500; }
+
+        /* Mobile */
+        .mobile-overlay {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+            z-index: 99; display: none;
+        }
+        .mobile-overlay.active { display: block; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--gray-200); margin-bottom: 20px; }
+        .tab {
+            padding: 10px 16px; font-size: 14px; font-weight: 500; color: var(--gray-500);
+            cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+            background: none; border-top: none; border-left: none; border-right: none;
+        }
+        .tab:hover { color: var(--gray-700); }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* Grid layouts */
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+        /* Toast */
+        .toast-container {
+            position: fixed; top: 24px; right: 24px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .toast {
+            background: var(--white); border-radius: var(--radius-lg);
+            padding: 16px 20px; box-shadow: var(--shadow-xl);
+            border-left: 4px solid var(--primary);
+            display: flex; align-items: center; gap: 12px;
+            min-width: 300px; animation: slideIn 0.3s ease-out;
+        }
+        .toast.success { border-left-color: var(--secondary); }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.warning { border-left-color: var(--warning); }
+        .toast-icon { font-size: 20px; }
+        .toast-content { flex: 1; }
+        .toast-title { font-size: 14px; font-weight: 600; color: var(--gray-800); }
+        .toast-message { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
+        .toast-close {
+            width: 24px; height: 24px; border-radius: var(--radius-sm);
+            border: none; background: var(--gray-100); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--gray-500);
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* Link card */
+        .link-card {
+            background: var(--white); border-radius: var(--radius-lg);
+            border: 1px solid var(--gray-200); padding: 20px;
+            transition: all 0.2s;
+        }
+        .link-card:hover { box-shadow: var(--shadow-md); }
+        .link-url {
+            background: var(--gray-50); border: 1px solid var(--gray-200);
+            border-radius: var(--radius); padding: 10px 14px;
+            font-family: monospace; font-size: 13px; color: var(--gray-700);
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .link-copy {
+            background: none; border: none; color: var(--primary);
+            cursor: pointer; font-size: 14px; padding: 4px;
+        }
+        .link-stats { display: flex; gap: 20px; }
+        .link-stat { display: flex; flex-direction: column; gap: 2px; }
+        .link-stat-label { font-size: 12px; color: var(--gray-500); }
+        .link-stat-value { font-size: 16px; font-weight: 600; color: var(--gray-800); }
+
+        /* Settings */
+        .settings-section { margin-bottom: 32px; }
+        .settings-title { font-size: 18px; font-weight: 600; color: var(--gray-800); margin-bottom: 8px; }
+        .settings-desc { font-size: 14px; color: var(--gray-500); margin-bottom: 20px; }
+        .settings-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 0; border-bottom: 1px solid var(--gray-100);
+        }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-label { font-size: 14px; font-weight: 500; color: var(--gray-700); }
+        .settings-hint { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+
+        /* Toggle */
+        .toggle {
+            width: 44px; height: 24px; border-radius: 12px;
+            background: var(--gray-300); cursor: pointer; position: relative;
+            transition: background 0.2s; border: none;
+        }
+        .toggle.active { background: var(--primary); }
+        .toggle::after {
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: white; transition: transform 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+        .toggle.active::after { transform: translateX(20px); }
+
+        /* Payout card */
+        .payout-card {
+            background: var(--white); border-radius: var(--radius-lg);
+            border: 1px solid var(--gray-200); padding: 20px;
+            transition: all 0.2s;
+        }
+        .payout-card:hover { box-shadow: var(--shadow-md); }
+        .payout-amount { font-size: 24px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+        .payout-method { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-500); margin-bottom: 12px; }
+        .payout-meta { display: flex; gap: 16px; font-size: 12px; color: var(--gray-500); }
+
+        /* Report card */
+        .report-card {
+            background: var(--white); border-radius: var(--radius-lg);
+            border: 1px solid var(--gray-200); padding: 24px;
+            transition: all 0.2s; cursor: pointer;
+        }
+        .report-card:hover { box-shadow: var(--shadow-md); border-color: var(--primary); }
+        .report-icon {
+            width: 48px; height: 48px; border-radius: var(--radius);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; margin-bottom: 16px;
+        }
+        .report-title { font-size: 16px; font-weight: 600; color: var(--gray-800); margin-bottom: 4px; }
+        .report-desc { font-size: 13px; color: var(--gray-500); margin-bottom: 16px; }
+        .report-meta { display: flex; gap: 16px; font-size: 12px; color: var(--gray-400); }
+
+        @media (max-width: 1200px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+            .program-cards { grid-template-columns: repeat(2, 1fr); }
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .kpi-grid { grid-template-columns: 1fr; }
+            .program-cards { grid-template-columns: 1fr; }
+            .quick-actions { grid-template-columns: repeat(2, 1fr); }
+            .search-box input { width: 180px; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in { animation: fadeIn 0.4s ease-out forwards; }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+    </style>
+</head>
+<body><div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">R</div>
+            <span class="logo-text">ReferralX</span>
+        </div>
+        <nav class="nav-section">
+            <div class="nav-label" style="margin-top:16px">Main</div>
+<a href="dashboard.html" class="nav-item active"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
+<a href="affiliates.html" class="nav-item "><i class="fas fa-users"></i><span>Affiliates</span><span class="nav-badge">3</span></a>
+<a href="referrals.html" class="nav-item "><i class="fas fa-share-nodes"></i><span>Referrals</span></a>
+<a href="programs.html" class="nav-item "><i class="fas fa-bullseye"></i><span>Programs</span></a>
+<div class="nav-label" style="margin-top:16px">Finance</div>
+<a href="commissions.html" class="nav-item "><i class="fas fa-dollar-sign"></i><span>Commissions</span></a>
+<a href="payouts.html" class="nav-item "><i class="fas fa-wallet"></i><span>Payouts</span><span class="nav-badge">5</span></a>
+<div class="nav-label" style="margin-top:16px">Management</div>
+<a href="links.html" class="nav-item "><i class="fas fa-link"></i><span>Tracking Links</span></a>
+<a href="reports.html" class="nav-item "><i class="fas fa-file-lines"></i><span>Reports</span></a>
+<a href="settings.html" class="nav-item "><i class="fas fa-cog"></i><span>Settings</span></a>
+
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">JD</div>
+                <div class="user-info">
+                    <div class="user-name">John Doe</div>
+                    <div class="user-role">Program Manager</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+    <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+    <main class="main-content"><header class="header">
+    <div class="header-left">
+        <button class="toggle-sidebar" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div>
+            <h1 class="page-title">Dashboard</h1>
+            <div class="breadcrumb">
+                <a href="dashboard.html">Home</a>
+                <i class="fas fa-chevron-right" style="font-size:10px"></i>
+                <span>Dashboard</span>
+            </div>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="Search affiliates, links, orders...">
+        </div>
+        <div class="dropdown">
+            <button class="header-btn" onclick="toggleDropdown('notifications')">
+                <i class="fas fa-bell"></i><span class="dot"></span>
+            </button>
+            <div class="dropdown-menu" id="notifications">
+                <div class="dropdown-header">
+                    <span class="dropdown-title">Notifications</span>
+                    <span class="dropdown-action" onclick="markAllRead()">Mark all read</span>
+                </div>
+                <div class="dropdown-body">
+                    <div class="notification-item unread">
+                        <span class="notification-dot"></span>
+                        <div class="notification-content">
+                            <div class="notification-text"><strong>Sarah Chen</strong> just reached Tier 2 commission level</div>
+                            <div class="notification-time">2 minutes ago</div>
+                        </div>
+                    </div>
+                    <div class="notification-item unread">
+                        <span class="notification-dot"></span>
+                        <div class="notification-content">
+                            <div class="notification-text">New payout request for <strong>$1,240.00</strong> from Mike Ross</div>
+                            <div class="notification-time">15 minutes ago</div>
+                        </div>
+                    </div>
+                    <div class="notification-item">
+                        <div class="notification-content" style="margin-left:20px">
+                            <div class="notification-text">Weekly report is ready for download</div>
+                            <div class="notification-time">1 hour ago</div>
+                        </div>
+                    </div>
+                    <div class="notification-item">
+                        <div class="notification-content" style="margin-left:20px">
+                            <div class="notification-text"><strong>Summer Sale</strong> campaign reached 500 conversions</div>
+                            <div class="notification-time">3 hours ago</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="dropdown-footer"><a href="#">View all notifications</a></div>
+            </div>
+        </div>
+        <button class="header-btn"><i class="fas fa-circle-question"></i></button>
+        <button class="btn-primary" onclick="openModal('invite')"><i class="fas fa-plus"></i>Invite Affiliate</button>
+    </div>
+</header>
+<div class="content" id="mainContent">
+    <div class="quick-actions animate-in">
+        <a href="programs.html" class="action-card">
+            <div class="action-icon blue"><i class="fas fa-rocket"></i></div>
+            <div class="action-text">
+                <span class="action-title">Create Program</span>
+                <span class="action-desc">Launch new campaign</span>
+            </div>
+        </a>
+        <a href="links.html" class="action-card">
+            <div class="action-icon green"><i class="fas fa-link"></i></div>
+            <div class="action-text">
+                <span class="action-title">Generate Link</span>
+                <span class="action-desc">Create tracking URL</span>
+            </div>
+        </a>
+        <a href="commissions.html" class="action-card">
+            <div class="action-icon purple"><i class="fas fa-percent"></i></div>
+            <div class="action-text">
+                <span class="action-title">Set Commission</span>
+                <span class="action-desc">Configure rates</span>
+            </div>
+        </a>
+        <a href="payouts.html" class="action-card">
+            <div class="action-icon orange"><i class="fas fa-money-bill-transfer"></i></div>
+            <div class="action-text">
+                <span class="action-title">Process Payout</span>
+                <span class="action-desc">Send payments</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card animate-in delay-1">
+            <div class="kpi-header">
+                <span class="kpi-label">Total Revenue</span>
+                <div class="kpi-icon primary"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+            <div class="kpi-value">$48,295</div>
+            <div class="kpi-footer">
+                <span class="trend up"><i class="fas fa-arrow-up"></i> 12.5%</span>
+                <span class="kpi-context">vs last month</span>
+            </div>
+        </div>
+        <div class="kpi-card animate-in delay-2">
+            <div class="kpi-header">
+                <span class="kpi-label">Active Affiliates</span>
+                <div class="kpi-icon success"><i class="fas fa-users"></i></div>
+            </div>
+            <div class="kpi-value">1,247</div>
+            <div class="kpi-footer">
+                <span class="trend up"><i class="fas fa-arrow-up"></i> 8.2%</span>
+                <span class="kpi-context">vs last month</span>
+            </div>
+        </div>
+        <div class="kpi-card animate-in delay-3">
+            <div class="kpi-header">
+                <span class="kpi-label">Conversion Rate</span>
+                <div class="kpi-icon warning"><i class="fas fa-chart-line"></i></div>
+            </div>
+            <div class="kpi-value">3.24%</div>
+            <div class="kpi-footer">
+                <span class="trend up"><i class="fas fa-arrow-up"></i> 0.4%</span>
+                <span class="kpi-context">vs last month</span>
+            </div>
+        </div>
+        <div class="kpi-card animate-in delay-4">
+            <div class="kpi-header">
+                <span class="kpi-label">Pending Payouts</span>
+                <div class="kpi-icon danger"><i class="fas fa-clock"></i></div>
+            </div>
+            <div class="kpi-value">$12,840</div>
+            <div class="kpi-footer">
+                <span class="trend down"><i class="fas fa-arrow-down"></i> 2.1%</span>
+                <span class="kpi-context">vs last month</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card animate-in">
+            <div class="chart-header">
+                <h3 class="chart-title">Revenue & Conversions</h3>
+                <div class="chart-actions">
+                    <button class="chart-filter active" onclick="updateRevenueChart('7d', this)">7D</button>
+                    <button class="chart-filter" onclick="updateRevenueChart('30d', this)">30D</button>
+                    <button class="chart-filter" onclick="updateRevenueChart('90d', this)">90D</button>
+                </div>
+            </div>
+            <div class="chart-container"><canvas id="revenueChart"></canvas></div>
+        </div>
+        <div class="chart-card animate-in">
+            <div class="chart-header"><h3 class="chart-title">Top Traffic Sources</h3></div>
+            <div class="chart-container"><canvas id="sourceChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="program-cards animate-in">
+        <div class="program-card">
+            <div class="program-header">
+                <div>
+                    <div class="program-name">Summer Sale 2026</div>
+                    <div class="program-type">Seasonal Campaign · 15% Commission</div>
+                </div>
+                <button class="program-menu"><i class="fas fa-ellipsis-vertical"></i></button>
+            </div>
+            <div class="program-stats">
+                <div class="program-stat">
+                    <span class="program-stat-label">Conversions</span>
+                    <span class="program-stat-value">842</span>
+                </div>
+                <div class="program-stat">
+                    <span class="program-stat-label">Revenue</span>
+                    <span class="program-stat-value">$24.5K</span>
+                </div>
+            </div>
+            <div class="program-footer">
+                <div class="program-participants">
+                    <div class="participant-avatar">SC</div>
+                    <div class="participant-avatar">MR</div>
+                    <div class="participant-avatar">AL</div>
+                    <div class="participant-more">+12</div>
+                </div>
+                <a href="programs.html" class="program-link">View Details <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+        <div class="program-card success">
+            <div class="program-header">
+                <div>
+                    <div class="program-name">Influencer Tier</div>
+                    <div class="program-type">Tiered Program · Up to 20%</div>
+                </div>
+                <button class="program-menu"><i class="fas fa-ellipsis-vertical"></i></button>
+            </div>
+            <div class="program-stats">
+                <div class="program-stat">
+                    <span class="program-stat-label">Active Partners</span>
+                    <span class="program-stat-value">156</span>
+                </div>
+                <div class="program-stat">
+                    <span class="program-stat-label">Revenue</span>
+                    <span class="program-stat-value">$18.2K</span>
+                </div>
+            </div>
+            <div class="program-footer">
+                <div class="program-participants">
+                    <div class="participant-avatar">JD</div>
+                    <div class="participant-avatar">EK</div>
+                    <div class="participant-more">+8</div>
+                </div>
+                <a href="programs.html" class="program-link">View Details <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+        <div class="program-card warning">
+            <div class="program-header">
+                <div>
+                    <div class="program-name">Referral Rewards</div>
+                    <div class="program-type">Customer Referral · $25 Credit</div>
+                </div>
+                <button class="program-menu"><i class="fas fa-ellipsis-vertical"></i></button>
+            </div>
+            <div class="program-stats">
+                <div class="program-stat">
+                    <span class="program-stat-label">Referrals</span>
+                    <span class="program-stat-value">324</span>
+                </div>
+                <div class="program-stat">
+                    <span class="program-stat-label">Revenue</span>
+                    <span class="program-stat-value">$5.6K</span>
+                </div>
+            </div>
+            <div class="program-footer">
+                <div class="program-participants">
+                    <div class="participant-avatar">TW</div>
+                    <div class="participant-avatar">RN</div>
+                    <div class="participant-avatar">PL</div>
+                    <div class="participant-more">+45</div>
+                </div>
+                <a href="programs.html" class="program-link">View Details <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-card animate-in">
+        <div class="table-header">
+            <h3 class="table-title">Top Performing Affiliates</h3>
+            <div class="table-actions">
+                <button class="btn-outline"><i class="fas fa-filter"></i> Filter</button>
+                <button class="btn-outline" onclick="showToast('success', 'Export started', 'CSV export is being prepared')"><i class="fas fa-download"></i> Export</button>
+            </div>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Affiliate</th><th>Status</th><th>Clicks</th><th>Conversions</th>
+                    <th>Conv. Rate</th><th>Revenue</th><th>Commission</th><th>Progress</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="affiliate-cell">
+                            <div class="affiliate-avatar">SC</div>
+                            <div class="affiliate-info"><h4>Sarah Chen</h4><p>sarah@techblog.com</p></div>
+                        </div>
+                    </td>
+                    <td><span class="status-badge active">Active</span></td>
+                    <td>12,450</td><td>486</td><td>3.9%</td>
+                    <td class="commission-value">$8,420</td>
+                    <td class="commission-value">$1,263</td>
+                    <td><div class="progress-bar"><div class="progress-fill success" style="width:92%"></div></div></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="affiliate-cell">
+                            <div class="affiliate-avatar" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)">MR</div>
+                            <div class="affiliate-info"><h4>Mike Ross</h4><p>mike@marketingpro.com</p></div>
+                        </div>
+                    </td>
+                    <td><span class="status-badge active">Active</span></td>
+                    <td>9,832</td><td>312</td><td>3.2%</td>
+                    <td class="commission-value">$6,240</td>
+                    <td class="commission-value">$936</td>
+                    <td><div class="progress-bar"><div class="progress-fill primary" style="width:78%"></div></div></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="affiliate-cell">
+                            <div class="affiliate-avatar" style="background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)">AL</div>
+                            <div class="affiliate-info"><h4>Amanda Lee</h4><p>amanda@lifestyle.com</p></div>
+                        </div>
+                    </td>
+                    <td><span class="status-badge pending">Pending</span></td>
+                    <td>7,156</td><td>198</td><td>2.8%</td>
+                    <td class="commission-value">$4,180</td>
+                    <td class="commission-value">$627</td>
+                    <td><div class="progress-bar"><div class="progress-fill warning" style="width:56%"></div></div></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="affiliate-cell">
+                            <div class="affiliate-avatar" style="background:linear-gradient(135deg,#43e97b 0%,#38f9d7 100%)">JD</div>
+                            <div class="affiliate-info"><h4>James Davidson</h4><p>james@reviewhub.com</p></div>
+                        </div>
+                    </td>
+                    <td><span class="status-badge active">Active</span></td>
+                    <td>5,420</td><td>145</td><td>2.7%</td>
+                    <td class="commission-value">$3,120</td>
+                    <td class="commission-value">$468</td>
+                    <td><div class="progress-bar"><div class="progress-fill primary" style="width:42%"></div></div></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="affiliate-cell">
+                            <div class="affiliate-avatar" style="background:linear-gradient(135deg,#fa709a 0%,#fee140 100%)">EK</div>
+                            <div class="affiliate-info"><h4>Emma Klein</h4><p>emma@deals.com</p></div>
+                        </div>
+                    </td>
+                    <td><span class="status-badge inactive">Inactive</span></td>
+                    <td>3,890</td><td>98</td><td>2.5%</td>
+                    <td class="commission-value">$1,960</td>
+                    <td class="commission-value">$294</td>
+                    <td><div class="progress-bar"><div class="progress-fill warning" style="width:28%"></div></div></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="table-footer">
+            <span>Showing 1-5 of 1,247 affiliates</span>
+            <div class="pagination">
+                <button class="page-btn" disabled><i class="fas fa-chevron-left"></i></button>
+                <button class="page-btn active">1</button>
+                <button class="page-btn">2</button>
+                <button class="page-btn">3</button>
+                <span style="color:var(--gray-400);padding:0 4px">...</span>
+                <button class="page-btn">250</button>
+                <button class="page-btn"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-card animate-in" style="margin-top:24px">
+        <div class="chart-header">
+            <h3 class="chart-title">Recent Activity</h3>
+            <button class="btn-outline">View All</button>
+        </div>
+        <div class="activity-list">
+            <div class="activity-item">
+                <div class="activity-icon success"><i class="fas fa-check"></i></div>
+                <div class="activity-content">
+                    <div class="activity-text"><strong>Sarah Chen</strong> generated a new sale worth <strong>$129.00</strong> via summer campaign</div>
+                    <div class="activity-time">2 minutes ago</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon primary"><i class="fas fa-user-plus"></i></div>
+                <div class="activity-content">
+                    <div class="activity-text"><strong>David Park</strong> joined as a new affiliate via referral invitation</div>
+                    <div class="activity-time">15 minutes ago</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon warning"><i class="fas fa-money-bill-wave"></i></div>
+                <div class="activity-content">
+                    <div class="activity-text">Payout of <strong>$2,450.00</strong> processed to <strong>Mike Ross</strong> via PayPal</div>
+                    <div class="activity-time">1 hour ago</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon primary"><i class="fas fa-link"></i></div>
+                <div class="activity-content">
+                    <div class="activity-text"><strong>Amanda Lee</strong> created a new tracking link for <strong>Product Launch</strong></div>
+                    <div class="activity-time">3 hours ago</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon success"><i class="fas fa-trophy"></i></div>
+                <div class="activity-content">
+                    <div class="activity-text"><strong>Summer Sale</strong> campaign reached <strong>500 conversions</strong> milestone</div>
+                    <div class="activity-time">5 hours ago</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let revenueChartInstance;
+let sourceChartInstance;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    revenueChartInstance = new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Revenue ($)',
+                data: [4200, 5800, 4900, 7200, 6500, 8900, 7600],
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#6366f1',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }, {
+                label: 'Conversions',
+                data: [28, 42, 35, 48, 40, 62, 51],
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#10b981',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'end',
+                    labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, font: { size: 12, family: 'Inter' } }
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b', padding: 12, cornerRadius: 8,
+                    titleFont: { size: 13, family: 'Inter' },
+                    bodyFont: { size: 12, family: 'Inter' }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 12, family: 'Inter' }, color: '#64748b' } },
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 12, family: 'Inter' }, color: '#64748b' } },
+                y1: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { font: { size: 12, family: 'Inter' }, color: '#64748b' } }
+            }
+        }
+    });
+
+    const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+    sourceChartInstance = new Chart(sourceCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Social Media', 'Email', 'Blog', 'Direct', 'Paid Ads'],
+            datasets: [{
+                data: [35, 25, 20, 12, 8],
+                backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 12, family: 'Inter' } }
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b', padding: 12, cornerRadius: 8,
+                    callbacks: { label: function(context) { return context.label + ': ' + context.parsed + '%'; } }
+                }
+            }
+        }
+    });
+});
+
+function updateRevenueChart(period, btn) {
+    btn.parentElement.querySelectorAll('.chart-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const data = {
+        '7d': { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], revenue: [4200,5800,4900,7200,6500,8900,7600], conversions: [28,42,35,48,40,62,51] },
+        '30d': { labels: ['Week 1','Week 2','Week 3','Week 4'], revenue: [28500,34200,31800,38900], conversions: [185,220,198,256] },
+        '90d': { labels: ['Jan','Feb','Mar'], revenue: [98000,124000,156000], conversions: [650,820,1040] }
+    };
+
+    const d = data[period];
+    revenueChartInstance.data.labels = d.labels;
+    revenueChartInstance.data.datasets[0].data = d.revenue;
+    revenueChartInstance.data.datasets[1].data = d.conversions;
+    revenueChartInstance.update();
+    showToast('success', 'Chart updated', `Showing ${period} data`);
+}
+</script>
+
+    </main>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="modal-overlay" id="modal-invite">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 class="modal-title">Invite New Affiliate</h2>
+            <button class="modal-close" onclick="closeModal('invite')"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" class="form-input" placeholder="Enter affiliate name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" class="form-input" placeholder="affiliate@example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Program</label>
+                <select class="form-select">
+                    <option>Summer Sale 2026</option>
+                    <option>Influencer Tier</option>
+                    <option>Referral Rewards</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Commission Rate</label>
+                <input type="text" class="form-input" value="15%">
+                <p class="form-hint">Default rate for selected program</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Personal Message (Optional)</label>
+                <input type="text" class="form-input" placeholder="Add a custom welcome message...">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('invite')">Cancel</button>
+            <button class="btn-primary" onclick="sendInvite()">Send Invitation</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('mobileOverlay');
+    sidebar.classList.toggle('collapsed');
+    if (window.innerWidth <= 768) {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    }
+}
+
+function openModal(type) {
+    const modal = document.getElementById('modal-' + type);
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeModal(type) {
+    const modal = document.getElementById('modal-' + type);
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function toggleDropdown(id) {
+    const dropdown = document.getElementById(id);
+    dropdown.classList.toggle('active');
+    if (dropdown.classList.contains('active')) {
+        setTimeout(() => {
+            document.addEventListener('click', function close(e) {
+                if (!e.target.closest('.dropdown')) {
+                    dropdown.classList.remove('active');
+                    document.removeEventListener('click', close);
+                }
+            });
+        }, 0);
+    }
+}
+
+function markAllRead() {
+    document.querySelectorAll('.notification-item.unread').forEach(item => {
+        item.classList.remove('unread');
+        const dot = item.querySelector('.notification-dot');
+        if (dot) dot.remove();
+    });
+    showToast('success', 'Notifications cleared', 'All notifications marked as read');
+}
+
+function sendInvite() {
+    closeModal('invite');
+    showToast('success', 'Invitation sent', 'Affiliate invitation email has been sent successfully');
+}
+
+function showToast(type, title, message) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-circle-xmark' : 'fa-triangle-exclamation';
+    const color = type === 'success' ? 'var(--secondary)' : type === 'error' ? 'var(--danger)' : 'var(--warning)';
+    toast.innerHTML = `
+        <i class="fas ${icon}" style="color:${color}"></i>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()"><i class="fas fa-xmark"></i></button>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+function copyToClipboard(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        showToast('success', 'Copied!', 'Link copied to clipboard');
+        setTimeout(() => btn.innerHTML = original, 2000);
+    });
+}
+
+function toggleSwitch(btn) {
+    btn.classList.toggle('active');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    });
+});
+</script>
+</body>
+</html>

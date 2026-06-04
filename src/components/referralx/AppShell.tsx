@@ -71,8 +71,8 @@ export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, 
       {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />}
       <aside className={`fixed top-0 left-0 h-full z-50 bg-white border-r border-rx-gray-200 flex flex-col transition-all duration-300 ${sidebarCollapsed ? "w-[72px]" : "w-[260px]"} ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="p-5 border-b border-rx-gray-100 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rx-primary to-rx-primary-dark flex items-center justify-center flex-shrink-0 overflow-hidden"><img src="/logo.svg" alt="ElevateMe" className="w-6 h-6 object-contain brightness-0 invert" /></div>
-          {!sidebarCollapsed && <span className="font-bold text-xl text-rx-gray-900 tracking-tight">ElevateMe</span>}
+          <img src="/logo.svg" alt="ElevateMe" className="h-9 w-auto flex-shrink-0" />
+          {!sidebarCollapsed && <span className="font-bold text-xl text-rx-gray-900 tracking-tight">Referral</span>}
         </div>
         <nav className="flex-1 overflow-y-auto p-3">
           {navGroups.map((group, gi) => (
