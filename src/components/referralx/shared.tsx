@@ -235,6 +235,11 @@ export function CardSkeleton() {
 }
 
 /* ─── Helpers ─── */
+export function getInitials(name: string | null | undefined): string {
+  if (!name) return "U";
+  return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase() || "U";
+}
+
 export function formatCurrency(value: number | string): string {
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "$0.00";

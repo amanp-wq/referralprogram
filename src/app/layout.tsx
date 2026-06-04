@@ -13,7 +13,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "ElevateMe Referral - Referral Program Management",
   description: "Manage your referral programs, track affiliates, and grow your business with ElevateMe Referral.",
-  icons: { icon: "/favicon.ico" },
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

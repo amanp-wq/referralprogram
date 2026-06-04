@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatDate } from "../shared";
+import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatDate, getInitials } from "../shared";
 import { Share2, UserPlus, RefreshCw, ArrowRight, Filter, Download } from "lucide-react";
 
 interface Referral {
@@ -126,7 +126,7 @@ export function AdminReferrals() {
                 {referrals.map((r) => {
                   const affName = r.Affiliate?.User?.name || r.referralCode || "Unknown";
                   const affEmail = r.Affiliate?.User?.email || "";
-                  const initials = affName.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
+                  const initials = getInitials(affName);
                   const programName = r.Program?.name || "-";
                   const visitorName = r.visitorName || r.visitorEmail || "-";
                   return (
