@@ -72,7 +72,6 @@ export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, 
       <aside className={`fixed top-0 left-0 h-full z-50 bg-white border-r border-rx-gray-200 flex flex-col transition-all duration-300 ${sidebarCollapsed ? "w-[72px]" : "w-[260px]"} ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="p-5 border-b border-rx-gray-100 flex items-center gap-3">
           <img src="/logo.svg" alt="ElevateMe" className="h-9 w-auto flex-shrink-0" />
-          {!sidebarCollapsed && <span className="font-bold text-xl text-rx-gray-900 tracking-tight">Referral</span>}
         </div>
         <nav className="flex-1 overflow-y-auto p-3">
           {navGroups.map((group, gi) => (
@@ -105,7 +104,7 @@ export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, 
               {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
             <div>
-              <h1 className="text-xl font-bold text-rx-gray-900">{pageTitle}</h1>
+              <h1 className="text-xl font-bold text-rx-gray-900 font-heading">{pageTitle}</h1>
               <div className="flex items-center gap-2 text-[13px] text-rx-gray-500">
                 <button onClick={() => onPageChange("dashboard")} className="hover:text-rx-primary transition-colors">Home</button>
                 <ChevronRight className="w-3 h-3" />
