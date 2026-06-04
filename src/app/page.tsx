@@ -52,7 +52,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
       <div className="bg-white rounded-2xl shadow-xl p-8 border border-rx-gray-200">
         <div className="text-center mb-8">
           <img src="/logo.svg" alt="ElevateMe" className="h-12 w-auto mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-rx-gray-900">Welcome Back</h2>
+          <h2 className="text-2xl font-bold text-rx-gray-900 font-heading">Welcome Back</h2>
           <p className="text-rx-gray-500 mt-1">Sign in to your account</p>
         </div>
         {error && (
@@ -182,18 +182,18 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-6 py-20">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6"><Zap className="w-4 h-4 text-rx-warning"/><span className="text-white/90 text-sm font-medium">Referral Program Platform</span></div>
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 tracking-tight">Elevate<span className="text-rx-secondary">Me</span> Referral</h1>
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 tracking-tight font-heading">Elevate<span className="text-rx-secondary">Me</span></h1>
             <p className="text-xl text-white/80 max-w-2xl mx-auto mb-10">The complete referral program management platform. Track affiliates, manage commissions, and grow your business through the power of referrals.</p>
           </div>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             <button onClick={() => { setShowLogin(true); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-rx-primary/20">
-              <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-primary-light flex items-center justify-center"><Shield className="w-7 h-7 text-rx-primary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900">Admin Portal</h3><p className="text-rx-gray-500 text-sm">Program Manager</p></div></div>
+              <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-primary-light flex items-center justify-center"><Shield className="w-7 h-7 text-rx-primary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900 font-heading">Admin Portal</h3><p className="text-rx-gray-500 text-sm">Program Manager</p></div></div>
               <p className="text-rx-gray-600 mb-6 leading-relaxed">Manage your referral programs, oversee affiliates, track commissions, process payouts, and analyze performance reports.</p>
               <div className="flex flex-wrap gap-2 mb-6">{["Dashboard","Affiliates","Programs","Commissions","Reports"].map(f=><span key={f} className="text-xs bg-rx-gray-100 text-rx-gray-600 px-3 py-1 rounded-full font-medium">{f}</span>)}</div>
               <div className="flex items-center gap-2 text-rx-primary font-semibold group-hover:gap-3 transition-all">Enter Admin Portal <ArrowRight className="w-4 h-4"/></div>
             </button>
             <button onClick={() => { setShowLogin(true); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-rx-secondary/20">
-              <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-secondary-light flex items-center justify-center"><Users className="w-7 h-7 text-rx-secondary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900">Affiliate Portal</h3><p className="text-rx-gray-500 text-sm">Pro Affiliate</p></div></div>
+              <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-secondary-light flex items-center justify-center"><Users className="w-7 h-7 text-rx-secondary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900 font-heading">Affiliate Portal</h3><p className="text-rx-gray-500 text-sm">Pro Affiliate</p></div></div>
               <p className="text-rx-gray-600 mb-6 leading-relaxed">Track your referral links, monitor conversions, view earnings, manage payouts, and access your affiliate resources.</p>
               <div className="flex flex-wrap gap-2 mb-6">{["Dashboard","My Links","Conversions","Earnings","Help"].map(f=><span key={f} className="text-xs bg-rx-gray-100 text-rx-gray-600 px-3 py-1 rounded-full font-medium">{f}</span>)}</div>
               <div className="flex items-center gap-2 text-rx-secondary font-semibold group-hover:gap-3 transition-all">Enter Affiliate Portal <ArrowRight className="w-4 h-4"/></div>
@@ -202,10 +202,10 @@ export default function Home() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto px-6 py-20">
-        <div className="text-center mb-16"><h2 className="text-3xl font-bold text-rx-gray-900 mb-4">Everything You Need</h2><p className="text-rx-gray-500 text-lg max-w-2xl mx-auto">A complete platform to launch, manage, and scale your referral programs</p></div>
-        <div className="grid md:grid-cols-3 gap-8">{[{icon:Target,title:"Smart Tracking",desc:"Real-time tracking of referrals, clicks, and conversions with detailed analytics.",color:"bg-rx-primary-light text-rx-primary"},{icon:BarChart3,title:"Powerful Analytics",desc:"Comprehensive reports and insights to optimize your referral program performance.",color:"bg-rx-secondary-light text-rx-secondary"},{icon:Zap,title:"Instant Payouts",desc:"Automated commission calculations and flexible payout options for your affiliates.",color:"bg-rx-warning-light text-rx-warning"}].map((feature,i)=><div key={i} className="bg-white rounded-xl p-8 border border-rx-gray-200 hover:shadow-lg transition-shadow"><div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-4`}><feature.icon className="w-6 h-6"/></div><h3 className="text-lg font-semibold text-rx-gray-900 mb-2">{feature.title}</h3><p className="text-rx-gray-500 leading-relaxed">{feature.desc}</p></div>)}</div>
+        <div className="text-center mb-16"><h2 className="text-3xl font-bold text-rx-gray-900 mb-4 font-heading">Everything You Need</h2><p className="text-rx-gray-500 text-lg max-w-2xl mx-auto">A complete platform to launch, manage, and scale your referral programs</p></div>
+        <div className="grid md:grid-cols-3 gap-8">{[{icon:Target,title:"Smart Tracking",desc:"Real-time tracking of referrals, clicks, and conversions with detailed analytics.",color:"bg-rx-primary-light text-rx-primary"},{icon:BarChart3,title:"Powerful Analytics",desc:"Comprehensive reports and insights to optimize your referral program performance.",color:"bg-rx-secondary-light text-rx-secondary"},{icon:Zap,title:"Instant Payouts",desc:"Automated commission calculations and flexible payout options for your affiliates.",color:"bg-rx-warning-light text-rx-warning"}].map((feature,i)=><div key={i} className="bg-white rounded-xl p-8 border border-rx-gray-200 hover:shadow-lg transition-shadow"><div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-4`}><feature.icon className="w-6 h-6"/></div><h3 className="text-lg font-semibold text-rx-gray-900 mb-2 font-card-header">{feature.title}</h3><p className="text-rx-gray-500 leading-relaxed">{feature.desc}</p></div>)}</div>
       </div>
-      <footer className="bg-white border-t border-rx-gray-200 py-8"><div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4"><div className="flex items-center gap-3"><img src="/logo.svg" alt="ElevateMe" className="h-8 w-auto" /><span className="font-bold text-rx-gray-900 text-lg">Referral</span></div><p className="text-rx-gray-500 text-sm">&copy; 2026 ElevateMe. All rights reserved.</p></div></footer>
+      <footer className="bg-white border-t border-rx-gray-200 py-8"><div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4"><div className="flex items-center gap-3"><img src="/logo.svg" alt="ElevateMe" className="h-8 w-auto" /></div><p className="text-rx-gray-500 text-sm">&copy; 2026 ElevateMe. All rights reserved.</p></div></footer>
     </div>
   );
 }
