@@ -1,323 +1,227 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { StatusBadge, CopyButton } from "../shared";
+import { CopyButton } from "../shared";
 import {
-  Link2, MousePointer, ShoppingBag, Plus, ExternalLink,
-  RefreshCw, AlertCircle, X, Loader2,
+  Link2, ExternalLink, Share2, MessageCircle, Info,
 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/hooks/use-toast";
-
-interface AffiliateLink {
-  id: string;
-  affiliateId: string;
-  programId: string;
-  code: string;
-  url: string;
-  clicks: number;
-  conversions: number;
-  isActive: boolean;
-  label: string | null;
-  createdAt: string;
-  updatedAt?: string;
-  Program?: { id: string; name: string; slug: string; commissionType: string; commissionValue: number };
-}
-
-interface ProgramOption {
-  id: string;
-  name: string;
-  slug: string;
-  commissionType: string;
-  commissionValue: number;
-  isActive: boolean;
-}
 
 export function AffiliateLinks() {
-  const { token, affiliate } = useAuth();
-  const [links, setLinks] = useState<AffiliateLink[]>([]);
-  const [programs, setPrograms] = useState<ProgramOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [newLabel, setNewLabel] = useState("");
-  const [newProgramId, setNewProgramId] = useState("");
+  const { affiliate, user } = useAuth();
 
-  // Referral link from affiliate code
+  // Build referral code: First Name first letter + Last Name first letter + Phone last 4 digits
+  const generateReferralCodeDisplay = () => {
+    const name = user?.name || "";
+    const phone = user?.phone || "";
+    const nameParts = name.split(" ").filter(Boolean);
+    const firstInitial = nameParts[0] ? nameParts[0][0].toUpperCase() : "X";
+    const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1][0].toUpperCase() : "X";
+    const phoneDigits = phone.replace(/\D/g, "");
+    const last4 = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : "0000";
+    return `${firstInitial}${lastInitial}${last4}`;
+  };
+
   const referralLink = affiliate
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/ref/${affiliate.referralCode}`
     : "";
 
-  const fetchLinks = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/affiliate/links", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to load links");
-      }
-      const json = await res.json();
-      setLinks(json.links || []);
-      setPrograms(json.programs || []);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
+  const referralCodeDisplay = generateReferralCodeDisplay();
 
-  useEffect(() => {
-    fetchLinks();
-  }, [fetchLinks]);
+  // Social share helpers
+  const shareMessage = `Join ElevateMe using my referral link! 🚀`;
+  const shareSubject = "Join ElevateMe - Referral Invitation";
 
-  const handleCreateLink = async () => {
-    if (!token) return;
-    if (!newProgramId) {
-      setCreateError("Please select a program for this link");
-      return;
-    }
-    setCreating(true);
-    setCreateError(null);
-    try {
-      const res = await fetch("/api/affiliate/links", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          programId: newProgramId,
-          label: newLabel || undefined,
-        }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to create link");
-      }
-      toast({ title: "Link created", description: "Your new referral link is ready to share!" });
-      setShowCreateDialog(false);
-      setNewLabel("");
-      setNewProgramId("");
-      fetchLinks();
-    } catch (err: any) {
-      setCreateError(err.message);
-    } finally {
-      setCreating(false);
-    }
+  const shareOnWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareMessage + " " + referralLink)}`, "_blank");
   };
-
-  const handleCopyReferralLink = () => {
-    navigator.clipboard.writeText(referralLink);
-    toast({ title: "Copied!", description: "Referral link copied to clipboard" });
+  const shareOnFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`, "_blank");
   };
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <AlertCircle className="w-12 h-12 text-rx-danger mb-4" />
-        <h3 className="text-lg font-semibold text-rx-gray-800 mb-2">Failed to load links</h3>
-        <p className="text-sm text-rx-gray-500 mb-4">{error}</p>
-        <button onClick={fetchLinks} className="inline-flex items-center gap-2 px-4 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">
-          <RefreshCw className="w-4 h-4" /> Retry
-        </button>
-      </div>
-    );
-  }
+  const shareOnTwitter = () => {
+    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareMessage)}`, "_blank");
+  };
+  const shareOnLinkedIn = () => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`, "_blank");
+  };
+  const shareViaEmail = () => {
+    window.location.href = `mailto:?subject=${encodeURIComponent(shareSubject)}&body=${encodeURIComponent(shareMessage + "\n\n" + referralLink)}`;
+  };
 
   return (
     <div className="space-y-6">
-      {/* Primary Referral Link Section */}
-      <div className="bg-gradient-to-br from-rx-primary to-rx-primary-dark rounded-2xl p-6 text-white">
-        <div className="flex items-center gap-3 mb-4">
-          <img src="/logo.svg" alt="ElevateMe" className="h-8 w-8" />
+      {/* Hero Card with Unique Referral Link */}
+      <div className="bg-gradient-to-br from-rx-primary to-rx-primary-dark rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="absolute -top-1/4 -right-[10%] w-[300px] h-[300px] bg-white/5 rounded-full" />
+        <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-white/3 rounded-full -translate-x-1/2 translate-y-1/2" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-5">
+            <img src="/logo.svg" alt="ElevateMe" className="h-10 w-10" />
+            <div>
+              <h2 className="text-2xl font-bold">Your Unique Ambassador Link</h2>
+              <p className="text-white/70 text-sm">Share this link to start earning commissions</p>
+            </div>
+          </div>
+          <div className="bg-white/10 border border-white/20 rounded-xl p-5 mb-5">
+            <div className="text-xs text-white/60 mb-2 font-medium uppercase tracking-wider">Referral Link</div>
+            <div className="flex gap-3 items-center">
+              <input
+                type="text"
+                value={referralLink}
+                readOnly
+                className="flex-1 px-4 py-3 border border-white/20 rounded-lg font-mono text-sm bg-white/10 text-white"
+              />
+              <CopyButton text={referralLink} label={<><ExternalLink className="w-4 h-4" /> Copy</>} />
+            </div>
+          </div>
+          {affiliate && (
+            <div className="flex gap-6 pt-4 border-t border-white/20">
+              <div>
+                <div className="text-white/60 text-xs">Your Code</div>
+                <div className="text-white font-bold font-mono text-lg">{affiliate.referralCode}</div>
+              </div>
+              <div>
+                <div className="text-white/60 text-xs">Tier</div>
+                <div className="text-white font-bold capitalize text-lg">{affiliate.tier}</div>
+              </div>
+              <div>
+                <div className="text-white/60 text-xs">Commission</div>
+                <div className="text-white font-bold text-lg">{affiliate.commissionRate}%</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Social Share Section */}
+      <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-rx-primary-light flex items-center justify-center">
+            <Share2 className="w-5 h-5 text-rx-primary" />
+          </div>
           <div>
-            <h3 className="text-lg font-bold">Your Unique Referral Link</h3>
-            <p className="text-white/70 text-sm">Share this link to start earning commissions</p>
+            <h3 className="text-lg font-semibold text-rx-gray-800">Share Your Link</h3>
+            <p className="text-sm text-rx-gray-500">Spread the word through your favorite platforms</p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={referralLink}
-            readOnly
-            className="flex-1 px-4 py-3 border border-white/20 rounded-lg font-mono text-sm bg-white/10 text-white placeholder-white/50"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
           <button
-            onClick={handleCopyReferralLink}
-            className="px-5 py-3 bg-white text-rx-primary rounded-lg font-semibold hover:bg-white/90 flex items-center gap-2"
+            onClick={shareOnWhatsApp}
+            className="flex items-center gap-3 px-5 py-4 bg-[#25D366]/10 border border-[#25D366]/20 rounded-xl hover:bg-[#25D366]/20 transition-colors group"
           >
-            <ExternalLink className="w-4 h-4" /> Copy
+            <div className="w-10 h-10 rounded-lg bg-[#25D366] flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-[#25D366] transition-colors">WhatsApp</div>
+              <div className="text-xs text-rx-gray-500">Share via chat</div>
+            </div>
+          </button>
+          <button
+            onClick={shareOnFacebook}
+            className="flex items-center gap-3 px-5 py-4 bg-[#1877F2]/10 border border-[#1877F2]/20 rounded-xl hover:bg-[#1877F2]/20 transition-colors group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-[#1877F2] flex items-center justify-center flex-shrink-0">
+              <Share2 className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-[#1877F2] transition-colors">Facebook</div>
+              <div className="text-xs text-rx-gray-500">Post to feed</div>
+            </div>
+          </button>
+          <button
+            onClick={shareOnTwitter}
+            className="flex items-center gap-3 px-5 py-4 bg-[#1DA1F2]/10 border border-[#1DA1F2]/20 rounded-xl hover:bg-[#1DA1F2]/20 transition-colors group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-[#1DA1F2] flex items-center justify-center flex-shrink-0">
+              <Share2 className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-[#1DA1F2] transition-colors">Twitter/X</div>
+              <div className="text-xs text-rx-gray-500">Tweet your link</div>
+            </div>
+          </button>
+          <button
+            onClick={shareOnLinkedIn}
+            className="flex items-center gap-3 px-5 py-4 bg-[#0A66C2]/10 border border-[#0A66C2]/20 rounded-xl hover:bg-[#0A66C2]/20 transition-colors group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-[#0A66C2] flex items-center justify-center flex-shrink-0">
+              <Share2 className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-[#0A66C2] transition-colors">LinkedIn</div>
+              <div className="text-xs text-rx-gray-500">Share professionally</div>
+            </div>
+          </button>
+          <button
+            onClick={shareViaEmail}
+            className="flex items-center gap-3 px-5 py-4 bg-rx-gray-50 border border-rx-gray-200 rounded-xl hover:bg-rx-gray-100 transition-colors group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-rx-gray-600 flex items-center justify-center flex-shrink-0">
+              <ExternalLink className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-rx-primary transition-colors">Email</div>
+              <div className="text-xs text-rx-gray-500">Send an email</div>
+            </div>
           </button>
         </div>
-        {affiliate && (
-          <div className="flex gap-6 mt-4 pt-4 border-t border-white/20">
-            <div>
-              <div className="text-white/60 text-xs">Your Code</div>
-              <div className="text-white font-bold font-mono">{affiliate.referralCode}</div>
-            </div>
-            <div>
-              <div className="text-white/60 text-xs">Tier</div>
-              <div className="text-white font-bold capitalize">{affiliate.tier}</div>
-            </div>
-            <div>
-              <div className="text-white/60 text-xs">Commission</div>
-              <div className="text-white font-bold">{affiliate.commissionRate}%</div>
+      </div>
+
+      {/* Referral Code Info Card */}
+      <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-rx-info-light flex items-center justify-center">
+            <Info className="w-5 h-5 text-rx-info" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-rx-gray-800">Referral Code Information</h3>
+            <p className="text-sm text-rx-gray-500">How your unique code was generated</p>
+          </div>
+        </div>
+        <div className="bg-rx-gray-50 rounded-xl p-5">
+          <div className="flex items-center justify-center mb-4">
+            <div className="bg-rx-primary-light border-2 border-rx-primary/20 rounded-xl px-8 py-4">
+              <div className="text-xs text-rx-primary font-medium uppercase tracking-wider mb-1">Your Referral Code</div>
+              <div className="text-3xl font-bold font-mono text-rx-primary tracking-widest">{referralCodeDisplay}</div>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-rx-gray-800">Program-Specific Links</h3>
-          <p className="text-sm text-rx-gray-500">Create tracking links for specific programs</p>
-        </div>
-        <button
-          onClick={() => setShowCreateDialog(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark"
-        >
-          <Plus className="w-4 h-4" /> Create Link
-        </button>
-      </div>
-
-      {/* Create Link Dialog */}
-      {showCreateDialog && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-rx-gray-800">Create New Link</h3>
-              <button onClick={() => { setShowCreateDialog(false); setCreateError(null); }} className="w-8 h-8 rounded-lg hover:bg-rx-gray-100 flex items-center justify-center text-rx-gray-500">
-                <X className="w-4 h-4" />
-              </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="bg-white rounded-lg p-4 border border-rx-gray-200">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">First Initial</div>
+              <div className="text-lg font-bold text-rx-gray-800">
+                {user?.name ? user.name.split(" ")[0]?.[0]?.toUpperCase() || "X" : "X"}
+              </div>
+              <div className="text-xs text-rx-gray-400 mt-1">
+                From &quot;{(user?.name || "").split(" ")[0] || "Unknown"}&quot;
+              </div>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Program *</label>
-                <select
-                  value={newProgramId}
-                  onChange={(e) => setNewProgramId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
-                >
-                  <option value="">Select a program</option>
-                  {programs.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.commissionType === "percentage" ? `${p.commissionValue}%` : `$${p.commissionValue}`})
-                    </option>
-                  ))}
-                </select>
+            <div className="bg-white rounded-lg p-4 border border-rx-gray-200">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">Last Initial</div>
+              <div className="text-lg font-bold text-rx-gray-800">
+                {user?.name ? (user.name.split(" ").filter(Boolean).length > 1 ? user.name.split(" ").filter(Boolean).slice(-1)[0][0].toUpperCase() : "X") : "X"}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Link Label</label>
-                <input
-                  type="text"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  placeholder="e.g., SaaS Promotion"
-                  className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
-                />
+              <div className="text-xs text-rx-gray-400 mt-1">
+                From &quot;{user?.name ? (user.name.split(" ").filter(Boolean).length > 1 ? user.name.split(" ").filter(Boolean).slice(-1)[0] : "N/A") : "N/A"}&quot;
               </div>
-              {createError && (
-                <div className="bg-rx-danger-light text-rx-danger px-4 py-3 rounded-lg text-sm font-medium">{createError}</div>
-              )}
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => { setShowCreateDialog(false); setCreateError(null); }}
-                  className="flex-1 px-4 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-700 hover:bg-rx-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateLink}
-                  disabled={creating}
-                  className="flex-1 px-4 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {creating ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : "Create Link"}
-                </button>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-rx-gray-200">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">Phone Last 4</div>
+              <div className="text-lg font-bold text-rx-gray-800">
+                {user?.phone ? user.phone.replace(/\D/g, "").slice(-4) || "0000" : "0000"}
+              </div>
+              <div className="text-xs text-rx-gray-400 mt-1">
+                From &quot;{user?.phone || "N/A"}&quot;
               </div>
             </div>
           </div>
+          <div className="mt-4 p-3 bg-rx-info-light rounded-lg">
+            <p className="text-xs text-rx-info leading-relaxed">
+              <strong>Format:</strong> First Name first letter + Last Name first letter + Phone last 4 digits.
+              Example: &quot;JD5554&quot; for John Doe with phone ending in 5554.
+            </p>
+          </div>
         </div>
-      )}
-
-      {/* Links Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-white rounded-2xl border border-rx-gray-200 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="w-8 h-8 rounded-lg" />
-                  <Skeleton className="h-5 w-28" />
-                </div>
-                <Skeleton className="h-6 w-16 rounded-full" />
-              </div>
-              <Skeleton className="h-10 w-full rounded-lg mb-4" />
-              <div className="flex gap-5">
-                <Skeleton className="h-10 w-20" />
-                <Skeleton className="h-10 w-20" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : links.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {links.map((link) => (
-            <div key={link.id} className="bg-white rounded-2xl border border-rx-gray-200 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-rx-primary-light flex items-center justify-center">
-                    <Link2 className="w-4 h-4 text-rx-primary" />
-                  </div>
-                  <h4 className="font-semibold text-rx-gray-800">{link.label || `Link ${link.code?.slice(-6) || link.id.slice(-6)}`}</h4>
-                </div>
-                <StatusBadge status={link.isActive ? "active" : "inactive"} />
-              </div>
-              {link.Program && (
-                <div className="text-xs text-rx-gray-500 mb-3">
-                  {link.Program.name} &middot; {link.Program.commissionType === "percentage" ? `${link.Program.commissionValue}%` : `$${link.Program.commissionValue}`}
-                </div>
-              )}
-              <div className="bg-rx-gray-50 border border-rx-gray-200 rounded-lg px-3 py-2.5 flex items-center justify-between mb-4">
-                <span className="text-xs font-mono text-rx-gray-700 truncate mr-2">{link.url}</span>
-                <CopyButton text={link.url} label={<ExternalLink className="w-3.5 h-3.5" />} />
-              </div>
-              <div className="flex gap-5">
-                <div className="flex items-center gap-2">
-                  <MousePointer className="w-4 h-4 text-rx-gray-400" />
-                  <div>
-                    <div className="text-xs text-rx-gray-500">Clicks</div>
-                    <div className="text-sm font-bold text-rx-gray-900">{link.clicks.toLocaleString()}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-rx-gray-400" />
-                  <div>
-                    <div className="text-xs text-rx-gray-500">Conversions</div>
-                    <div className="text-sm font-bold text-rx-gray-900">{link.conversions}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-rx-gray-200 p-12 text-center">
-          <Link2 className="w-12 h-12 text-rx-gray-300 mx-auto mb-4" />
-          <h4 className="text-lg font-semibold text-rx-gray-800 mb-2">No program links yet</h4>
-          <p className="text-sm text-rx-gray-500 mb-4">Create program-specific tracking links for detailed analytics.</p>
-          <button onClick={() => setShowCreateDialog(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">
-            <Plus className="w-4 h-4" /> Create Your First Link
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

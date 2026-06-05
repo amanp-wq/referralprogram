@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, StatusBadge, CopyButton, ProgressBar } from "../shared";
+import { KpiCard, StatusBadge, CopyButton } from "../shared";
 import {
-  DollarSign, MousePointer, ShoppingBag, Percent, Copy, BarChart3,
+  DollarSign, Users, UserCheck, Percent, Copy, BarChart3,
   RefreshCw, AlertCircle, ExternalLink, Link2, TrendingUp, Download,
+  Share2, MessageCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
@@ -49,18 +50,6 @@ interface RecentReferral {
   createdAt: string;
 }
 
-interface RecentPayout {
-  id: string;
-  affiliateId: string;
-  amount: number;
-  method: string;
-  status: string;
-  reference: string | null;
-  notes: string | null;
-  processedAt: string | null;
-  createdAt: string;
-}
-
 interface MonthlyEarning {
   month: string;
   amount: number;
@@ -71,7 +60,6 @@ interface DashboardData {
   kpis: DashboardKpis;
   links: DashboardLink[];
   recentReferrals: RecentReferral[];
-  recentPayouts: RecentPayout[];
   monthlyEarnings: MonthlyEarning[];
   sources: Record<string, number>;
 }
@@ -94,6 +82,23 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function getDaysSince(dateStr: string): number {
+  const now = new Date();
+  const d = new Date(dateStr);
+  return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function getReferralStatus(ref: RecentReferral): string {
+  if (ref.status === "completed" || ref.status === "converted" || ref.status === "enrolled") return "enrolled";
+  const daysSince = getDaysSince(ref.createdAt);
+  if (ref.status === "pending" || ref.status === "submitted") {
+    if (daysSince > 30) return "not enrolled";
+    if (daysSince <= 30 && ref.status === "submitted") return "submitted";
+    return "pending";
+  }
+  return ref.status;
 }
 
 export function AffiliateDashboard() {
@@ -132,12 +137,22 @@ export function AffiliateDashboard() {
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/ref/${affiliate.referralCode}`
     : "";
 
-  const totalClicks = data?.kpis.totalClicks ?? 0;
-  const totalConversions = data?.kpis.totalConversions ?? 0;
-  const conversionRate = data?.kpis.conversionRate ?? "0";
-  const avgCommission = totalConversions > 0 && data
-    ? data.kpis.totalEarnings / totalConversions
+  const totalReferrals = data?.kpis.totalReferrals ?? 0;
+  const enrolledCount = data?.recentReferrals
+    ? data.recentReferrals.filter((r) => getReferralStatus(r) === "enrolled").length
     : 0;
+  const conversionRatio = totalReferrals > 0 ? ((enrolledCount / totalReferrals) * 100).toFixed(1) : "0";
+
+  // Generate referral data for charts (mock based on monthly earnings)
+  const generateReferralChartData = (type: "total" | "enrolled") => {
+    const months = data?.monthlyEarnings || [];
+    return months.map((m) => ({
+      month: m.month,
+      value: type === "total"
+        ? Math.max(1, Math.round(m.amount / 25))
+        : Math.max(0, Math.round(m.amount / 50)),
+    }));
+  };
 
   const handleExportCSV = () => {
     const referrals = data?.recentReferrals || [];
@@ -150,6 +165,26 @@ export function AffiliateDashboard() {
     ]);
     downloadCSV("recent-referrals.csv", headers, rows);
     toast({ title: "Export complete", description: "Referrals CSV downloaded successfully" });
+  };
+
+  // Social share helpers
+  const shareMessage = `Join ElevateMe using my referral link! 🚀`;
+  const shareSubject = "Join ElevateMe - Referral Invitation";
+
+  const shareOnWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareMessage + " " + referralLink)}`, "_blank");
+  };
+  const shareOnFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`, "_blank");
+  };
+  const shareOnTwitter = () => {
+    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareMessage)}`, "_blank");
+  };
+  const shareOnLinkedIn = () => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`, "_blank");
+  };
+  const shareViaEmail = () => {
+    window.location.href = `mailto:?subject=${encodeURIComponent(shareSubject)}&body=${encodeURIComponent(shareMessage + "\n\n" + referralLink)}`;
   };
 
   if (error) {
@@ -180,9 +215,9 @@ export function AffiliateDashboard() {
                 <Skeleton className="h-4 w-80 bg-white/20" />
               ) : data ? (
                 <>
-                  You have earned <strong>{formatCurrency(data.kpis.totalEarnings)}</strong> this month.
-                  Your referral link generated <strong>{totalClicks.toLocaleString()} clicks</strong> and{" "}
-                  <strong>{totalConversions} conversions</strong>.
+                  You have earned <strong>{formatCurrency(data.kpis.totalEarnings)}</strong> total.
+                  Your referral link generated <strong>{totalReferrals} referrals</strong> with{" "}
+                  <strong>{enrolledCount} enrolled</strong>.
                 </>
               ) : (
                 "Loading your dashboard data..."
@@ -224,81 +259,91 @@ export function AffiliateDashboard() {
             icon={<DollarSign className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="Total Clicks"
-            value={totalClicks.toLocaleString()}
+            label="Total Referrals"
+            value={totalReferrals.toLocaleString()}
             iconColor="success"
-            icon={<MousePointer className="w-[18px] h-[18px]" />}
+            icon={<Users className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="Conversions"
-            value={totalConversions.toLocaleString()}
+            label="Enrolled"
+            value={enrolledCount.toLocaleString()}
             iconColor="warning"
-            icon={<ShoppingBag className="w-[18px] h-[18px]" />}
+            icon={<UserCheck className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="Conversion Rate"
-            value={`${conversionRate}%`}
+            label="Conversion Ratio"
+            value={`${conversionRatio}%`}
             iconColor="danger"
             icon={<Percent className="w-[18px] h-[18px]" />}
           />
         </div>
       )}
 
-      {/* Referral Link Section */}
-      <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-rx-gray-800">Your Referral Link</h3>
+      {/* Referral Link Section - BIGGER */}
+      <div className="bg-gradient-to-br from-rx-primary to-rx-primary-dark rounded-2xl p-8 text-white">
+        <div className="flex items-center gap-3 mb-5">
+          <img src="/logo.svg" alt="ElevateMe" className="h-10 w-10" />
+          <div>
+            <h3 className="text-xl font-bold">Your Ambassador Referral Link</h3>
+            <p className="text-white/70 text-sm">Share this link to start earning commissions</p>
+          </div>
           {affiliate?.status === "active" && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rx-secondary-light text-rx-secondary rounded-full text-xs font-semibold">
-              <span className="w-1.5 h-1.5 bg-rx-secondary rounded-full" /> Active
+            <span className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/15 text-white rounded-full text-xs font-semibold">
+              <span className="w-1.5 h-1.5 bg-white rounded-full" /> Active
             </span>
           )}
         </div>
-        <div className="flex gap-3 mb-4">
+        <div className="flex gap-3 mb-5">
           <input
             type="text"
             value={referralLink}
             readOnly
-            className="flex-1 px-4 py-3 border border-rx-gray-200 rounded-lg font-mono text-sm bg-rx-gray-50 text-rx-gray-700"
+            className="flex-1 px-5 py-4 border border-white/20 rounded-xl font-mono text-base bg-white/10 text-white placeholder-white/50"
           />
-          <CopyButton text={referralLink} label="Copy Link" />
+          <CopyButton text={referralLink} label={<><Copy className="w-4 h-4" /> Copy Link</>} />
         </div>
-        <div className="flex gap-6 pt-4 border-t border-rx-gray-100">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i}>
-                <Skeleton className="h-3 w-20 mb-1" />
-                <Skeleton className="h-6 w-16" />
-              </div>
-            ))
-          ) : (
-            <>
-              <div>
-                <div className="text-xs text-rx-gray-500">Clicks (30d)</div>
-                <div className="text-lg font-bold text-rx-gray-900">{totalClicks.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-xs text-rx-gray-500">Conversions</div>
-                <div className="text-lg font-bold text-rx-gray-900">{totalConversions}</div>
-              </div>
-              <div>
-                <div className="text-xs text-rx-gray-500">Earnings</div>
-                <div className="text-lg font-bold text-rx-gray-900">{formatCurrency(data?.kpis.totalEarnings ?? 0)}</div>
-              </div>
-              <div>
-                <div className="text-xs text-rx-gray-500">Avg. Commission</div>
-                <div className="text-lg font-bold text-rx-gray-900">{formatCurrency(avgCommission)}</div>
-              </div>
-            </>
-          )}
+        {/* Social Share Buttons */}
+        <div className="flex flex-wrap gap-3 pt-5 border-t border-white/20">
+          <span className="text-white/60 text-sm font-medium self-center mr-1">Share via:</span>
+          <button
+            onClick={shareOnWhatsApp}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#25D366] text-white rounded-lg text-sm font-semibold hover:bg-[#1da851] transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" /> WhatsApp
+          </button>
+          <button
+            onClick={shareOnFacebook}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1877F2] text-white rounded-lg text-sm font-semibold hover:bg-[#1565C0] transition-colors"
+          >
+            <Share2 className="w-4 h-4" /> Facebook
+          </button>
+          <button
+            onClick={shareOnTwitter}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1DA1F2] text-white rounded-lg text-sm font-semibold hover:bg-[#0C85D0] transition-colors"
+          >
+            <Share2 className="w-4 h-4" /> Twitter/X
+          </button>
+          <button
+            onClick={shareOnLinkedIn}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0A66C2] text-white rounded-lg text-sm font-semibold hover:bg-[#084d94] transition-colors"
+          >
+            <Share2 className="w-4 h-4" /> LinkedIn
+          </button>
+          <button
+            onClick={shareViaEmail}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 text-white rounded-lg text-sm font-semibold hover:bg-white/25 transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" /> Email
+          </button>
         </div>
       </div>
 
-      {/* Earnings Overview + Sources */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-rx-gray-200 p-5">
+      {/* Two Charts Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Total Referrals Chart */}
+        <div className="bg-white rounded-2xl border border-rx-gray-200 p-5">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-rx-gray-800">Earnings Overview</h3>
+            <h3 className="text-base font-semibold text-rx-gray-800">Total Referrals</h3>
             <div className="flex gap-2">
               {(["7D", "30D", "90D"] as const).map((p) => (
                 <button
@@ -314,26 +359,26 @@ export function AffiliateDashboard() {
             </div>
           </div>
           {loading ? (
-            <div className="h-[300px] flex items-end gap-2 px-2">
-              {Array.from({ length: 12 }).map((_, i) => (
+            <div className="h-[250px] flex items-end gap-2 px-2">
+              {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="flex-1 rounded-t-md" style={{ height: `${30 + Math.random() * 60}%` }} />
               ))}
             </div>
           ) : (
             <>
-              <div className="h-[300px] flex items-end gap-2 px-2">
-                {(data?.monthlyEarnings || []).map((m, i) => {
-                  const maxAmount = Math.max(...(data?.monthlyEarnings || []).map((e) => e.amount), 1);
-                  const pct = maxAmount > 0 ? (m.amount / maxAmount) * 100 : 0;
+              <div className="h-[250px] flex items-end gap-2 px-2">
+                {generateReferralChartData("total").map((d, i) => {
+                  const maxVal = Math.max(...generateReferralChartData("total").map((e) => e.value), 1);
+                  const pct = maxVal > 0 ? (d.value / maxVal) * 100 : 0;
                   return (
                     <div
                       key={i}
                       className="flex-1 bg-gradient-to-t from-rx-primary to-rx-primary/60 rounded-t-md hover:from-rx-primary-dark hover:to-rx-primary transition-all group relative"
                       style={{ height: `${Math.max(pct, 2)}%` }}
                     >
-                      {m.amount > 0 && (
+                      {d.value > 0 && (
                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-rx-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                          {formatCurrency(m.amount)}
+                          {d.value} referrals
                         </div>
                       )}
                     </div>
@@ -341,103 +386,130 @@ export function AffiliateDashboard() {
                 })}
               </div>
               <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400">
-                {(data?.monthlyEarnings || []).map((m, i) => (
-                  <span key={i}>{m.month}</span>
+                {generateReferralChartData("total").map((d, i) => (
+                  <span key={i}>{d.month}</span>
                 ))}
               </div>
             </>
           )}
         </div>
 
-        {/* Top/Source Breakdown */}
+        {/* Enrolled Referrals Chart */}
         <div className="bg-white rounded-2xl border border-rx-gray-200 p-5">
-          <h3 className="text-base font-semibold text-rx-gray-800 mb-5">Traffic Sources</h3>
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
-                  <Skeleton className="w-7 h-7 rounded-full" />
-                  <div className="flex-1">
-                    <Skeleton className="h-4 w-20 mb-1" />
-                    <Skeleton className="h-3 w-14" />
-                  </div>
-                  <Skeleton className="h-4 w-10" />
-                </div>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-base font-semibold text-rx-gray-800">Enrolled Referrals</h3>
+            <div className="flex gap-2">
+              {(["7D", "30D", "90D"] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-3 py-1.5 border rounded-lg text-xs font-medium ${
+                    period === p ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"
+                  }`}
+                >
+                  {p}
+                </button>
               ))}
             </div>
-          ) : data?.sources && Object.keys(data.sources).length > 0 ? (
-            <div className="space-y-3">
-              {Object.entries(data.sources).map(([source, count], i) => {
-                const icons: Record<string, React.ReactNode> = {
-                  social: <ExternalLink className="w-4 h-4" />,
-                  email: <Link2 className="w-4 h-4" />,
-                  website: <BarChart3 className="w-4 h-4" />,
-                  direct: <MousePointer className="w-4 h-4" />,
-                };
-                const colors: Record<string, string> = {
-                  social: "bg-rx-primary-light text-rx-primary",
-                  email: "bg-rx-secondary-light text-rx-secondary",
-                  website: "bg-rx-warning-light text-rx-warning",
-                  direct: "bg-rx-info-light text-rx-info",
-                };
-                return (
-                  <div key={source} className="flex items-center gap-3 p-3 rounded-lg hover:bg-rx-gray-50">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${colors[source] || "bg-rx-gray-100 text-rx-gray-600"}`}>
-                      {icons[source] || <Link2 className="w-4 h-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-rx-gray-800 truncate capitalize">{source}</div>
-                      <div className="text-xs text-rx-gray-500">{count} referrals</div>
-                    </div>
-                    <div className="text-sm font-bold text-rx-secondary">{count}</div>
-                  </div>
-                );
-              })}
+          </div>
+          {loading ? (
+            <div className="h-[250px] flex items-end gap-2 px-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="flex-1 rounded-t-md" style={{ height: `${30 + Math.random() * 60}%` }} />
+              ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <TrendingUp className="w-10 h-10 text-rx-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-rx-gray-500">No traffic source data yet</p>
-            </div>
+            <>
+              <div className="h-[250px] flex items-end gap-2 px-2">
+                {generateReferralChartData("enrolled").map((d, i) => {
+                  const maxVal = Math.max(...generateReferralChartData("enrolled").map((e) => e.value), 1);
+                  const pct = maxVal > 0 ? (d.value / maxVal) * 100 : 0;
+                  return (
+                    <div
+                      key={i}
+                      className="flex-1 bg-gradient-to-t from-rx-secondary to-rx-secondary/60 rounded-t-md hover:from-[#059669] hover:to-rx-secondary transition-all group relative"
+                      style={{ height: `${Math.max(pct, 2)}%` }}
+                    >
+                      {d.value > 0 && (
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-rx-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          {d.value} enrolled
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400">
+                {generateReferralChartData("enrolled").map((d, i) => (
+                  <span key={i}>{d.month}</span>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* Payout Overview */}
-      <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-rx-gray-800">Payout Overview</h3>
-        </div>
+      {/* Traffic Sources */}
+      <div className="bg-white rounded-2xl border border-rx-gray-200 p-5">
+        <h3 className="text-base font-semibold text-rx-gray-800 mb-5">Traffic Sources</h3>
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="p-4 bg-rx-gray-50 rounded-xl">
-                <Skeleton className="h-3 w-28 mb-2" />
-                <Skeleton className="h-8 w-24 mb-1" />
-                <Skeleton className="h-3 w-36 mb-2" />
-                <Skeleton className="h-1.5 w-full rounded-full" />
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
+                <Skeleton className="w-7 h-7 rounded-full" />
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-20 mb-1" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
               </div>
             ))}
           </div>
+        ) : data?.sources && Object.keys(data.sources).length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+            {Object.entries(data.sources).map(([source, count]) => {
+              const icons: Record<string, React.ReactNode> = {
+                social: <ExternalLink className="w-4 h-4" />,
+                email: <ExternalLink className="w-4 h-4" />,
+                website: <BarChart3 className="w-4 h-4" />,
+                direct: <Users className="w-4 h-4" />,
+                whatsapp: <MessageCircle className="w-4 h-4" />,
+                facebook: <Share2 className="w-4 h-4" />,
+                twitter: <Share2 className="w-4 h-4" />,
+                linkedin: <Share2 className="w-4 h-4" />,
+              };
+              const colors: Record<string, string> = {
+                social: "bg-rx-primary-light text-rx-primary",
+                email: "bg-rx-secondary-light text-rx-secondary",
+                website: "bg-rx-warning-light text-rx-warning",
+                direct: "bg-rx-info-light text-rx-info",
+                whatsapp: "bg-[#25D366]/15 text-[#25D366]",
+                facebook: "bg-[#1877F2]/15 text-[#1877F2]",
+                twitter: "bg-[#1DA1F2]/15 text-[#1DA1F2]",
+                linkedin: "bg-[#0A66C2]/15 text-[#0A66C2]",
+              };
+              return (
+                <div key={source} className="flex items-center gap-3 p-3 rounded-lg hover:bg-rx-gray-50">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${colors[source] || "bg-rx-gray-100 text-rx-gray-600"}`}>
+                    {icons[source] || <Link2 className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-rx-gray-800 truncate capitalize">{source}</div>
+                    <div className="text-xs text-rx-gray-500">{count} referrals</div>
+                  </div>
+                  <div className="text-sm font-bold text-rx-secondary">{count}</div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {[
-              { label: "Available Balance", value: formatCurrency(data?.kpis.balance ?? 0), sub: "Ready to withdraw", progress: 72 },
-              { label: "Pending Balance", value: formatCurrency(data?.kpis.pendingEarnings ?? 0), sub: "Processing (3-5 days)", progress: 35 },
-              { label: "Total Earnings", value: formatCurrency(data?.kpis.approvedEarnings ?? 0), sub: "Since joining", progress: 100 },
-            ].map((item) => (
-              <div key={item.label} className="p-4 bg-rx-gray-50 rounded-xl">
-                <div className="text-xs text-rx-gray-500 font-medium mb-1">{item.label}</div>
-                <div className="text-2xl font-bold text-rx-gray-900 mb-1">{item.value}</div>
-                <div className="text-xs text-rx-gray-400 mb-2">{item.sub}</div>
-                <ProgressBar value={item.progress} color="primary" />
-              </div>
-            ))}
+          <div className="text-center py-8">
+            <TrendingUp className="w-10 h-10 text-rx-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-rx-gray-500">No traffic source data yet</p>
           </div>
         )}
       </div>
 
-      {/* Recent Conversions / Referrals */}
+      {/* Recent Referrals */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Recent Referrals</h3>
@@ -489,7 +561,7 @@ export function AffiliateDashboard() {
                     <td className="px-5 py-3.5 text-sm text-rx-gray-700 capitalize">{r.source || "direct"}</td>
                     <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(r.createdAt)}</td>
                     <td className="px-5 py-3.5">
-                      <StatusBadge status={r.status as any} />
+                      <StatusBadge status={getReferralStatus(r) as any} />
                     </td>
                   </tr>
                 ))}
@@ -498,7 +570,7 @@ export function AffiliateDashboard() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <ShoppingBag className="w-10 h-10 text-rx-gray-300 mx-auto mb-3" />
+            <Users className="w-10 h-10 text-rx-gray-300 mx-auto mb-3" />
             <p className="text-sm text-rx-gray-500">No referrals yet. Share your link to start earning!</p>
           </div>
         )}

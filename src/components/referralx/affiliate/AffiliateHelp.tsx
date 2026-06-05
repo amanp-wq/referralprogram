@@ -2,29 +2,32 @@
 
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ChevronDown, ChevronUp, Send, BookOpen, Link2, CreditCard, Shield, Loader2 } from "lucide-react";
+import { Send, Phone, Mail, Loader2, MessageCircle, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-const categories = [
-  { icon: <BookOpen className="w-5 h-5" />, color: "bg-rx-primary-light text-rx-primary", title: "Getting Started", desc: "Learn the basics of using ElevateMe Referral", articles: 5 },
-  { icon: <Link2 className="w-5 h-5" />, color: "bg-rx-secondary-light text-rx-secondary", title: "Links & Tracking", desc: "Create and manage your referral links", articles: 8 },
-  { icon: <CreditCard className="w-5 h-5" />, color: "bg-rx-warning-light text-rx-warning", title: "Payments & Payouts", desc: "Understand your earnings and payouts", articles: 6 },
-  { icon: <Shield className="w-5 h-5" />, color: "bg-rx-danger-light text-rx-danger", title: "Account & Security", desc: "Manage your account and privacy", articles: 4 },
-];
-
-const faqs = [
-  { q: "How do I create a referral link?", a: "Navigate to the My Links page and click the Create Link button. You can customize the link label and assign it to a specific program. Your unique referral code will be embedded in the link automatically." },
-  { q: "When do I get paid?", a: "Payouts are processed on a monthly basis, typically on the 15th of each month. You must have a minimum balance of $50.00 to request a payout. The processing time depends on your selected payout method (3-5 business days for bank transfer, 1-2 days for PayPal)." },
-  { q: "How are commissions calculated?", a: "Commissions are calculated based on the program commission structure. For percentage-based programs, you earn a percentage of each sale. For fixed-amount programs, you earn a fixed amount per conversion. Your commission rate is determined by your affiliate tier." },
-  { q: "Can I track my referral performance?", a: "Yes! Your Dashboard shows real-time statistics including clicks, conversions, and earnings. You can also view detailed analytics on the Earnings page and track individual link performance on the My Links page." },
-  { q: "What happens if a referral is refunded?", a: "If a referred customer requests a refund, the corresponding commission will be deducted from your pending balance. The referral status will be updated to 'Refunded' and you'll be notified via email if payout alerts are enabled." },
-  { q: "How do I change my payout method?", a: "Go to Settings and select your preferred payout method under the Payout Method section. You can choose between Bank Transfer, PayPal, or UPI. Make sure to fill in the required details for your selected method." },
-  { q: "What is the ElevateMe referral program?", a: "ElevateMe Referral is a comprehensive platform that allows you to earn commissions by referring customers to products and services. You get a unique referral link to share, and earn money whenever someone makes a purchase through your link." },
+const experts = [
+  {
+    name: "Dhanraj Solanki",
+    role: "Team Lead",
+    phone: "(614) 559-3815",
+    email: "dhanraj.s@elevateme.pro",
+    whatsappUrl: "https://wa.me/16145593815",
+    initials: "DS",
+    color: "from-rx-primary to-rx-primary-dark",
+  },
+  {
+    name: "Meet Patel",
+    role: "CSR",
+    phone: "(614) 524-5554",
+    email: "meet.p@elevateme.pro",
+    whatsappUrl: "https://wa.me/16145245554",
+    initials: "MP",
+    color: "from-rx-secondary to-[#059669]",
+  },
 ];
 
 export function AffiliateHelp() {
   const { token } = useAuth();
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Contact form state
   const [subject, setSubject] = useState("");
@@ -73,57 +76,80 @@ export function AffiliateHelp() {
         <div className="relative z-10 flex items-center gap-4">
           <img src="/logo.svg" alt="ElevateMe" className="h-10 w-10" />
           <div>
-            <h2 className="text-2xl font-bold mb-1">Help Center</h2>
-            <p className="text-white/85 text-sm">Find answers to common questions and get support</p>
+            <h2 className="text-2xl font-bold mb-1">Ambassador Help Center</h2>
+            <p className="text-white/85 text-sm">Connect with our experts or send us a message</p>
           </div>
         </div>
       </div>
 
-      {/* Categories */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-        {categories.map((cat) => (
-          <div
-            key={cat.title}
-            className="bg-white rounded-2xl p-6 border border-rx-gray-200 hover:shadow-md hover:border-rx-primary/30 transition-all cursor-pointer"
-          >
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${cat.color}`}>
-              {cat.icon}
-            </div>
-            <h4 className="font-semibold text-rx-gray-800 mb-1">{cat.title}</h4>
-            <p className="text-xs text-rx-gray-500 mb-3 leading-relaxed">{cat.desc}</p>
-            <span className="text-xs text-rx-primary font-semibold">{cat.articles} articles</span>
+      {/* Connect with Experts */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-rx-primary-light flex items-center justify-center">
+            <User className="w-5 h-5 text-rx-primary" />
           </div>
-        ))}
-      </div>
-
-      {/* FAQs */}
-      <div className="bg-white rounded-2xl border border-rx-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-rx-gray-800 mb-5">Frequently Asked Questions</h3>
-        <div className="space-y-2">
-          {faqs.map((faq, i) => (
-            <div key={i} className="border border-rx-gray-100 rounded-xl overflow-hidden">
-              <button
-                onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-rx-gray-50"
-              >
-                <span className="text-sm font-medium text-rx-gray-800">{faq.q}</span>
-                {openFaq === i ? (
-                  <ChevronUp className="w-4 h-4 text-rx-primary flex-shrink-0" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-rx-gray-400 flex-shrink-0" />
-                )}
-              </button>
-              {openFaq === i && (
-                <div className="px-5 pb-4 text-sm text-rx-gray-600 leading-relaxed border-t border-rx-gray-50 pt-3">
-                  {faq.a}
+          <div>
+            <h3 className="text-lg font-semibold text-rx-gray-800">Connect with Experts</h3>
+            <p className="text-sm text-rx-gray-500">Reach out to our team for support and guidance</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {experts.map((expert) => (
+            <div
+              key={expert.name}
+              className="bg-white rounded-2xl p-6 border border-rx-gray-200 hover:shadow-md hover:border-rx-primary/20 transition-all"
+            >
+              <div className="flex items-start gap-4 mb-5">
+                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${expert.color} flex items-center justify-center text-white font-bold text-lg flex-shrink-0`}>
+                  {expert.initials}
                 </div>
-              )}
+                <div>
+                  <h4 className="text-lg font-bold text-rx-gray-800">{expert.name}</h4>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rx-primary-light text-rx-primary rounded-full text-xs font-semibold mt-1">
+                    {expert.role}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <a
+                  href={expert.whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 bg-[#25D366]/10 border border-[#25D366]/20 rounded-xl hover:bg-[#25D366]/20 transition-colors group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-[#25D366] flex items-center justify-center flex-shrink-0">
+                    <MessageCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-[#25D366] transition-colors">
+                      {expert.phone}
+                    </div>
+                    <div className="text-xs text-rx-gray-500">WhatsApp / Phone</div>
+                  </div>
+                  <Phone className="w-4 h-4 text-rx-gray-400" />
+                </a>
+                <a
+                  href={`mailto:${expert.email}`}
+                  className="flex items-center gap-3 px-4 py-3 bg-rx-gray-50 border border-rx-gray-200 rounded-xl hover:bg-rx-primary-light/30 hover:border-rx-primary/20 transition-colors group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-rx-primary flex items-center justify-center flex-shrink-0">
+                    <Mail className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-rx-primary transition-colors">
+                      {expert.email}
+                    </div>
+                    <div className="text-xs text-rx-gray-500">Email</div>
+                  </div>
+                  <Mail className="w-4 h-4 text-rx-gray-400" />
+                </a>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Contact Support */}
+      {/* Contact Form */}
       <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
         <div className="flex items-center gap-3 mb-1">
           <img src="/logo.svg" alt="ElevateMe" className="h-6 w-6" />

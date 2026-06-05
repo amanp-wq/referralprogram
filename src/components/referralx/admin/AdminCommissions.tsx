@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
-import { DollarSign, TrendingUp, Clock, AlertCircle, Download } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface Commission {
   id: string;
@@ -18,7 +19,7 @@ interface Commission {
   createdAt: string;
   updatedAt: string;
   Affiliate?: { id: string; referralCode: string; User?: { name: string; email: string } };
-  Program?: { id: string; name: string; commissionType?: string; commissionValue?: number };
+  Referral?: { id: string; visitorName: string | null; visitorEmail: string | null };
 }
 
 function downloadCSV(filename: string, headers: string[], rows: string[][]) {
@@ -77,7 +78,10 @@ export function AdminCommissions() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
       });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        toast({ title: "Status updated", description: `Commission status changed to ${status}` });
+        fetchData();
+      }
     } catch {}
   };
 
@@ -86,14 +90,15 @@ export function AdminCommissions() {
   }
 
   const commissions = data?.commissions || [];
-  const total = data?.total || 0;
   const totalAmount = commissions.reduce((s, c) => s + c.amount, 0);
   const pendingAmount = commissions.filter((c) => c.status === "pending").reduce((s, c) => s + c.amount, 0);
-  const paidAmount = commissions.filter((c) => c.status === "paid" || c.status === "approved").reduce((s, c) => s + c.amount, 0);
+  const approvedAmount = commissions.filter((c) => c.status === "approved").reduce((s, c) => s + c.amount, 0);
+  const releasedAmount = commissions.filter((c) => c.status === "released" || c.status === "paid").reduce((s, c) => s + c.amount, 0);
   const failedAmount = commissions.filter((c) => c.status === "failed").reduce((s, c) => s + c.amount, 0);
 
   return (
     <div className="space-y-6">
+      {/* KPI Tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
@@ -101,16 +106,17 @@ export function AdminCommissions() {
           <>
             <KpiCard label="Total Commissions" value={formatCurrency(totalAmount)} iconColor="primary" icon={<DollarSign className="w-[18px] h-[18px]" />} />
             <KpiCard label="Pending" value={formatCurrency(pendingAmount)} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
-            <KpiCard label="Paid Out" value={formatCurrency(paidAmount)} iconColor="success" icon={<TrendingUp className="w-[18px] h-[18px]" />} />
-            <KpiCard label="Failed" value={formatCurrency(failedAmount)} iconColor="danger" icon={<AlertCircle className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Approved" value={formatCurrency(approvedAmount)} iconColor="success" icon={<CheckCircle className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Released" value={formatCurrency(releasedAmount)} iconColor="info" icon={<Send className="w-[18px] h-[18px]" />} />
           </>
         )}
       </div>
 
+      {/* Commissions Table */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <div className="flex gap-1">
-            {["", "pending", "approved", "paid", "processing", "failed"].map((s, i) => (
+            {["", "pending", "approved", "released", "failed"].map((s) => (
               <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 text-sm font-medium rounded-lg ${statusFilter === s ? "bg-rx-primary-light text-rx-primary font-semibold" : "text-rx-gray-500 hover:bg-rx-gray-50"}`}>
                 {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
@@ -118,13 +124,12 @@ export function AdminCommissions() {
           </div>
           <button
             onClick={() => {
-              const headers = ["Affiliate", "Program", "Amount", "Rate", "Type", "Date", "Status"];
+              const headers = ["Ambassador", "Referral", "Amount", "Rate", "Date", "Status"];
               const rows = commissions.map(c => [
                 c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown",
-                c.Program?.name || "-",
+                c.Referral?.visitorName || c.Referral?.visitorEmail || "-",
                 c.amount.toString(),
-                c.Program?.commissionType === "percentage" ? `${c.rate}%` : `$${c.rate}`,
-                c.type,
+                `${c.rate}%`,
                 formatDate(c.createdAt),
                 c.status,
               ]);
@@ -143,8 +148,8 @@ export function AdminCommissions() {
             <table className="w-full">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
-                  <th className="px-5 py-3">Affiliate</th>
-                  <th className="px-5 py-3">Program</th>
+                  <th className="px-5 py-3">Ambassador</th>
+                  <th className="px-5 py-3">Referral</th>
                   <th className="px-5 py-3">Amount</th>
                   <th className="px-5 py-3">Rate</th>
                   <th className="px-5 py-3">Date</th>
@@ -155,14 +160,13 @@ export function AdminCommissions() {
               <tbody>
                 {commissions.map((c) => {
                   const affName = c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown";
-                  const programName = c.Program?.name || "-";
-              const rateDisplay = c.Program?.commissionType === "percentage" ? `${c.rate}%` : `$${c.rate}`;
+                  const referralName = c.Referral?.visitorName || c.Referral?.visitorEmail || "-";
                   return (
                     <tr key={c.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
                       <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-800">{affName}</td>
-                      <td className="px-5 py-3.5 text-sm text-rx-gray-700">{programName}</td>
+                      <td className="px-5 py-3.5 text-sm text-rx-gray-700">{referralName}</td>
                       <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(c.amount)}</td>
-                      <td className="px-5 py-3.5 text-sm text-rx-gray-500">{rateDisplay}</td>
+                      <td className="px-5 py-3.5 text-sm text-rx-gray-500">{c.rate}%</td>
                       <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(c.createdAt)}</td>
                       <td className="px-5 py-3.5"><StatusBadge status={c.status as any} /></td>
                       <td className="px-5 py-3.5">
@@ -170,6 +174,11 @@ export function AdminCommissions() {
                           <div className="flex gap-1">
                             <button onClick={() => handleStatusChange(c.id, "approved")} className="text-xs px-2 py-1 bg-rx-secondary-light text-rx-secondary rounded hover:bg-rx-secondary/20 font-medium">Approve</button>
                             <button onClick={() => handleStatusChange(c.id, "failed")} className="text-xs px-2 py-1 bg-rx-danger-light text-rx-danger rounded hover:bg-rx-danger/20 font-medium">Reject</button>
+                          </div>
+                        )}
+                        {c.status === "approved" && (
+                          <div className="flex gap-1">
+                            <button onClick={() => handleStatusChange(c.id, "released")} className="text-xs px-2 py-1 bg-rx-info-light text-rx-info rounded hover:bg-rx-info/20 font-medium">Release</button>
                           </div>
                         )}
                       </td>
