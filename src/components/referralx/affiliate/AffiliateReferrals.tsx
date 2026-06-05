@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, StatusBadge, Avatar, CopyButton, getInitials } from "../shared";
+import { KpiCard, StatusBadge, Avatar, getInitials } from "../shared";
 import {
-  Users, UserPlus, Share2, Copy, Link2,
-  RefreshCw, AlertCircle,
+  Users, UserCheck, Clock, UserX, Download, RefreshCw, AlertCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
 
 interface Referral {
   id: string;
@@ -29,11 +29,50 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function getDaysSince(dateStr: string): number {
+  const now = new Date();
+  const d = new Date(dateStr);
+  return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function getReferralStatus(ref: Referral): string {
+  if (ref.status === "completed" || ref.status === "converted" || ref.status === "enrolled") return "enrolled";
+  const daysSince = getDaysSince(ref.createdAt);
+  if (ref.status === "submitted" || ref.status === "active") {
+    return "submitted";
+  }
+  if (ref.status === "pending") {
+    if (daysSince > 30) return "not enrolled";
+    return "pending";
+  }
+  if (ref.status === "inactive" || ref.status === "cancelled" || ref.status === "failed") {
+    return "not enrolled";
+  }
+  // Default: check time-based status
+  if (daysSince > 30) return "not enrolled";
+  if (daysSince <= 30) return "pending";
+  return ref.status;
+}
+
+function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+type FilterTab = "All" | "Submitted" | "Pending" | "Enrolled" | "Not Enrolled";
+
 export function AffiliateReferrals() {
-  const { token, affiliate } = useAuth();
+  const { token } = useAuth();
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>("All");
 
   const fetchReferrals = useCallback(async () => {
     if (!token) return;
@@ -60,14 +99,41 @@ export function AffiliateReferrals() {
     fetchReferrals();
   }, [fetchReferrals]);
 
-  const referralLink = affiliate
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/ref/${affiliate.referralCode}`
-    : "";
+  // Compute statuses for each referral
+  const referralsWithStatus = referrals.map((r) => ({
+    ...r,
+    computedStatus: getReferralStatus(r),
+    daysSince: getDaysSince(r.createdAt),
+  }));
 
-  const totalReferrals = referrals.length;
-  const activeCount = referrals.filter((r) => r.status === "active" || r.status === "converted" || r.status === "completed").length;
-  const convertedCount = referrals.filter((r) => r.status === "converted" || r.status === "completed").length;
-  const conversionRate = totalReferrals > 0 ? ((convertedCount / totalReferrals) * 100).toFixed(1) : "0";
+  const totalReferrals = referralsWithStatus.length;
+  const enrolledCount = referralsWithStatus.filter((r) => r.computedStatus === "enrolled").length;
+  const pendingCount = referralsWithStatus.filter((r) => r.computedStatus === "pending").length;
+  const notEnrolledCount = referralsWithStatus.filter((r) => r.computedStatus === "not enrolled").length;
+
+  // Filter referrals based on active tab
+  const filteredReferrals = activeFilter === "All"
+    ? referralsWithStatus
+    : referralsWithStatus.filter((r) => {
+        if (activeFilter === "Submitted") return r.computedStatus === "submitted";
+        if (activeFilter === "Pending") return r.computedStatus === "pending";
+        if (activeFilter === "Enrolled") return r.computedStatus === "enrolled";
+        if (activeFilter === "Not Enrolled") return r.computedStatus === "not enrolled";
+        return true;
+      });
+
+  const handleExportCSV = () => {
+    const headers = ["Referred Person", "Source", "Date", "Days Since", "Status"];
+    const rows = filteredReferrals.map((r) => [
+      r.visitorName || r.visitorEmail || "Anonymous",
+      r.source || "direct",
+      formatDate(r.createdAt),
+      r.daysSince.toString(),
+      r.computedStatus,
+    ]);
+    downloadCSV("referrals.csv", headers, rows);
+    toast({ title: "Export complete", description: "Referrals CSV downloaded successfully" });
+  };
 
   if (error) {
     return (
@@ -107,44 +173,58 @@ export function AffiliateReferrals() {
             icon={<Users className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="Active"
-            value={activeCount.toLocaleString()}
+            label="Enrolled"
+            value={enrolledCount.toLocaleString()}
             iconColor="success"
-            icon={<UserPlus className="w-[18px] h-[18px]" />}
+            icon={<UserCheck className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="Conversion Rate"
-            value={`${conversionRate}%`}
+            label="Pending"
+            value={pendingCount.toLocaleString()}
             iconColor="warning"
-            icon={<Share2 className="w-[18px] h-[18px]" />}
+            icon={<Clock className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="Converted"
-            value={convertedCount.toLocaleString()}
+            label="Not Enrolled"
+            value={notEnrolledCount.toLocaleString()}
             iconColor="danger"
-            icon={<Copy className="w-[18px] h-[18px]" />}
+            icon={<UserX className="w-[18px] h-[18px]" />}
           />
         </div>
       )}
 
-      {/* Share Referral Link */}
-      <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
-        <h3 className="text-base font-semibold text-rx-gray-800 mb-3">Share Your Referral Link</h3>
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={referralLink}
-            readOnly
-            className="flex-1 px-4 py-3 border border-rx-gray-200 rounded-lg font-mono text-sm bg-rx-gray-50 text-rx-gray-700"
-          />
-          <CopyButton text={referralLink} label="Copy Link" />
-        </div>
-      </div>
-
       {/* Referrals Table */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-rx-gray-100">
-          <h3 className="text-base font-semibold text-rx-gray-800">Your Referrals</h3>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+          <div className="flex gap-1 overflow-x-auto">
+            {(["All", "Submitted", "Pending", "Enrolled", "Not Enrolled"] as FilterTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveFilter(tab)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap ${
+                  activeFilter === tab
+                    ? "bg-rx-primary-light text-rx-primary font-semibold"
+                    : "text-rx-gray-500 hover:bg-rx-gray-50"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchReferrals}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
+              <RefreshCw className="w-3 h-3" /> Refresh
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            >
+              <Download className="w-3 h-3" /> Export
+            </button>
+          </div>
         </div>
         {loading ? (
           <div className="p-5 space-y-3">
@@ -156,23 +236,26 @@ export function AffiliateReferrals() {
                   <Skeleton className="h-3 w-36" />
                 </div>
                 <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-6 w-20 rounded-full" />
               </div>
             ))}
           </div>
-        ) : referrals.length > 0 ? (
+        ) : filteredReferrals.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
-                  <th className="px-5 py-3">Referral</th>
+                  <th className="px-5 py-3">Referred Person</th>
                   <th className="px-5 py-3">Source</th>
                   <th className="px-5 py-3">Date</th>
+                  <th className="px-5 py-3">Days Since</th>
                   <th className="px-5 py-3">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {referrals.map((r) => {
+                {filteredReferrals.map((r) => {
                   const displayName = r.visitorName || r.visitorEmail || "Anonymous";
                   const initials = getInitials(displayName);
                   return (
@@ -188,8 +271,9 @@ export function AffiliateReferrals() {
                       </td>
                       <td className="px-5 py-3.5 text-sm text-rx-gray-700 capitalize">{r.source || "direct"}</td>
                       <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(r.createdAt)}</td>
+                      <td className="px-5 py-3.5 text-sm text-rx-gray-500">{r.daysSince}d</td>
                       <td className="px-5 py-3.5">
-                        <StatusBadge status={r.status as any} />
+                        <StatusBadge status={r.computedStatus as any} />
                       </td>
                     </tr>
                   );
@@ -200,7 +284,11 @@ export function AffiliateReferrals() {
         ) : (
           <div className="text-center py-12">
             <Users className="w-10 h-10 text-rx-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-rx-gray-500">No referrals yet. Share your link to start building your network!</p>
+            <p className="text-sm text-rx-gray-500">
+              {activeFilter === "All"
+                ? "No referrals yet. Share your link to start building your network!"
+                : `No ${activeFilter.toLowerCase()} referrals found.`}
+            </p>
           </div>
         )}
       </div>

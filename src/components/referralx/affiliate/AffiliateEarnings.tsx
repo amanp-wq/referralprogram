@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, ProgressBar, StatusBadge } from "../shared";
+import { KpiCard, StatusBadge } from "../shared";
 import {
-  DollarSign, TrendingUp, Wallet, Clock, Download, RefreshCw,
+  DollarSign, TrendingUp, Clock, CheckCircle, Download, RefreshCw,
   AlertCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -93,14 +93,17 @@ export function AffiliateEarnings() {
     fetchData();
   }, [fetchData]);
 
+  const thisMonth = data?.monthlyEarnings?.length
+    ? data.monthlyEarnings[data.monthlyEarnings.length - 1]?.amount ?? 0
+    : 0;
+
   const handleExportCSV = () => {
     const commissions = data?.commissions || [];
-    const headers = ["Date", "Description", "Type", "Rate", "Amount", "Status"];
+    const headers = ["Date", "Description", "Type", "Amount", "Status"];
     const rows = commissions.map((c) => [
       formatDate(c.createdAt),
       c.description || c.type,
       c.type,
-      `${c.rate}%`,
       c.amount < 0 ? `-${formatCurrency(Math.abs(c.amount))}` : formatCurrency(c.amount),
       c.status,
     ]);
@@ -147,30 +150,26 @@ export function AffiliateEarnings() {
           />
           <KpiCard
             label="This Month"
-            value={formatCurrency(
-              data?.monthlyEarnings?.length
-                ? data.monthlyEarnings[data.monthlyEarnings.length - 1]?.amount ?? 0
-                : 0
-            )}
+            value={formatCurrency(thisMonth)}
             iconColor="success"
             icon={<TrendingUp className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="Available"
-            value={formatCurrency(data?.kpis.balance ?? 0)}
-            iconColor="warning"
-            icon={<Wallet className="w-[18px] h-[18px]" />}
-          />
-          <KpiCard
             label="Pending"
             value={formatCurrency(data?.kpis.pendingEarnings ?? 0)}
-            iconColor="danger"
+            iconColor="warning"
             icon={<Clock className="w-[18px] h-[18px]" />}
+          />
+          <KpiCard
+            label="Approved"
+            value={formatCurrency(data?.kpis.approvedEarnings ?? 0)}
+            iconColor="danger"
+            icon={<CheckCircle className="w-[18px] h-[18px]" />}
           />
         </div>
       )}
 
-      {/* Earnings Chart */}
+      {/* Earnings Over Time Chart */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 p-5">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-semibold text-rx-gray-800">Earnings Over Time</h3>
@@ -224,41 +223,6 @@ export function AffiliateEarnings() {
         )}
       </div>
 
-      {/* Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {loading ? (
-          [1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 border border-rx-gray-200">
-              <Skeleton className="h-3 w-28 mb-2" />
-              <Skeleton className="h-8 w-24 mb-1" />
-              <Skeleton className="h-3 w-32 mb-3" />
-              <Skeleton className="h-1.5 w-full rounded-full" />
-            </div>
-          ))
-        ) : (
-          <>
-            <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
-              <div className="text-xs text-rx-gray-500 font-medium mb-1">Available Balance</div>
-              <div className="text-2xl font-bold text-rx-gray-900 mb-1">{formatCurrency(data?.kpis.balance ?? 0)}</div>
-              <div className="text-xs text-rx-gray-400 mb-3">Ready to withdraw</div>
-              <ProgressBar value={data?.kpis.balance && data.kpis.totalEarnings ? (data.kpis.balance / data.kpis.totalEarnings) * 100 : 0} color="success" />
-            </div>
-            <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
-              <div className="text-xs text-rx-gray-500 font-medium mb-1">Pending Balance</div>
-              <div className="text-2xl font-bold text-rx-gray-900 mb-1">{formatCurrency(data?.kpis.pendingEarnings ?? 0)}</div>
-              <div className="text-xs text-rx-gray-400 mb-3">Processing (3-5 days)</div>
-              <ProgressBar value={35} color="success" />
-            </div>
-            <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
-              <div className="text-xs text-rx-gray-500 font-medium mb-1">Lifetime Earnings</div>
-              <div className="text-2xl font-bold text-rx-gray-900 mb-1">{formatCurrency(data?.kpis.totalEarnings ?? 0)}</div>
-              <div className="text-xs text-rx-gray-400 mb-3">Since joining</div>
-              <ProgressBar value={100} color="success" />
-            </div>
-          </>
-        )}
-      </div>
-
       {/* Earnings History Table */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
@@ -298,7 +262,6 @@ export function AffiliateEarnings() {
                   <th className="px-5 py-3">Date</th>
                   <th className="px-5 py-3">Description</th>
                   <th className="px-5 py-3">Type</th>
-                  <th className="px-5 py-3">Rate</th>
                   <th className="px-5 py-3">Amount</th>
                   <th className="px-5 py-3">Status</th>
                 </tr>
@@ -319,7 +282,6 @@ export function AffiliateEarnings() {
                         {c.type}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-rx-gray-500">{c.rate}%</td>
                     <td className={`px-5 py-3.5 text-sm font-semibold ${c.amount < 0 ? "text-rx-danger" : "text-rx-secondary"}`}>
                       {c.amount < 0 ? "-" : ""}{formatCurrency(Math.abs(c.amount))}
                     </td>

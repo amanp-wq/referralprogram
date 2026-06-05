@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { getInitials } from "./shared";
 import {
-  ChartPie, Users, Share2, Target, DollarSign, Wallet, Link2, FileText, Settings,
-  ShoppingBag, CreditCard, Receipt, HelpCircle, Search, Bell, LogOut, Menu, X, ChevronRight,
+  ChartPie, Users, Share2, DollarSign, Link2, FileText, Settings,
+  HelpCircle, Search, Bell, LogOut, Menu, X, ChevronRight,
 } from "lucide-react";
 
 interface NavGroup { label: string; items: { id: string; label: string; icon: React.ReactNode; badge?: number }[]; }
@@ -12,13 +12,11 @@ interface NavGroup { label: string; items: { id: string; label: string; icon: Re
 const adminNavGroups: NavGroup[] = [
   { label: "Main", items: [
     { id: "dashboard", label: "Dashboard", icon: <ChartPie className="w-[18px] h-[18px]" /> },
-    { id: "affiliates", label: "Affiliates", icon: <Users className="w-[18px] h-[18px]" />, badge: 3 },
+    { id: "affiliates", label: "Ambassadors", icon: <Users className="w-[18px] h-[18px]" />, badge: 3 },
     { id: "referrals", label: "Referrals", icon: <Share2 className="w-[18px] h-[18px]" /> },
-    { id: "programs", label: "Programs", icon: <Target className="w-[18px] h-[18px]" /> },
   ]},
   { label: "Finance", items: [
     { id: "commissions", label: "Commissions", icon: <DollarSign className="w-[18px] h-[18px]" /> },
-    { id: "payouts", label: "Payouts", icon: <Wallet className="w-[18px] h-[18px]" />, badge: 5 },
   ]},
   { label: "Management", items: [
     { id: "links", label: "Tracking Links", icon: <Link2 className="w-[18px] h-[18px]" /> },
@@ -31,13 +29,10 @@ const affiliateNavGroups: NavGroup[] = [
   { label: "Main", items: [
     { id: "dashboard", label: "Dashboard", icon: <ChartPie className="w-[18px] h-[18px]" /> },
     { id: "links", label: "My Links", icon: <Link2 className="w-[18px] h-[18px]" /> },
-    { id: "conversions", label: "Conversions", icon: <ShoppingBag className="w-[18px] h-[18px]" />, badge: 3 },
     { id: "referrals", label: "Referrals", icon: <Users className="w-[18px] h-[18px]" /> },
   ]},
   { label: "Finance", items: [
-    { id: "earnings", label: "Earnings", icon: <Wallet className="w-[18px] h-[18px]" /> },
-    { id: "payouts", label: "Payouts", icon: <CreditCard className="w-[18px] h-[18px]" /> },
-    { id: "invoices", label: "Invoices", icon: <Receipt className="w-[18px] h-[18px]" /> },
+    { id: "earnings", label: "Earnings", icon: <DollarSign className="w-[18px] h-[18px]" /> },
   ]},
   { label: "Other", items: [
     { id: "settings", label: "Settings", icon: <Settings className="w-[18px] h-[18px]" /> },
@@ -54,16 +49,16 @@ export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navGroups = role === "admin" ? adminNavGroups : affiliateNavGroups;
-  const displayName = userName || (role === "admin" ? "Admin" : "Affiliate");
+  const displayName = userName || (role === "admin" ? "Admin" : "Ambassador");
   const userInfo = role === "admin" 
     ? { name: displayName, role: "Program Manager", initials: getInitials(displayName) } 
-    : { name: displayName, role: "Pro Affiliate", initials: getInitials(displayName) };
+    : { name: displayName, role: "Pro Ambassador", initials: getInitials(displayName) };
   const breadcrumbMap: Record<string, string> = {
-    dashboard: "Dashboard", affiliates: "Affiliate Management", commissions: "Commission Management",
-    referrals: role === "admin" ? "Referral Tracking" : "Referrals", programs: "Campaign Programs",
-    links: role === "admin" ? "Link Management" : "My Links", payouts: role === "admin" ? "Payout Processing" : "Payouts",
+    dashboard: "Dashboard", affiliates: "Ambassador Management", commissions: "Commission Management",
+    referrals: role === "admin" ? "Referral Tracking" : "Referrals",
+    links: role === "admin" ? "Link Management" : "My Links",
     reports: "Analytics Reports", settings: role === "admin" ? "System Settings" : "Settings",
-    conversions: "Conversions", earnings: "Earnings", invoices: "Invoices", help: "Help Center",
+    earnings: "Earnings", help: "Help Center",
   };
 
   return (
