@@ -101,7 +101,7 @@ function getReferralStatus(ref: RecentReferral): string {
   return ref.status;
 }
 
-export function AffiliateDashboard() {
+export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string) => void }) {
   const { affiliate, token } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -257,24 +257,28 @@ export function AffiliateDashboard() {
             value={formatCurrency(data?.kpis.totalEarnings ?? 0)}
             iconColor="primary"
             icon={<DollarSign className="w-[18px] h-[18px]" />}
+            onClick={() => onNavigate?.("earnings")}
           />
           <KpiCard
             label="Total Referrals"
             value={totalReferrals.toLocaleString()}
             iconColor="success"
             icon={<Users className="w-[18px] h-[18px]" />}
+            onClick={() => onNavigate?.("referrals")}
           />
           <KpiCard
             label="Enrolled"
             value={enrolledCount.toLocaleString()}
             iconColor="warning"
             icon={<UserCheck className="w-[18px] h-[18px]" />}
+            onClick={() => onNavigate?.("referrals")}
           />
           <KpiCard
             label="Conversion Ratio"
             value={`${conversionRatio}%`}
             iconColor="danger"
             icon={<Percent className="w-[18px] h-[18px]" />}
+            onClick={() => onNavigate?.("referrals")}
           />
         </div>
       )}

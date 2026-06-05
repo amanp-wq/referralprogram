@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, SectionCard, ErrorWithRetry, EmptyState, formatCurrency, formatDate, timeAgo, getInitials } from "../shared";
 import { Users, Share2, Percent, Zap, RefreshCw, Download, TrendingUp } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
 interface DashboardKpis {
@@ -73,7 +73,7 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-export function AdminDashboard() {
+export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => void }) {
   const { token } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -143,10 +143,8 @@ export function AdminDashboard() {
   const kpis = data?.kpis;
   const topAffiliates = data?.topAffiliates || [];
   const activities = data?.activities || [];
-  const totalReferralsChart = data?.totalReferralsChart || data?.sources ? [] : [];
-  const enrolledReferralsChart = data?.enrolledReferralsChart || [];
 
-  // Fallback: try to use monthlyRevenue from API for chart data
+  // Chart data - prefer totalReferralsChart/enrolledReferralsChart, fallback to monthlyRevenue
   const totalChart = (data as any)?.totalReferralsChart || (data as any)?.monthlyRevenue || [];
   const enrolledChart = (data as any)?.enrolledReferralsChart || [];
 
@@ -161,10 +159,10 @@ export function AdminDashboard() {
           Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
-            <KpiCard label="Active Ambassadors" value={kpis?.activeAffiliates?.toLocaleString() || "0"} iconColor="success" icon={<Users className="w-[18px] h-[18px]" />} context="Referred in last 60 days" />
-            <KpiCard label="Inactive Ambassadors" value={kpis?.inactiveAffiliates?.toLocaleString() || "0"} iconColor="danger" icon={<Users className="w-[18px] h-[18px]" />} context="60+ days since last referral" />
-            <KpiCard label="Total Referrals" value={kpis?.totalReferrals?.toLocaleString() || "0"} iconColor="warning" icon={<Share2 className="w-[18px] h-[18px]" />} />
-            <KpiCard label="Conversion Rate" value={`${kpis?.conversionRate || 0}%`} iconColor="primary" icon={<Percent className="w-[18px] h-[18px]" />} context="Enrolled / Total referrals" />
+            <KpiCard label="Active Ambassadors" value={kpis?.activeAffiliates?.toLocaleString() || "0"} iconColor="success" icon={<Users className="w-[18px] h-[18px]" />} context="Referred in last 60 days" onClick={() => onNavigate?.("affiliates")} />
+            <KpiCard label="Inactive Ambassadors" value={kpis?.inactiveAffiliates?.toLocaleString() || "0"} iconColor="danger" icon={<Users className="w-[18px] h-[18px]" />} context="60+ days since last referral" onClick={() => onNavigate?.("affiliates")} />
+            <KpiCard label="Total Referrals" value={kpis?.totalReferrals?.toLocaleString() || "0"} iconColor="warning" icon={<Share2 className="w-[18px] h-[18px]" />} onClick={() => onNavigate?.("referrals")} />
+            <KpiCard label="Conversion Rate" value={`${kpis?.conversionRate || 0}%`} iconColor="primary" icon={<Percent className="w-[18px] h-[18px]" />} context="Enrolled / Total referrals" onClick={() => onNavigate?.("referrals")} />
           </>
         )}
       </div>

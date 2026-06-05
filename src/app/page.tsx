@@ -95,16 +95,33 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 }
 
 export default function Home() {
-  const { user, affiliate, isLoading, logout } = useAuth();
+  const { user, affiliate, isLoading, logout, token } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [adminPage, setAdminPage] = useState<AdminPage>("dashboard");
   const [affiliatePage, setAffiliatePage] = useState<AffiliatePage>("dashboard");
+  const [referralCount, setReferralCount] = useState<number>(0);
+
+  // Fetch referral count for sidebar badge
+  useEffect(() => {
+    if (!token || !user) return;
+    const fetchCount = async () => {
+      try {
+        const endpoint = user.role === "admin" ? "/api/admin/referrals" : "/api/affiliate/referrals";
+        const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          setReferralCount(data.total || 0);
+        }
+      } catch {}
+    };
+    fetchCount();
+  }, [token, user]);
 
   // If logged in as admin
   if (user && user.role === "admin") {
     const renderPage = () => {
       switch (adminPage) {
-        case "dashboard": return <AdminDashboard />;
+        case "dashboard": return <AdminDashboard onNavigate={(p) => setAdminPage(p as AdminPage)} />;
         case "affiliates": return <AdminAffiliates />;
         case "commissions": return <AdminCommissions />;
         case "referrals": return <AdminReferrals />;
@@ -114,14 +131,14 @@ export default function Home() {
       }
     };
     const pageTitles: Record<AdminPage, string> = { dashboard:"Dashboard", affiliates:"Ambassadors", commissions:"Commissions", referrals:"Referrals", links:"Tracking Links", reports:"Reports", settings:"Settings" };
-    return <AppShell role="admin" activePage={adminPage} onPageChange={(p) => setAdminPage(p as AdminPage)} pageTitle={pageTitles[adminPage]} onLogout={logout} userName={user.name}>{renderPage()}</AppShell>;
+    return <AppShell role="admin" activePage={adminPage} onPageChange={(p) => setAdminPage(p as AdminPage)} pageTitle={pageTitles[adminPage]} onLogout={logout} userName={user.name} referralCount={referralCount}>{renderPage()}</AppShell>;
   }
 
   // If logged in as affiliate
   if (user && user.role === "affiliate") {
     const renderPage = () => {
       switch (affiliatePage) {
-        case "dashboard": return <AffiliateDashboard />;
+        case "dashboard": return <AffiliateDashboard onNavigate={(p) => setAffiliatePage(p as AffiliatePage)} />;
         case "links": return <AffiliateLinks />;
         case "referrals": return <AffiliateReferrals />;
         case "earnings": return <AffiliateEarnings />;
@@ -130,7 +147,7 @@ export default function Home() {
       }
     };
     const pageTitles: Record<AffiliatePage, string> = { dashboard:"Dashboard", links:"My Link", referrals:"Referrals", earnings:"Earnings", settings:"Settings", help:"Help Center" };
-    return <AppShell role="affiliate" activePage={affiliatePage} onPageChange={(p) => setAffiliatePage(p as AffiliatePage)} pageTitle={pageTitles[affiliatePage]} onLogout={logout} userName={user.name}>{renderPage()}</AppShell>;
+    return <AppShell role="affiliate" activePage={affiliatePage} onPageChange={(p) => setAffiliatePage(p as AffiliatePage)} pageTitle={pageTitles[affiliatePage]} onLogout={logout} userName={user.name} referralCount={referralCount}>{renderPage()}</AppShell>;
   }
 
   // Loading state

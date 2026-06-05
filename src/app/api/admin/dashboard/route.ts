@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // Get counts
     const [affiliatesRes, referralsRes, commissionsRes, payoutsRes, programsRes, pendingPayoutsRes, activitiesRes] = await Promise.all([
-      supabase.from('Affiliate').select('id, referralCode, totalEarnings, totalReferrals, totalConversions, status, tier, userId, User!Affiliate_userId_fkey(id, name, email, avatarUrl)', { count: 'exact' }),
+      supabase.from('Affiliate').select('id, referralCode, totalEarnings, totalReferrals, totalConversions, status, tier, userId, User!Affiliate_userId_fkey(id, name, email, phone, avatarUrl)', { count: 'exact' }),
       supabase.from('Referral').select('id, status, createdAt', { count: 'exact' }),
       supabase.from('Commission').select('id, amount, status, createdAt'),
       supabase.from('Payout').select('id, amount, status, createdAt'),
@@ -33,8 +33,9 @@ export async function GET(request: NextRequest) {
     // Calculate KPIs
     const totalRevenue = commissions.reduce((sum: number, c: any) => sum + (c.status === 'approved' || c.status === 'paid' ? c.amount : 0), 0)
     const activeAffiliates = affiliates.filter((a: any) => a.status === 'active').length
+    const inactiveAffiliates = affiliates.filter((a: any) => a.status === 'inactive' || a.status === 'suspended').length
     const totalReferrals = referrals.length
-    const conversions = referrals.filter((r: any) => r.status === 'converted').length
+    const conversions = referrals.filter((r: any) => r.status === 'converted' || r.status === 'enrolled' || r.status === 'completed').length
     const conversionRate = totalReferrals > 0 ? ((conversions / totalReferrals) * 100).toFixed(1) : '0'
     const pendingPayoutAmount = pendingPayouts.reduce((sum: number, p: any) => sum + p.amount, 0)
 
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
         status: a.status,
         name: (a as any).User?.name || a.referralCode || 'Unknown',
         email: (a as any).User?.email || '',
+        phone: (a as any).User?.phone || '',
         avatarUrl: (a as any).User?.avatarUrl || null,
       }))
 
@@ -102,10 +104,37 @@ export async function GET(request: NextRequest) {
       monthlyRevenue.push({ month: monthName, revenue: rev })
     }
 
+    // Total referrals chart (last 12 months)
+    const totalReferralsChart: { month: string; value: number }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
+      const monthName = monthStart.toLocaleString('default', { month: 'short' })
+      const count = referrals.filter((r: any) => {
+        const d = new Date(r.createdAt)
+        return d >= monthStart && d <= monthEnd
+      }).length
+      totalReferralsChart.push({ month: monthName, value: count })
+    }
+
+    // Enrolled referrals chart (last 12 months)
+    const enrolledReferralsChart: { month: string; value: number }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
+      const monthName = monthStart.toLocaleString('default', { month: 'short' })
+      const count = referrals.filter((r: any) => {
+        const d = new Date(r.createdAt)
+        return d >= monthStart && d <= monthEnd && (r.status === 'converted' || r.status === 'enrolled' || r.status === 'completed')
+      }).length
+      enrolledReferralsChart.push({ month: monthName, value: count })
+    }
+
     return NextResponse.json({
       kpis: {
         totalRevenue,
         activeAffiliates,
+        inactiveAffiliates,
         totalReferrals,
         conversionRate,
         pendingPayoutAmount,
@@ -115,6 +144,8 @@ export async function GET(request: NextRequest) {
       activities,
       sources,
       monthlyRevenue,
+      totalReferralsChart,
+      enrolledReferralsChart,
     })
   } catch (error: any) {
     console.error('Admin dashboard error:', error)

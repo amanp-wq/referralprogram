@@ -43,9 +43,10 @@ const affiliateNavGroups: NavGroup[] = [
 interface AppShellProps {
   role: "admin" | "affiliate"; activePage: string; onPageChange: (page: string) => void;
   pageTitle: string; onLogout: () => void; children: React.ReactNode; userName?: string;
+  referralCount?: number;
 }
 
-export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, children, userName }: AppShellProps) {
+export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, children, userName, referralCount }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navGroups = role === "admin" ? adminNavGroups : affiliateNavGroups;
@@ -72,15 +73,18 @@ export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, 
           {navGroups.map((group, gi) => (
             <div key={group.label} className={gi > 0 ? "mt-4" : ""}>
               {!sidebarCollapsed && <div className="text-[11px] font-semibold uppercase tracking-wider text-rx-gray-400 px-3 pb-2">{group.label}</div>}
-              {group.items.map((item) => (
+              {group.items.map((item) => {
+                const badge = item.id === "referrals" && referralCount ? referralCount : item.badge;
+                return (
                 <button key={item.id} onClick={() => { onPageChange(item.id); setMobileOpen(false); }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 transition-all relative text-left ${activePage === item.id ? "bg-rx-primary-light text-rx-primary-dark font-semibold" : "text-rx-gray-600 hover:bg-rx-gray-50 hover:text-rx-gray-800"}`}>
                   {activePage === item.id && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-rx-primary rounded-r" />}
                   {item.icon}
                   {!sidebarCollapsed && <span className="text-sm whitespace-nowrap">{item.label}</span>}
-                  {!sidebarCollapsed && item.badge && <span className="ml-auto bg-rx-danger text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-full">{item.badge}</span>}
+                  {!sidebarCollapsed && badge && <span className="ml-auto bg-rx-danger text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-full">{badge}</span>}
                 </button>
-              ))}
+              );
+              })}
             </div>
           ))}
         </nav>
