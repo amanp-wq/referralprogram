@@ -12,9 +12,10 @@ interface KpiCardProps {
   iconColor: "primary" | "success" | "warning" | "danger" | "info";
   icon: React.ReactNode;
   delay?: number;
+  onClick?: () => void;
 }
 
-export function KpiCard({ label, value, trend, context, iconColor, icon }: KpiCardProps) {
+export function KpiCard({ label, value, trend, context, iconColor, icon, onClick }: KpiCardProps) {
   const colorMap = {
     primary: "bg-rx-primary-light text-rx-primary",
     success: "bg-rx-secondary-light text-rx-secondary",
@@ -24,7 +25,12 @@ export function KpiCard({ label, value, trend, context, iconColor, icon }: KpiCa
   };
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-rx-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all">
+    <div
+      className={`bg-white rounded-2xl p-5 border border-rx-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all ${onClick ? "cursor-pointer" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
       <div className="flex items-start justify-between mb-3">
         <span className="text-[13px] font-medium text-rx-gray-500">{label}</span>
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${colorMap[iconColor]}`}>{icon}</div>
