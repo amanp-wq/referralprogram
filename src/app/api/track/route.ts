@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = getServerClient()
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://referral.elevateme.pro'
 
     // Find the link by code
     const { data: link, error: linkError } = await supabase
@@ -114,7 +113,9 @@ export async function GET(request: NextRequest) {
     })
 
     // Redirect to the enrollment form with referral info
-    const enrollUrl = new URL('/enroll', baseUrl)
+    // Use request origin so it works regardless of domain (Vercel preview, custom domain, etc.)
+    const requestOrigin = new URL(request.url).origin
+    const enrollUrl = new URL('/enroll', requestOrigin)
     enrollUrl.searchParams.set('code', code)
     enrollUrl.searchParams.set('source', source)
     enrollUrl.searchParams.set('ref', affiliateName)
@@ -123,11 +124,15 @@ export async function GET(request: NextRequest) {
 
     // Set referral cookie for long-term attribution (30 days default)
     const cookieDuration = cookieDays * 24 * 60 * 60 // days to seconds
-    response.headers.set('Set-Cookie', `ref_code=${code}; Path=/; Max-Age=${cookieDuration}; SameSite=Lax; Secure`)
+    response.headers.set('Set-Cookie', `ref_code=${code}; Path=/; Max-Age=${cookieDuration}; SameSite=Lax`)
 
     return response
   } catch (error: any) {
     console.error('Track error:', error)
-    return NextResponse.redirect(new URL('/', request.url))
+    // On error, still redirect to enroll so visitor can fill the form
+    const requestOrigin = new URL(request.url).origin
+    const fallbackUrl = new URL('/enroll', requestOrigin)
+    if (code) fallbackUrl.searchParams.set('code', code)
+    return NextResponse.redirect(fallbackUrl.toString())
   }
 }
