@@ -92,10 +92,10 @@ function getDaysSince(dateStr: string): number {
 
 function getReferralStatus(ref: RecentReferral): string {
   if (ref.status === "completed" || ref.status === "converted" || ref.status === "enrolled") return "enrolled";
+  if (ref.status === "submitted") return "submitted";
   const daysSince = getDaysSince(ref.createdAt);
-  if (ref.status === "pending" || ref.status === "submitted") {
+  if (ref.status === "pending" || ref.status === "clicked") {
     if (daysSince > 30) return "not enrolled";
-    if (daysSince <= 30 && ref.status === "submitted") return "submitted";
     return "pending";
   }
   return ref.status;

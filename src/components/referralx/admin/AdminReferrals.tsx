@@ -34,16 +34,31 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
 }
 
 function getReferralStatus(r: Referral): { status: string; label: string } {
-  if (r.status === "enrolled" || r.status === "converted" || r.status === "completed" || r.status === "active") {
+  if (r.status === "enrolled" || r.status === "converted" || r.status === "completed") {
     return { status: "enrolled", label: "Enrolled" };
   }
+  if (r.status === "submitted") {
+    return { status: "submitted", label: "Submitted" };
+  }
+  // "clicked" status = someone clicked the link but hasn't submitted the form yet = Pending
+  // "pending" status = form submitted but not yet enrolled
+  if (r.status === "pending" || r.status === "clicked") {
+    const createdAt = new Date(r.createdAt);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays > 30) {
+      return { status: "not_enrolled", label: "Not Enrolled" };
+    }
+    return { status: "pending", label: "Pending" };
+  }
+  // Fallback: time-based
   const createdAt = new Date(r.createdAt);
   const now = new Date();
   const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays <= 30) {
-    return { status: "pending", label: "Pending" };
+  if (diffDays > 30) {
+    return { status: "not_enrolled", label: "Not Enrolled" };
   }
-  return { status: "not_enrolled", label: "Not Enrolled" };
+  return { status: "pending", label: "Pending" };
 }
 
 function getDaysSinceReferral(createdAt: string): number {
@@ -98,14 +113,13 @@ export function AdminReferrals() {
   const total = data?.total || 0;
 
   // Compute status counts using new logic
+  const submittedCount = referrals.filter(r => getReferralStatus(r).status === "submitted").length;
   const enrolledCount = referrals.filter(r => getReferralStatus(r).status === "enrolled").length;
   const pendingCount = referrals.filter(r => getReferralStatus(r).status === "pending").length;
   const notEnrolledCount = referrals.filter(r => getReferralStatus(r).status === "not_enrolled").length;
 
   // Filter referrals based on status filter
   const filteredReferrals = statusFilter === ""
-    ? referrals
-    : statusFilter === "submitted"
     ? referrals
     : referrals.filter(r => getReferralStatus(r).status === statusFilter);
 
