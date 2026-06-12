@@ -16,14 +16,15 @@ import { AffiliateSettings } from "@/components/referralx/affiliate/AffiliateSet
 import { AffiliateHelp } from "@/components/referralx/affiliate/AffiliateHelp";
 import { AppShell } from "@/components/referralx/AppShell";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Target, BarChart3, Zap, Shield, ArrowRight, LogIn, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Users, Target, BarChart3, Zap, Shield, ArrowRight, LogIn, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 type Role = "none" | "admin" | "affiliate";
 type AdminPage = "dashboard" | "affiliates" | "commissions" | "referrals" | "links" | "reports" | "settings";
 type AffiliatePage = "dashboard" | "links" | "referrals" | "earnings" | "settings" | "help";
 
 // Login Form Component
-function LoginForm({ onSwitch }: { onSwitch: () => void }) {
+function LoginForm({ onSwitch, onSignup }: { onSwitch: () => void; onSignup: () => void }) {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -82,8 +83,13 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
             {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</> : <><LogIn className="w-4 h-4" /> Sign In</>}
           </button>
         </form>
-        <div className="mt-6 text-center">
-          <button onClick={onSwitch} className="text-rx-primary text-sm font-medium hover:underline">← Back to home</button>
+        <div className="mt-5 text-center">
+          <p className="text-sm text-rx-gray-500">Don&apos;t have an account?{" "}
+            <button onClick={onSignup} className="text-rx-secondary font-semibold hover:underline">Sign Up as Ambassador</button>
+          </p>
+        </div>
+        <div className="mt-4 text-center">
+          <button onClick={onSwitch} className="text-rx-gray-400 text-sm font-medium hover:text-rx-gray-600 hover:underline">← Back to home</button>
         </div>
         <div className="mt-4 pt-4 border-t border-rx-gray-100">
           <p className="text-xs text-rx-gray-400 text-center">Demo: admin@elevateme.pro / admin123</p>
@@ -95,6 +101,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const { user, affiliate, isLoading, logout, token } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [adminPage, setAdminPage] = useState<AdminPage>("dashboard");
@@ -166,7 +173,7 @@ export default function Home() {
   if (showLogin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20] flex items-center justify-center px-6">
-        <LoginForm onSwitch={() => setShowLogin(false)} />
+        <LoginForm onSwitch={() => setShowLogin(false)} onSignup={() => router.push("/signup")} />
       </div>
     );
   }
@@ -181,8 +188,9 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="ElevateMe" className="h-10 w-auto brightness-0 invert" />
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button onClick={() => setShowLogin(true)} className="text-white/80 hover:text-white text-sm font-medium transition-colors">Sign In</button>
+            <button onClick={() => router.push("/signup")} className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-white/20 transition-colors flex items-center gap-1.5"><UserPlus className="w-4 h-4"/>Sign Up</button>
             <button onClick={() => setShowLogin(true)} className="bg-white text-rx-primary px-5 py-2 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors">Get Started</button>
           </div>
         </nav>
@@ -199,11 +207,11 @@ export default function Home() {
               <div className="flex flex-wrap gap-2 mb-6">{["Dashboard","Ambassadors","Commissions","Reports"].map(f=><span key={f} className="text-xs bg-rx-gray-100 text-rx-gray-600 px-3 py-1 rounded-full font-medium">{f}</span>)}</div>
               <div className="flex items-center gap-2 text-rx-primary font-semibold group-hover:gap-3 transition-all">Enter Admin Portal <ArrowRight className="w-4 h-4"/></div>
             </button>
-            <button onClick={() => { setShowLogin(true); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-rx-secondary/20">
-              <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-secondary-light flex items-center justify-center"><Users className="w-7 h-7 text-rx-secondary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900 font-heading">Ambassador Portal</h3><p className="text-rx-gray-500 text-sm">Pro Ambassador</p></div></div>
-              <p className="text-rx-gray-600 mb-6 leading-relaxed">Track your referral links, monitor referrals, view earnings, and access your ambassador resources.</p>
+            <button onClick={() => { router.push("/signup"); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-rx-secondary/20">
+              <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-secondary-light flex items-center justify-center"><Users className="w-7 h-7 text-rx-secondary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900 font-heading">Ambassador Portal</h3><p className="text-rx-gray-500 text-sm">Become an Ambassador</p></div></div>
+              <p className="text-rx-gray-600 mb-6 leading-relaxed">Join our referral program, get your unique tracking link, and start earning rewards for every successful referral.</p>
               <div className="flex flex-wrap gap-2 mb-6">{["Dashboard","My Links","Referrals","Earnings"].map(f=><span key={f} className="text-xs bg-rx-gray-100 text-rx-gray-600 px-3 py-1 rounded-full font-medium">{f}</span>)}</div>
-              <div className="flex items-center gap-2 text-rx-secondary font-semibold group-hover:gap-3 transition-all">Enter Ambassador Portal <ArrowRight className="w-4 h-4"/></div>
+              <div className="flex items-center gap-2 text-rx-secondary font-semibold group-hover:gap-3 transition-all">Sign Up as Ambassador <ArrowRight className="w-4 h-4"/></div>
             </button>
           </div>
         </div>
