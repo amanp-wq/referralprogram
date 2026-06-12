@@ -22,12 +22,13 @@ export async function GET(request: NextRequest) {
     const commissions = commissionsRes.data || []
     const payouts = payoutsRes.data || []
 
-    // Calculate stats
+    // Calculate stats - only count submitted referrals (not clicked/opened)
     const totalClicks = links.reduce((s: number, l: any) => s + l.clicks, 0)
     const totalConversions = links.reduce((s: number, l: any) => s + l.conversions, 0)
     const pendingEarnings = commissions.filter((c: any) => c.status === 'pending').reduce((s: number, c: any) => s + c.amount, 0)
-    const approvedEarnings = commissions.filter((c: any) => c.status === 'approved' || c.status === 'paid').reduce((s: number, c: any) => s + c.amount, 0)
-    const conversionRate = totalClicks > 0 ? ((totalConversions / totalClicks) * 100).toFixed(1) : '0'
+    const approvedEarnings = commissions.filter((c: any) => c.status === 'approved' || c.status === 'released' || c.status === 'paid').reduce((s: number, c: any) => s + c.amount, 0)
+    // Conversion rate = enrolled / submitted referrals (not clicks)
+    const conversionRate = submittedReferrals.length > 0 ? ((enrolledReferrals.length / submittedReferrals.length) * 100).toFixed(1) : '0'
 
     const now = new Date()
 
@@ -145,6 +146,7 @@ export async function GET(request: NextRequest) {
         totalConversions,
         conversionRate,
         totalReferrals: submittedReferrals.length,
+        enrolledReferrals: enrolledReferrals.length,
       },
       links,
       recentReferrals: referrals.slice(0, 10),

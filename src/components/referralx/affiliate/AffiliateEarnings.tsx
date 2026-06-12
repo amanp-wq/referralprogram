@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, StatusBadge } from "../shared";
 import {
   DollarSign, TrendingUp, Clock, CheckCircle, RefreshCw,
-  AlertCircle, Gift, ArrowRight,
+  AlertCircle, Gift, ArrowRight, Shield, Info, Award,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
@@ -17,8 +17,15 @@ interface EarningsKpis {
   balance: number;
 }
 
+interface EarningsSummary {
+  totalCommissions: number;
+  referralCommissions: number;
+  bonusCommissions: number;
+}
+
 interface EarningsData {
   kpis: EarningsKpis;
+  summary: EarningsSummary;
 }
 
 function formatCurrency(amount: number): string {
@@ -152,13 +159,13 @@ export function AffiliateEarnings() {
                 When your referral enrolls in a program and schedules a session, you earn an additional bonus. The more students you refer, the more you earn!
               </p>
               <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-full px-3 py-1.5">
-                <DollarSign className="w-4 h-4" />
+                <Award className="w-4 h-4" />
                 <span className="text-sm font-semibold">Earn $100 when they enroll</span>
               </div>
             </div>
           </div>
 
-          {/* Commission Flow */}
+          {/* Commission Process */}
           <div className="mt-6 bg-white/10 border border-white/20 rounded-xl p-5">
             <h4 className="font-semibold mb-4">Commission Process</h4>
             <div className="flex items-center justify-between flex-wrap gap-3">
@@ -216,23 +223,72 @@ export function AffiliateEarnings() {
               <span className="text-sm text-rx-gray-600">Pending Commissions</span>
               <span className="text-lg font-bold text-rx-warning">{formatCurrency(data?.kpis.pendingEarnings ?? 0)}</span>
             </div>
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between py-3 border-b border-rx-gray-100">
               <span className="text-sm text-rx-gray-600">Approved (Awaiting Payout)</span>
               <span className="text-lg font-bold text-rx-info">{formatCurrency(data?.kpis.approvedEarnings ?? 0)}</span>
             </div>
+            {data?.summary && (
+              <div className="flex items-center justify-between py-3">
+                <span className="text-sm text-rx-gray-600">Total Commission Entries</span>
+                <span className="text-lg font-bold text-rx-gray-700">{data.summary.totalCommissions}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Note about commission management */}
+      {/* Commission Management Note - Admin Only */}
       <div className="bg-rx-secondary-light border border-rx-secondary/20 rounded-xl p-4">
         <div className="flex items-start gap-3">
-          <Gift className="w-5 h-5 text-rx-secondary flex-shrink-0 mt-0.5" />
+          <Shield className="w-5 h-5 text-rx-secondary flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-rx-gray-800 mb-1">Commission Management</p>
             <p className="text-xs text-rx-gray-600 leading-relaxed">
-              All commissions are managed by the ElevateMe team. When your referral gets enrolled, a commission is automatically created and will be reviewed by our team. Once approved, it will be added to your available balance and processed for payout according to our schedule.
+              All commissions are managed by the ElevateMe team. When your referral gets enrolled, a commission is automatically created and will be reviewed by our team. Once approved, it will be added to your available balance and processed for payout according to our schedule. For any questions about your commissions, please contact the ElevateMe team.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bonus Structure */}
+      <div className="bg-white rounded-2xl border border-emerald-200 overflow-hidden">
+        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-emerald-100 bg-emerald-50/50">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+            <Info className="w-4 h-4 text-emerald-600" />
+          </div>
+          <h3 className="text-base font-semibold text-emerald-800">Bonus Details</h3>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-semibold text-emerald-800">Tier 1 — Submission Bonus</span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-700 mb-1">$50</p>
+              <p className="text-xs text-emerald-600">Earned when a referral submits their enrollment details through your link</p>
+            </div>
+            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-semibold text-emerald-800">Tier 2 — Enrollment Bonus</span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-700 mb-1">$100</p>
+              <p className="text-xs text-emerald-600">Earned when your referral enrolls and schedules a session with the team</p>
+            </div>
+          </div>
+          <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
+            <div className="flex items-center gap-2 mb-3">
+              <Info className="w-4 h-4 text-emerald-600" />
+              <span className="text-sm font-semibold text-emerald-800">How Calculations Work</span>
+            </div>
+            <div className="space-y-2 text-sm text-emerald-700">
+              <p>Your total earnings are the sum of all approved commissions from your referrals.</p>
+              <p>Each successful referral that is <strong>submitted</strong> earns you a <strong>$50</strong> bonus.</p>
+              <p>When that referral gets <strong>enrolled</strong>, you earn an additional <strong>$100</strong> enrollment bonus.</p>
+              <p>There is <strong>no limit</strong> on how many referrals you can make — earn unlimited commissions!</p>
+              <p>Commissions go through a review process: <strong>Pending → Approved → Released → Paid</strong>.</p>
+            </div>
           </div>
         </div>
       </div>

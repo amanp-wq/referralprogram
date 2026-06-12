@@ -20,6 +20,7 @@ interface DashboardKpis {
   totalConversions: number;
   conversionRate: string | number;
   totalReferrals: number;
+  enrolledReferrals: number;
 }
 
 interface DashboardLink {
@@ -171,10 +172,8 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
     : "";
 
   const totalReferrals = data?.kpis.totalReferrals ?? 0;
-  const enrolledCount = data?.recentReferrals
-    ? data.recentReferrals.filter((r) => getReferralStatus(r) === "enrolled").length
-    : 0;
-  const conversionRatio = totalReferrals > 0 ? ((enrolledCount / totalReferrals) * 100).toFixed(1) : "0";
+  const enrolledCount = data?.kpis.enrolledReferrals ?? 0;
+  const conversionRatio = data?.kpis.conversionRate ?? '0';
 
   // Use real chart data from API
   const totalChartData = data?.totalReferralsChart || [];
