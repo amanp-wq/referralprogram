@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('Commission')
-      .select('*, Affiliate!Commission_affiliateId_fkey(id, referralCode, User!Affiliate_userId_fkey(name, email)), Program!Commission_programId_fkey(id, name, commissionType, commissionValue), Referral!Commission_referralId_fkey(id, visitorName, visitorEmail, visitorPhone, status, createdAt)', { count: 'exact' })
+      .select('*, Affiliate!Commission_affiliateId_fkey(id, referralCode, User!Affiliate_userId_fkey(name, email)), Program!Commission_programId_fkey(id, name, commissionType, commissionValue), Referral!Commission_referralId_fkey(id, visitorName, visitorEmail, status, createdAt)', { count: 'exact' })
       .order('createdAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     const commissionId = uuidv4()
     const commissionStatus = status || 'pending'
-    const commissionType = type || 'commission'
+    const commissionType = type || 'bonus'
     const commissionRate = rate ?? 0
 
     const { error: dbError } = await supabase

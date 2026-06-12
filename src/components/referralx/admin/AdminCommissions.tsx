@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
-import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info, User, Mail, Phone, ArrowRight } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info, User, Mail, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ReferralDetail {
@@ -22,7 +22,6 @@ interface Commission {
   programId: string;
   referralId: string | null;
   amount: number;
-  rate: number;
   type: string;
   status: string;
   payoutId: string | null;
@@ -30,7 +29,7 @@ interface Commission {
   createdAt: string;
   updatedAt: string;
   Affiliate?: { id: string; referralCode: string; User?: { name: string; email: string } };
-  Referral?: { id: string; visitorName: string | null; visitorEmail: string | null; visitorPhone?: string | null; status: string; createdAt: string };
+  Referral?: { id: string; visitorName: string | null; visitorEmail: string | null; status: string; createdAt: string };
 }
 
 interface AffiliateOption {
@@ -76,13 +75,13 @@ export function AdminCommissions() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [affiliates, setAffiliates] = useState<AffiliateOption[]>([]);
   const [affiliatesLoading, setAffiliatesLoading] = useState(false);
-  const [addForm, setAddForm] = useState({ affiliateId: "", amount: "", rate: "0", description: "", referralId: "" });
+  const [addForm, setAddForm] = useState({ affiliateId: "", amount: "", description: "", referralId: "" });
   const [submitting, setSubmitting] = useState(false);
 
   // Edit Commission modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingCommission, setEditingCommission] = useState<Commission | null>(null);
-  const [editCommissionForm, setEditCommissionForm] = useState({ amount: "", rate: "", description: "", type: "" });
+  const [editCommissionForm, setEditCommissionForm] = useState({ amount: "", description: "", type: "" });
   const [savingCommission, setSavingCommission] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -126,7 +125,7 @@ export function AdminCommissions() {
   }, [token]);
 
   const handleOpenAddModal = () => {
-    setAddForm({ affiliateId: "", amount: "", rate: "0", description: "", referralId: "" });
+    setAddForm({ affiliateId: "", amount: "", description: "", referralId: "" });
     setShowAddModal(true);
     fetchAffiliates();
   };
@@ -148,7 +147,6 @@ export function AdminCommissions() {
         body: JSON.stringify({
           affiliateId: addForm.affiliateId,
           amount: parseFloat(addForm.amount),
-          rate: parseFloat(addForm.rate) || 0,
           description: addForm.description || undefined,
           referralId: addForm.referralId || undefined,
         }),
@@ -185,9 +183,8 @@ export function AdminCommissions() {
     setEditingCommission(commission);
     setEditCommissionForm({
       amount: commission.amount.toString(),
-      rate: commission.rate.toString(),
       description: commission.description || "",
-      type: commission.type || "commission",
+      type: commission.type || "bonus",
     });
     setShowEditModal(true);
   };
@@ -206,7 +203,6 @@ export function AdminCommissions() {
         body: JSON.stringify({
           id: editingCommission.id,
           amount: parseFloat(editCommissionForm.amount),
-          rate: parseFloat(editCommissionForm.rate) || 0,
           description: editCommissionForm.description || null,
           type: editCommissionForm.type,
         }),
@@ -350,7 +346,6 @@ export function AdminCommissions() {
               const ref = c.Referral;
               const refName = ref?.visitorName;
               const refEmail = ref?.visitorEmail;
-              const refPhone = (ref as any)?.visitorPhone;
               const refStatus = ref?.status;
               const hasReferral = !!ref;
 
@@ -371,11 +366,6 @@ export function AdminCommissions() {
                                 {refEmail && (
                                   <span className="inline-flex items-center gap-1 text-xs text-rx-gray-500">
                                     <Mail className="w-3 h-3" /> {refEmail}
-                                  </span>
-                                )}
-                                {refPhone && (
-                                  <span className="inline-flex items-center gap-1 text-xs text-rx-gray-500">
-                                    <Phone className="w-3 h-3" /> {refPhone}
                                   </span>
                                 )}
                               </div>
@@ -412,7 +402,7 @@ export function AdminCommissions() {
                     <div className="lg:w-28 shrink-0">
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Amount</div>
                       <p className="text-lg font-bold text-rx-gray-900">{formatCurrency(c.amount)}</p>
-                      <p className="text-xs text-rx-gray-400">{c.type} &middot; {c.rate}%</p>
+                      <p className="text-xs text-rx-gray-400 capitalize">{c.type}</p>
                     </div>
 
                     {/* Commission Status */}
@@ -568,23 +558,6 @@ export function AdminCommissions() {
                     placeholder="0.00"
                     className="w-full pl-7 pr-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
                   />
-                </div>
-              </div>
-
-              {/* Rate */}
-              <div>
-                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Rate (%)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={addForm.rate}
-                    onChange={(e) => setAddForm({ ...addForm, rate: e.target.value })}
-                    placeholder="0"
-                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-rx-gray-400">%</span>
                 </div>
               </div>
 
@@ -801,22 +774,6 @@ export function AdminCommissions() {
                 </div>
               </div>
 
-              {/* Rate */}
-              <div>
-                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Rate (%)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={editCommissionForm.rate}
-                    onChange={(e) => setEditCommissionForm({ ...editCommissionForm, rate: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-rx-gray-400">%</span>
-                </div>
-              </div>
-
               {/* Type */}
               <div>
                 <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Type</label>
@@ -825,8 +782,6 @@ export function AdminCommissions() {
                   onChange={(e) => setEditCommissionForm({ ...editCommissionForm, type: e.target.value })}
                   className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
                 >
-                  <option value="commission">Commission</option>
-                  <option value="referral">Referral</option>
                   <option value="bonus">Bonus</option>
                   <option value="adjustment">Adjustment</option>
                 </select>
