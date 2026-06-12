@@ -50,7 +50,7 @@ export function AffiliateLinks() {
   return (
     <div className="space-y-6">
       {/* Hero Card with Unique Referral Link */}
-      <div className="bg-gradient-to-br from-rx-primary to-rx-primary-dark rounded-2xl p-8 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-br from-rx-secondary to-[#4a7a58] rounded-2xl p-8 text-white relative overflow-hidden">
         <div className="absolute -top-1/4 -right-[10%] w-[300px] h-[300px] bg-white/5 rounded-full" />
         <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-white/3 rounded-full -translate-x-1/2 translate-y-1/2" />
         <div className="relative z-10">
@@ -95,8 +95,8 @@ export function AffiliateLinks() {
       {/* Social Share Section */}
       <div className="bg-white rounded-2xl p-6 border border-rx-gray-200">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-lg bg-rx-primary-light flex items-center justify-center">
-            <Share2 className="w-5 h-5 text-rx-primary" />
+          <div className="w-10 h-10 rounded-lg bg-rx-secondary-light flex items-center justify-center">
+            <Share2 className="w-5 h-5 text-rx-secondary" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-rx-gray-800">Share Your Link</h3>
@@ -180,9 +180,9 @@ export function AffiliateLinks() {
         </div>
         <div className="bg-rx-gray-50 rounded-xl p-5">
           <div className="flex items-center justify-center mb-4">
-            <div className="bg-rx-primary-light border-2 border-rx-primary/20 rounded-xl px-8 py-4">
-              <div className="text-xs text-rx-primary font-medium uppercase tracking-wider mb-1">Your Referral Code</div>
-              <div className="text-3xl font-bold font-mono text-rx-primary tracking-widest">{referralCodeDisplay}</div>
+            <div className="bg-rx-secondary-light border-2 border-rx-secondary/20 rounded-xl px-8 py-4">
+              <div className="text-xs text-rx-secondary font-medium uppercase tracking-wider mb-1">Your Referral Code</div>
+              <div className="text-3xl font-bold font-mono text-rx-secondary tracking-widest">{referralCodeDisplay}</div>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">

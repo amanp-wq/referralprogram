@@ -121,7 +121,7 @@ function EnrollForm() {
               <UserPlus className="w-5 h-5 text-rx-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-rx-gray-900">Submit Your Details</h3>
+              <h3 className="text-lg font-bold text-rx-gray-900">Submit Your Reference</h3>
               <p className="text-xs text-rx-gray-500">Fill in your info to complete the referral</p>
             </div>
           </div>
@@ -188,18 +188,8 @@ function EnrollForm() {
               </div>
             </div>
 
-            {/* Referral Code (read-only) */}
-            <div>
-              <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
-                Referral Code
-              </label>
-              <input
-                type="text"
-                value={code}
-                readOnly
-                className="w-full px-4 py-2.5 border border-rx-gray-100 rounded-lg text-sm bg-rx-gray-50 text-rx-gray-500 font-mono"
-              />
-            </div>
+            {/* Referral Code is hidden from submitter */}
+            <input type="hidden" value={code} name="referralCode" />
 
             {/* Submit Button */}
             <button
@@ -213,7 +203,7 @@ function EnrollForm() {
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4" /> Submit & Enroll
+                  <UserPlus className="w-4 h-4" /> Submit Your Reference
                 </>
               )}
             </button>

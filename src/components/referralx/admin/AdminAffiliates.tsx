@@ -206,6 +206,7 @@ export function AdminAffiliates() {
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
                   <th className="px-5 py-3">Ambassador</th>
+                  <th className="px-5 py-3">Phone</th>
                   <th className="px-5 py-3">Unique Link</th>
                   <th className="px-5 py-3">Referrals</th>
                   <th className="px-5 py-3">Earnings</th>
@@ -227,8 +228,14 @@ export function AdminAffiliates() {
                           <Avatar initials={initials} src={a.User?.avatarUrl} />
                           <div>
                             <div className="text-sm font-semibold text-rx-gray-800">{name}</div>
-                            <div className="text-xs text-rx-gray-500">{email}{phone ? ` · ${phone}` : ""}</div>
+                            <div className="text-xs text-rx-gray-500">{email}</div>
                           </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-rx-gray-400" />
+                          <span className="text-sm text-rx-gray-700">{phone || "-"}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3.5"><span className="text-xs font-mono bg-rx-gray-100 px-2 py-0.5 rounded">/ref/{a.referralCode}</span></td>

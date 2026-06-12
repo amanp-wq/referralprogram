@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('Affiliate')
-      .select('*, User!Affiliate_userId_fkey(id, email, name, avatarUrl, status, createdAt)', { count: 'exact' })
+      .select('*, User!Affiliate_userId_fkey(id, email, name, phone, avatarUrl, status, createdAt)', { count: 'exact' })
       .order('joinedAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
