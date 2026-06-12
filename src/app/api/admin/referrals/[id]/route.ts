@@ -175,9 +175,9 @@ export async function PATCH(
         // Find and cancel the auto-created commission linked to this referral
         const { data: existingCommission } = await supabase
           .from('Commission')
-          .select('id, amount, status')
+          .select('id, amount, status, type')
           .eq('referralId', id)
-          .eq('type', 'commission')
+          .in('type', ['commission', 'bonus'])
           .order('createdAt', { ascending: false })
           .limit(1)
           .single()
@@ -247,32 +247,24 @@ export async function PATCH(
       try {
         const { affiliateId, programId } = referral
 
-        // Look up the Program to get commissionType and commissionValue
-        let commissionType = 'fixed'
+        // Look up the Program to get commissionValue
         let commissionValue = 50 // default $50 bonus per enrolled referral
         let effectiveProgramId = programId
 
         if (programId) {
           const { data: program } = await supabase
             .from('Program')
-            .select('id, commissionType, commissionValue')
+            .select('id, commissionValue')
             .eq('id', programId)
             .single()
 
           if (program) {
-            commissionType = program.commissionType
             commissionValue = program.commissionValue
           }
         }
 
-        // Calculate commission amount
-        let amount: number
-        if (commissionType === 'percentage') {
-          // For percentage type, use commissionValue as the amount since there's no order value
-          amount = commissionValue
-        } else {
-          amount = commissionValue
-        }
+        // Commission amount from program settings (always fixed manual bonus)
+        const amount = commissionValue
 
         // Create Commission record
         const commissionId = uuidv4()
@@ -284,10 +276,10 @@ export async function PATCH(
             programId: effectiveProgramId,
             referralId: id,
             amount,
-            rate: commissionValue,
-            type: 'commission',
+            rate: 0,
+            type: 'bonus',
             status: 'pending',
-            description: `Commission for enrolled referral: ${visitorName}`,
+            description: `Bonus for enrolled referral: ${visitorName}`,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           })
@@ -302,7 +294,7 @@ export async function PATCH(
             action: 'created',
             entity: 'commission',
             entityId: commissionId,
-            details: `Auto-created commission of $${amount} for enrolled referral: ${visitorName}`,
+            details: `Auto-created bonus of $${amount} for enrolled referral: ${visitorName}`,
             createdAt: new Date().toISOString(),
           })
         }
