@@ -10,12 +10,11 @@ export async function GET(request: NextRequest) {
     const supabase = getServerClient()
 
     // Get affiliate's links, referrals, commissions, payouts
-    const [linksRes, referralsRes, commissionsRes, payoutsRes, recentActivitiesRes] = await Promise.all([
+    const [linksRes, referralsRes, commissionsRes, payoutsRes] = await Promise.all([
       supabase.from('Link').select('*').eq('affiliateId', affiliate.id),
       supabase.from('Referral').select('*').eq('affiliateId', affiliate.id).order('createdAt', { ascending: false }).limit(50),
       supabase.from('Commission').select('*').eq('affiliateId', affiliate.id).order('createdAt', { ascending: false }),
       supabase.from('Payout').select('*').eq('affiliateId', affiliate.id).order('createdAt', { ascending: false }).limit(10),
-      supabase.from('Activity').select('*').order('createdAt', { ascending: false }).limit(5),
     ])
 
     const links = linksRes.data || []
@@ -30,21 +29,7 @@ export async function GET(request: NextRequest) {
     const approvedEarnings = commissions.filter((c: any) => c.status === 'approved' || c.status === 'paid').reduce((s: number, c: any) => s + c.amount, 0)
     const conversionRate = totalClicks > 0 ? ((totalConversions / totalClicks) * 100).toFixed(1) : '0'
 
-    // Monthly earnings chart
-    const monthlyEarnings: { month: string; amount: number }[] = []
     const now = new Date()
-    for (let i = 11; i >= 0; i--) {
-      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
-      const monthName = monthStart.toLocaleString('default', { month: 'short' })
-      const monthAmount = commissions
-        .filter((c: any) => {
-          const d = new Date(c.createdAt)
-          return d >= monthStart && d <= monthEnd
-        })
-        .reduce((s: number, c: any) => s + c.amount, 0)
-      monthlyEarnings.push({ month: monthName, amount: monthAmount })
-    }
 
     // Period-based chart data
     const period = (request.nextUrl.searchParams.get('period') || '30D') as '7D' | '30D' | '90D'
@@ -93,20 +78,37 @@ export async function GET(request: NextRequest) {
         enrolledReferralsChart.push({ label, value: enrolled })
       }
     } else {
-      for (let i = 2; i >= 0; i--) {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
-        const monthName = monthStart.toLocaleString('default', { month: 'short' })
+      // 90D: weekly data points (~13 weeks)
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      // Find the most recent Saturday (end of week) or use today
+      const dayOfWeek = today.getDay() // 0=Sun, 6=Sat
+      const endOfCurrentWeek = new Date(today)
+      endOfCurrentWeek.setDate(today.getDate() + (6 - dayOfWeek)) // move to Saturday
+
+      for (let i = 12; i >= 0; i--) {
+        const weekEnd = new Date(endOfCurrentWeek)
+        weekEnd.setDate(endOfCurrentWeek.getDate() - i * 7)
+        const weekStart = new Date(weekEnd)
+        weekStart.setDate(weekEnd.getDate() - 6)
+
+        const weekEndInclusive = new Date(weekEnd)
+        weekEndInclusive.setHours(23, 59, 59, 999)
+
+        const startMonth = weekStart.toLocaleString('default', { month: 'short' })
+        const startDay = weekStart.getDate()
+        const endDay = weekEnd.getDate()
+        const label = `${startMonth} ${startDay}-${endDay}`
+
         const total = submittedReferrals.filter((r: any) => {
           const d = new Date(r.createdAt)
-          return d >= monthStart && d <= monthEnd
+          return d >= weekStart && d <= weekEndInclusive
         }).length
         const enrolled = enrolledReferrals.filter((r: any) => {
           const d = new Date(r.createdAt)
-          return d >= monthStart && d <= monthEnd
+          return d >= weekStart && d <= weekEndInclusive
         }).length
-        totalReferralsChart.push({ label: monthName, value: total })
-        enrolledReferralsChart.push({ label: monthName, value: enrolled })
+        totalReferralsChart.push({ label, value: total })
+        enrolledReferralsChart.push({ label, value: enrolled })
       }
     }
 
@@ -116,6 +118,21 @@ export async function GET(request: NextRequest) {
       acc[src] = (acc[src] || 0) + 1
       return acc
     }, {})
+
+    // Recent referral activities - query Activity table for referral-related actions
+    const referralIds = referrals.map((r: any) => r.id)
+    let recentReferralActivities: any[] = []
+    if (referralIds.length > 0) {
+      const { data: activities } = await supabase
+        .from('Activity')
+        .select('*')
+        .eq('entity', 'referral')
+        .in('action', ['referral_submitted', 'referral_click', 'status_changed'])
+        .in('entityId', referralIds)
+        .order('createdAt', { ascending: false })
+        .limit(10)
+      recentReferralActivities = activities || []
+    }
 
     return NextResponse.json({
       affiliate,
@@ -127,15 +144,15 @@ export async function GET(request: NextRequest) {
         totalClicks,
         totalConversions,
         conversionRate,
-        totalReferrals: affiliate.totalReferrals,
+        totalReferrals: submittedReferrals.length,
       },
       links,
       recentReferrals: referrals.slice(0, 10),
       recentPayouts: payouts,
-      monthlyEarnings,
       totalReferralsChart,
       enrolledReferralsChart,
       sources,
+      recentReferralActivities,
     })
   } catch (error: any) {
     console.error('Affiliate dashboard error:', error)

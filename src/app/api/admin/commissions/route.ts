@@ -38,6 +38,117 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const { user, error } = await requireAdmin(request)
+    if (!user) return NextResponse.json({ error }, { status: 401 })
+
+    const body = await request.json()
+    const { affiliateId, referralId, amount, rate, type, description, status } = body
+
+    if (!affiliateId) {
+      return NextResponse.json({ error: 'affiliateId is required' }, { status: 400 })
+    }
+    if (amount === undefined || amount === null) {
+      return NextResponse.json({ error: 'amount is required' }, { status: 400 })
+    }
+
+    const supabase = getServerClient()
+
+    // Verify the affiliate exists
+    const { data: affiliate } = await supabase
+      .from('Affiliate')
+      .select('id, programId')
+      .eq('id', affiliateId)
+      .single()
+
+    if (!affiliate) {
+      return NextResponse.json({ error: 'Affiliate not found' }, { status: 404 })
+    }
+
+    // Get programId from referral if provided, otherwise from affiliate
+    let programId: string | null = null
+    if (referralId) {
+      const { data: referral } = await supabase
+        .from('Referral')
+        .select('programId')
+        .eq('id', referralId)
+        .single()
+      if (referral) {
+        programId = referral.programId
+      }
+    }
+
+    // If still no programId, try to get a default active program
+    if (!programId) {
+      const { data: defaultProgram } = await supabase
+        .from('Program')
+        .select('id')
+        .eq('isActive', true)
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .single()
+      if (defaultProgram) {
+        programId = defaultProgram.id
+      }
+    }
+
+    if (!programId) {
+      return NextResponse.json({ error: 'No program found for commission. Please ensure a program exists.' }, { status: 400 })
+    }
+
+    const commissionId = uuidv4()
+    const commissionStatus = status || 'pending'
+    const commissionType = type || 'commission'
+    const commissionRate = rate ?? 0
+
+    const { error: dbError } = await supabase
+      .from('Commission')
+      .insert({
+        id: commissionId,
+        affiliateId,
+        programId,
+        referralId: referralId || null,
+        amount,
+        rate: commissionRate,
+        type: commissionType,
+        status: commissionStatus,
+        description: description || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+
+    if (dbError) {
+      return NextResponse.json({ error: dbError.message }, { status: 500 })
+    }
+
+    // Get admin name for activity logging
+    const { data: adminUser } = await supabase
+      .from('User')
+      .select('name')
+      .eq('id', user.id)
+      .single()
+
+    const adminName = adminUser?.name || 'Unknown'
+
+    // Log activity for commission creation
+    await supabase.from('Activity').insert({
+      id: uuidv4(),
+      userId: user.id,
+      action: 'created',
+      entity: 'commission',
+      entityId: commissionId,
+      details: `Admin ${adminName} manually created commission of $${amount} for affiliate ${affiliateId.substring(0, 8)}`,
+      createdAt: new Date().toISOString(),
+    })
+
+    return NextResponse.json({ message: 'Commission created successfully', id: commissionId }, { status: 201 })
+  } catch (error: any) {
+    console.error('Create commission error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const { user, error } = await requireAdmin(request)

@@ -111,10 +111,10 @@ export async function PATCH(
 
     const supabase = getServerClient()
 
-    // Get referral info for activity logging
+    // Get referral info for activity logging and commission creation
     const { data: referral } = await supabase
       .from('Referral')
-      .select('id, visitorName, visitorEmail')
+      .select('id, visitorName, visitorEmail, affiliateId, programId')
       .eq('id', id)
       .single()
 
@@ -161,24 +161,108 @@ export async function PATCH(
       createdAt: new Date().toISOString(),
     })
 
-    // Send email to affiliate when referral is marked as enrolled
+    // Auto-create Commission and update affiliate when referral is marked as enrolled
     if (status === 'enrolled') {
       try {
-        const { data: fullReferral } = await supabase
-          .from('Referral')
-          .select('affiliateId, Affiliate!Referral_affiliateId_fkey(id, userId, User!Affiliate_userId_fkey(email))')
-          .eq('id', id)
-          .single()
+        const { affiliateId, programId } = referral
 
-        if (fullReferral) {
-          const affiliateEmail = (fullReferral as any).Affiliate?.User?.email
-          if (affiliateEmail) {
-            const { sendEmail, referralEnrolledEmail } = await import('@/app/api/email/route')
-            await sendEmail(referralEnrolledEmail(affiliateEmail, visitorName))
+        // Look up the Program to get commissionType and commissionValue
+        let commissionType = 'fixed'
+        let commissionValue = 50 // default $50 bonus per enrolled referral
+        let effectiveProgramId = programId
+
+        if (programId) {
+          const { data: program } = await supabase
+            .from('Program')
+            .select('id, commissionType, commissionValue')
+            .eq('id', programId)
+            .single()
+
+          if (program) {
+            commissionType = program.commissionType
+            commissionValue = program.commissionValue
           }
         }
-      } catch (emailErr) {
-        console.error('[REFERRAL] Email sending failed:', emailErr)
+
+        // Calculate commission amount
+        let amount: number
+        if (commissionType === 'percentage') {
+          // For percentage type, use commissionValue as the amount since there's no order value
+          amount = commissionValue
+        } else {
+          amount = commissionValue
+        }
+
+        // Create Commission record
+        const commissionId = uuidv4()
+        const { error: commissionError } = await supabase
+          .from('Commission')
+          .insert({
+            id: commissionId,
+            affiliateId,
+            programId: effectiveProgramId,
+            referralId: id,
+            amount,
+            rate: commissionValue,
+            type: 'commission',
+            status: 'pending',
+            description: `Commission for enrolled referral: ${visitorName}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          })
+
+        if (commissionError) {
+          console.error('[REFERRAL] Commission creation failed:', commissionError)
+        } else {
+          // Log activity for commission creation
+          await supabase.from('Activity').insert({
+            id: uuidv4(),
+            userId: user.id,
+            action: 'created',
+            entity: 'commission',
+            entityId: commissionId,
+            details: `Auto-created commission of $${amount} for enrolled referral: ${visitorName}`,
+            createdAt: new Date().toISOString(),
+          })
+        }
+
+        // Update affiliate's totalConversions (increment by 1)
+        const { data: affiliate } = await supabase
+          .from('Affiliate')
+          .select('totalConversions')
+          .eq('id', affiliateId)
+          .single()
+
+        if (affiliate) {
+          await supabase
+            .from('Affiliate')
+            .update({
+              totalConversions: (affiliate.totalConversions || 0) + 1,
+              updatedAt: new Date().toISOString(),
+            })
+            .eq('id', affiliateId)
+        }
+
+        // Send email to affiliate when referral is marked as enrolled
+        try {
+          const { data: fullReferral } = await supabase
+            .from('Referral')
+            .select('affiliateId, Affiliate!Referral_affiliateId_fkey(id, userId, User!Affiliate_userId_fkey(email))')
+            .eq('id', id)
+            .single()
+
+          if (fullReferral) {
+            const affiliateEmail = (fullReferral as any).Affiliate?.User?.email
+            if (affiliateEmail) {
+              const { sendEmail, referralEnrolledEmail } = await import('@/app/api/email/route')
+              await sendEmail(referralEnrolledEmail(affiliateEmail, visitorName))
+            }
+          }
+        } catch (emailErr) {
+          console.error('[REFERRAL] Email sending failed:', emailErr)
+        }
+      } catch (commissionErr) {
+        console.error('[REFERRAL] Commission auto-creation error:', commissionErr)
       }
     }
 

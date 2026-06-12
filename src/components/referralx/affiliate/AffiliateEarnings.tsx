@@ -4,24 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, StatusBadge } from "../shared";
 import {
-  DollarSign, TrendingUp, Clock, CheckCircle, Download, RefreshCw,
-  AlertCircle,
+  DollarSign, TrendingUp, Clock, CheckCircle, RefreshCw,
+  AlertCircle, Gift, ArrowRight,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-
-interface Commission {
-  id: string;
-  affiliateId: string;
-  programId: string;
-  referralId: string;
-  amount: number;
-  rate: number;
-  type: string;
-  status: string;
-  description: string | null;
-  createdAt: string;
-}
 
 interface EarningsKpis {
   totalEarnings: number;
@@ -30,50 +17,26 @@ interface EarningsKpis {
   balance: number;
 }
 
-interface MonthlyEarning {
-  month: string;
-  amount: number;
-}
-
 interface EarningsData {
-  commissions: Commission[];
   kpis: EarningsKpis;
-  monthlyEarnings: MonthlyEarning[];
 }
 
 function formatCurrency(amount: number): string {
   return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function downloadCSV(filename: string, headers: string[], rows: string[][]) {
-  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 export function AffiliateEarnings() {
-  const { token } = useAuth();
+  const { affiliate, token } = useAuth();
   const [data, setData] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<"7D" | "30D" | "90D">("30D");
 
   const fetchData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/affiliate/earnings?period=${period}`, {
+      const res = await fetch(`/api/affiliate/earnings`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -87,29 +50,11 @@ export function AffiliateEarnings() {
     } finally {
       setLoading(false);
     }
-  }, [token, period]);
+  }, [token]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  const thisMonth = data?.monthlyEarnings?.length
-    ? data.monthlyEarnings[data.monthlyEarnings.length - 1]?.amount ?? 0
-    : 0;
-
-  const handleExportCSV = () => {
-    const commissions = data?.commissions || [];
-    const headers = ["Date", "Description", "Type", "Amount", "Status"];
-    const rows = commissions.map((c) => [
-      formatDate(c.createdAt),
-      c.description || c.type,
-      c.type,
-      c.amount < 0 ? `-${formatCurrency(Math.abs(c.amount))}` : formatCurrency(c.amount),
-      c.status,
-    ]);
-    downloadCSV("earnings-history.csv", headers, rows);
-    toast({ title: "Export complete", description: "Earnings CSV downloaded successfully" });
-  };
 
   if (error) {
     return (
@@ -117,7 +62,7 @@ export function AffiliateEarnings() {
         <AlertCircle className="w-12 h-12 text-rx-danger mb-4" />
         <h3 className="text-lg font-semibold text-rx-gray-800 mb-2">Failed to load earnings</h3>
         <p className="text-sm text-rx-gray-500 mb-4">{error}</p>
-        <button onClick={fetchData} className="inline-flex items-center gap-2 px-4 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">
+        <button onClick={fetchData} className="inline-flex items-center gap-2 px-4 py-2 bg-rx-secondary text-white rounded-lg text-sm font-semibold hover:bg-[#5a8566]">
           <RefreshCw className="w-4 h-4" /> Retry
         </button>
       </div>
@@ -149,8 +94,8 @@ export function AffiliateEarnings() {
             icon={<DollarSign className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="This Month"
-            value={formatCurrency(thisMonth)}
+            label="Available Balance"
+            value={formatCurrency(data?.kpis.balance ?? 0)}
             iconColor="success"
             icon={<TrendingUp className="w-[18px] h-[18px]" />}
           />
@@ -163,142 +108,133 @@ export function AffiliateEarnings() {
           <KpiCard
             label="Approved"
             value={formatCurrency(data?.kpis.approvedEarnings ?? 0)}
-            iconColor="danger"
+            iconColor="info"
             icon={<CheckCircle className="w-[18px] h-[18px]" />}
           />
         </div>
       )}
 
-      {/* Earnings Over Time Chart */}
-      <div className="bg-white rounded-2xl border border-rx-gray-200 p-5">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-rx-gray-800">Earnings Over Time</h3>
-          <div className="flex gap-2">
-            {(["7D", "30D", "90D"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 border rounded-lg text-xs font-medium ${
-                  period === p ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-        {loading ? (
-          <div className="h-[300px] flex items-end gap-2 px-2">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Skeleton key={i} className="flex-1 rounded-t-md" style={{ height: `${30 + Math.random() * 60}%` }} />
-            ))}
-          </div>
-        ) : (
-          <>
-            <div className="h-[300px] flex items-end gap-2 px-2">
-              {(data?.monthlyEarnings || []).map((m, i) => {
-                const maxAmount = Math.max(...(data?.monthlyEarnings || []).map((e) => e.amount), 1);
-                const pct = maxAmount > 0 ? (m.amount / maxAmount) * 100 : 0;
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 bg-gradient-to-t from-rx-secondary to-rx-secondary/60 rounded-t-md hover:from-[#059669] hover:to-rx-secondary transition-all group relative"
-                    style={{ height: `${Math.max(pct, 2)}%` }}
-                  >
-                    {m.amount > 0 && (
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-rx-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {formatCurrency(m.amount)}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+      {/* How Earnings Work */}
+      <div className="bg-gradient-to-br from-rx-secondary to-[#4a7a58] rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="absolute -top-1/4 -right-[10%] w-[300px] h-[300px] bg-white/5 rounded-full" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center">
+              <Gift className="w-5 h-5 text-white" />
             </div>
-            <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400">
-              {(data?.monthlyEarnings || []).map((m, i) => (
-                <span key={i}>{m.month}</span>
+            <div>
+              <h3 className="text-xl font-bold">How Your Earnings Work</h3>
+              <p className="text-white/70 text-sm">Earn rewards for every successful referral</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="bg-white/10 border border-white/20 rounded-xl p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">1</div>
+                <h4 className="font-semibold text-lg">Refer a Student</h4>
+              </div>
+              <p className="text-white/80 text-sm leading-relaxed">
+                Share your unique referral link with prospective students. When they submit their details through your link, it counts as a referral.
+              </p>
+              <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-full px-3 py-1.5">
+                <DollarSign className="w-4 h-4" />
+                <span className="text-sm font-semibold">Earn $50 per submitted referral</span>
+              </div>
+            </div>
+
+            <div className="bg-white/10 border border-white/20 rounded-xl p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">2</div>
+                <h4 className="font-semibold text-lg">Get Them Enrolled</h4>
+              </div>
+              <p className="text-white/80 text-sm leading-relaxed">
+                When your referral enrolls in a program and schedules a session, you earn an additional bonus. The more students you refer, the more you earn!
+              </p>
+              <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-full px-3 py-1.5">
+                <DollarSign className="w-4 h-4" />
+                <span className="text-sm font-semibold">Earn $100 when they enroll</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Commission Flow */}
+          <div className="mt-6 bg-white/10 border border-white/20 rounded-xl p-5">
+            <h4 className="font-semibold mb-4">Commission Process</h4>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              {[
+                { label: "Referral Enrolled", icon: "🎯" },
+                { label: "Commission Created", icon: "💰" },
+                { label: "Admin Approves", icon: "✅" },
+                { label: "Payment Released", icon: "🎉" },
+              ].map((step, i) => (
+                <div key={step.label} className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2">
+                    <span className="text-base">{step.icon}</span>
+                    <span className="text-xs font-medium">{step.label}</span>
+                  </div>
+                  {i < 3 && <ArrowRight className="w-4 h-4 text-white/40" />}
+                </div>
               ))}
             </div>
-          </>
-        )}
-      </div>
-
-      {/* Earnings History Table */}
-      <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
-          <h3 className="text-base font-semibold text-rx-gray-800">Earnings History</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={fetchData}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
-            >
-              <RefreshCw className="w-3 h-3" /> Refresh
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
-            >
-              <Download className="w-3 h-3" /> Export
-            </button>
           </div>
         </div>
+      </div>
+
+      {/* Earnings Summary */}
+      <div className="bg-white rounded-2xl border border-rx-gray-200 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-semibold text-rx-gray-800">Earnings Summary</h3>
+          <button
+            onClick={fetchData}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+          >
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+        </div>
+        
         {loading ? (
-          <div className="p-5 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-4 w-20" />
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center justify-between">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-5 w-24" />
               </div>
             ))}
           </div>
-        ) : data?.commissions && data.commissions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Description</th>
-                  <th className="px-5 py-3">Type</th>
-                  <th className="px-5 py-3">Amount</th>
-                  <th className="px-5 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.commissions.map((c) => (
-                  <tr key={c.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
-                    <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(c.createdAt)}</td>
-                    <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-800">{c.description || c.type}</td>
-                    <td className="px-5 py-3.5">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        c.type === "Commission" || c.type === "commission"
-                          ? "bg-rx-secondary-light text-rx-secondary"
-                          : c.type === "Refund" || c.type === "refund"
-                          ? "bg-rx-danger-light text-rx-danger"
-                          : "bg-rx-gray-100 text-rx-gray-600"
-                      }`}>
-                        {c.type}
-                      </span>
-                    </td>
-                    <td className={`px-5 py-3.5 text-sm font-semibold ${c.amount < 0 ? "text-rx-danger" : "text-rx-secondary"}`}>
-                      {c.amount < 0 ? "-" : ""}{formatCurrency(Math.abs(c.amount))}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <StatusBadge status={c.status as any} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         ) : (
-          <div className="text-center py-12">
-            <DollarSign className="w-10 h-10 text-rx-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-rx-gray-500">No earnings history yet. Start sharing your referral link!</p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-3 border-b border-rx-gray-100">
+              <span className="text-sm text-rx-gray-600">Total Earnings</span>
+              <span className="text-lg font-bold text-rx-gray-900">{formatCurrency(data?.kpis.totalEarnings ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between py-3 border-b border-rx-gray-100">
+              <span className="text-sm text-rx-gray-600">Available Balance</span>
+              <span className="text-lg font-bold text-rx-secondary">{formatCurrency(data?.kpis.balance ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between py-3 border-b border-rx-gray-100">
+              <span className="text-sm text-rx-gray-600">Pending Commissions</span>
+              <span className="text-lg font-bold text-rx-warning">{formatCurrency(data?.kpis.pendingEarnings ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between py-3">
+              <span className="text-sm text-rx-gray-600">Approved (Awaiting Payout)</span>
+              <span className="text-lg font-bold text-rx-info">{formatCurrency(data?.kpis.approvedEarnings ?? 0)}</span>
+            </div>
           </div>
         )}
+      </div>
+
+      {/* Note about commission management */}
+      <div className="bg-rx-secondary-light border border-rx-secondary/20 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <Gift className="w-5 h-5 text-rx-secondary flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-rx-gray-800 mb-1">Commission Management</p>
+            <p className="text-xs text-rx-gray-600 leading-relaxed">
+              All commissions are managed by the ElevateMe team. When your referral gets enrolled, a commission is automatically created and will be reviewed by our team. Once approved, it will be added to your available balance and processed for payout according to our schedule.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

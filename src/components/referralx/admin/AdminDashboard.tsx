@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, SectionCard, ErrorWithRetry, EmptyState, formatCurrency, formatDate, timeAgo, getInitials } from "../shared";
-import { Users, Share2, Percent, Zap, RefreshCw, Download, TrendingUp } from "lucide-react";
+import { Users, Share2, Percent, Zap, RefreshCw, Download, TrendingUp, Send, ExternalLink, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
@@ -43,6 +43,7 @@ interface DashboardData {
   kpis: DashboardKpis;
   topAffiliates: TopAffiliate[];
   activities: Activity[];
+  recentReferralActivities: Activity[];
   sources: Record<string, number>;
   totalReferralsChart: ChartDataPoint[];
   enrolledReferralsChart: ChartDataPoint[];
@@ -54,6 +55,23 @@ const activityIcons: Record<string, { icon: React.ReactNode; color: string }> = 
   conversion: { icon: <TrendingUp className="w-3.5 h-3.5" />, color: "bg-rx-info-light text-rx-info" },
   default: { icon: <Zap className="w-3.5 h-3.5" />, color: "bg-rx-info-light text-rx-info" },
 };
+
+const referralActivityIcons: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+  referral_submitted: { icon: <Send className="w-3.5 h-3.5" />, color: "bg-blue-100 text-blue-600", label: "Submitted" },
+  referral_click: { icon: <ExternalLink className="w-3.5 h-3.5" />, color: "bg-rx-info-light text-rx-info", label: "Link Opened" },
+  status_changed_enrolled: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "bg-rx-secondary-light text-rx-secondary", label: "Enrolled" },
+  status_changed_other: { icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "bg-amber-100 text-amber-600", label: "Status Changed" },
+};
+
+function getReferralActivityMeta(action: string, details?: string) {
+  if (action === "referral_submitted") return referralActivityIcons.referral_submitted;
+  if (action === "referral_click") return referralActivityIcons.referral_click;
+  if (action === "status_changed") {
+    const isEnrolled = details?.toLowerCase().includes("enrolled");
+    return isEnrolled ? referralActivityIcons.status_changed_enrolled : referralActivityIcons.status_changed_other;
+  }
+  return { icon: <Zap className="w-3.5 h-3.5" />, color: "bg-rx-info-light text-rx-info", label: action };
+}
 
 function getActivityMeta(action: string) {
   for (const [key, val] of Object.entries(activityIcons)) {
@@ -143,6 +161,7 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
   const kpis = data?.kpis;
   const topAffiliates = data?.topAffiliates || [];
   const activities = data?.activities || [];
+  const recentReferralActivities = data?.recentReferralActivities || [];
 
   // Chart data from API
   const totalChart = data?.totalReferralsChart || [];
@@ -320,6 +339,44 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
             </div>
           )}
         </SectionCard>
+      </div>
+
+      {/* Recent Referral Activity */}
+      <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+          <h3 className="text-base font-semibold text-rx-gray-800">Recent Referral Activity</h3>
+        </div>
+        {loading ? (
+          <div className="p-5 space-y-4">{Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-3 animate-pulse">
+              <div className="w-9 h-9 bg-rx-gray-200 rounded-lg" />
+              <div className="flex-1">
+                <div className="h-4 w-full bg-rx-gray-100 rounded mb-1" />
+                <div className="h-3 w-16 bg-rx-gray-100 rounded" />
+              </div>
+            </div>
+          ))}</div>
+        ) : recentReferralActivities.length === 0 ? (
+          <EmptyState title="No referral activity yet" description="Referral activity will appear here as referrals are submitted and tracked" />
+        ) : (
+          <div className="p-5 space-y-4">
+            {recentReferralActivities.map((a, i) => {
+              const meta = getReferralActivityMeta(a.action, a.details);
+              return (
+                <div key={a.id} className={`flex gap-3 ${i < recentReferralActivities.length - 1 ? "pb-4 border-b border-rx-gray-100" : ""}`}>
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.color}`}>{meta.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-rx-gray-500 uppercase tracking-wide">{meta.label}</span>
+                    </div>
+                    <div className="text-sm text-rx-gray-700 leading-relaxed mt-0.5">{a.details || a.action}</div>
+                    <div className="text-xs text-rx-gray-400 mt-1">{timeAgo(a.createdAt)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

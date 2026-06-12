@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const supabase = getServerClient()
 
     // Get counts
-    const [affiliatesRes, referralsRes, commissionsRes, payoutsRes, programsRes, pendingPayoutsRes, activitiesRes] = await Promise.all([
+    const [affiliatesRes, referralsRes, commissionsRes, payoutsRes, programsRes, pendingPayoutsRes, activitiesRes, referralActivitiesRes] = await Promise.all([
       supabase.from('Affiliate').select('id, referralCode, totalEarnings, totalReferrals, totalConversions, status, tier, userId, User!Affiliate_userId_fkey(id, name, email, phone, avatarUrl)', { count: 'exact' }),
       supabase.from('Referral').select('id, status, createdAt', { count: 'exact' }),
       supabase.from('Commission').select('id, amount, status, createdAt'),
@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       supabase.from('Program').select('id, name, commissionType, commissionValue, isActive'),
       supabase.from('Payout').select('id, amount').eq('status', 'pending'),
       supabase.from('Activity').select('*').order('createdAt', { ascending: false }).limit(10),
+      supabase.from('Activity').select('*').in('action', ['referral_submitted', 'referral_click', 'status_changed']).eq('entity', 'referral').order('createdAt', { ascending: false }).limit(10),
     ])
 
     const affiliates = affiliatesRes.data || []
@@ -30,13 +31,15 @@ export async function GET(request: NextRequest) {
     const programs = programsRes.data || []
     const pendingPayouts = pendingPayoutsRes.data || []
     const activities = activitiesRes.data || []
+    const referralActivities = referralActivitiesRes.data || []
 
     // Calculate KPIs
     const totalRevenue = commissions.reduce((sum: number, c: any) => sum + (c.status === 'approved' || c.status === 'paid' ? c.amount : 0), 0)
     const activeAffiliates = affiliates.filter((a: any) => a.status === 'active').length
     const inactiveAffiliates = affiliates.filter((a: any) => a.status === 'inactive' || a.status === 'suspended').length
-    const totalReferrals = referrals.length
-    const conversions = referrals.filter((r: any) => r.status === 'converted' || r.status === 'enrolled' || r.status === 'completed').length
+    const submittedReferrals = referrals.filter((r: any) => r.status !== 'clicked' && r.status !== 'opened')
+    const totalReferrals = submittedReferrals.length
+    const conversions = submittedReferrals.filter((r: any) => r.status === 'converted' || r.status === 'enrolled' || r.status === 'completed').length
     const conversionRate = totalReferrals > 0 ? ((conversions / totalReferrals) * 100).toFixed(1) : '0'
     const pendingPayoutAmount = pendingPayouts.reduce((sum: number, p: any) => sum + p.amount, 0)
 
@@ -106,7 +109,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Chart data based on period
-    const submittedReferrals = referrals.filter((r: any) => r.status !== 'clicked' && r.status !== 'opened')
     const enrolledReferrals = referrals.filter((r: any) => r.status === 'enrolled' || r.status === 'converted' || r.status === 'completed')
 
     let totalReferralsChart: { label: string; value: number }[] = []
@@ -153,21 +155,44 @@ export async function GET(request: NextRequest) {
         enrolledReferralsChart.push({ label, value: enrolled })
       }
     } else {
-      // 90D - last 3 months, label format: "Mar", "Apr", "May"
-      for (let i = 2; i >= 0; i--) {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
-        const monthName = monthStart.toLocaleString('default', { month: 'short' })
+      // 90D - weekly data points (approximately 12-13 weeks)
+      const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 89)
+      ninetyDaysAgo.setHours(0, 0, 0, 0)
+      const totalDays = 90
+      const weeksCount = Math.ceil(totalDays / 7)
+
+      for (let w = 0; w < weeksCount; w++) {
+        const weekStart = new Date(ninetyDaysAgo)
+        weekStart.setDate(weekStart.getDate() + w * 7)
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekEnd.getDate() + 6)
+        weekEnd.setHours(23, 59, 59, 999)
+
+        // Don't go past today
+        const effectiveEnd = weekEnd > now ? now : weekEnd
+
+        const startMonth = weekStart.toLocaleString('default', { month: 'short' })
+        const startDay = weekStart.getDate()
+        const endMonth = effectiveEnd.toLocaleString('default', { month: 'short' })
+        const endDay = effectiveEnd.getDate()
+
+        let label: string
+        if (startMonth === endMonth) {
+          label = `${startMonth} ${startDay}-${endDay}`
+        } else {
+          label = `${startMonth} ${startDay}-${endMonth} ${endDay}`
+        }
+
         const total = submittedReferrals.filter((r: any) => {
           const d = new Date(r.createdAt)
-          return d >= monthStart && d <= monthEnd
+          return d >= weekStart && d <= effectiveEnd
         }).length
         const enrolled = enrolledReferrals.filter((r: any) => {
           const d = new Date(r.createdAt)
-          return d >= monthStart && d <= monthEnd
+          return d >= weekStart && d <= effectiveEnd
         }).length
-        totalReferralsChart.push({ label: monthName, value: total })
-        enrolledReferralsChart.push({ label: monthName, value: enrolled })
+        totalReferralsChart.push({ label, value: total })
+        enrolledReferralsChart.push({ label, value: enrolled })
       }
     }
 
@@ -183,6 +208,7 @@ export async function GET(request: NextRequest) {
       topAffiliates,
       programs: programsWithStats,
       activities,
+      recentReferralActivities: referralActivities,
       sources,
       monthlyRevenue,
       totalReferralsChart,

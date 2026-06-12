@@ -172,7 +172,7 @@ export default function Home() {
   // Login form
   if (showLogin) {
     return (
-      <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center px-6">
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
         <LoginForm onSwitch={() => setShowLogin(false)} onSignup={() => router.push("/signup")} />
       </div>
     );
@@ -181,33 +181,33 @@ export default function Home() {
   // Landing page
   return (
     <div className="min-h-screen bg-rx-gray-50">
-      <div className="relative overflow-hidden bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20]">
-        <div className="absolute inset-0 opacity-10"><div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl"/><div className="absolute bottom-20 right-20 w-96 h-96 bg-rx-secondary rounded-full blur-3xl"/></div>
+      <div className="relative overflow-hidden bg-white">
+        <div className="absolute inset-0 opacity-30"><div className="absolute top-20 left-20 w-72 h-72 bg-rx-secondary/10 rounded-full blur-3xl"/><div className="absolute bottom-20 right-20 w-96 h-96 bg-rx-primary/10 rounded-full blur-3xl"/><div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-rx-secondary/5 rounded-full blur-3xl"/></div>
         {/* Navigation Header with Logo */}
         <nav className="relative max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="ElevateMe" className="h-10 w-auto brightness-0 invert" />
+            <img src="/logo.svg" alt="ElevateMe" className="h-10 w-auto" />
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowLogin(true)} className="text-white/80 hover:text-white text-sm font-medium transition-colors">Sign In</button>
-            <button onClick={() => router.push("/signup")} className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-white/20 transition-colors flex items-center gap-1.5"><UserPlus className="w-4 h-4"/>Sign Up</button>
-            <button onClick={() => setShowLogin(true)} className="bg-white text-rx-primary px-5 py-2 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors">Get Started</button>
+            <button onClick={() => setShowLogin(true)} className="text-rx-gray-600 hover:text-rx-primary text-sm font-medium transition-colors">Sign In</button>
+            <button onClick={() => router.push("/signup")} className="bg-rx-secondary/10 text-rx-secondary border border-rx-secondary/20 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-rx-secondary/20 transition-colors flex items-center gap-1.5"><UserPlus className="w-4 h-4"/>Sign Up</button>
+            <button onClick={() => setShowLogin(true)} className="bg-rx-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-rx-primary-dark transition-colors">Get Started</button>
           </div>
         </nav>
         <div className="relative max-w-7xl mx-auto px-6 py-20">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6"><Zap className="w-4 h-4 text-rx-warning"/><span className="text-white/90 text-sm font-medium">Referral Program Platform</span></div>
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 tracking-tight font-heading">Elevate<span className="text-rx-secondary">Me</span></h1>
-            <p className="text-xl text-white/80 max-w-2xl mx-auto mb-10">The complete referral program management platform. Track ambassadors, manage commissions, and grow your business through the power of referrals.</p>
+            <div className="inline-flex items-center gap-2 bg-rx-secondary-light rounded-full px-4 py-2 mb-6"><Zap className="w-4 h-4 text-rx-secondary"/><span className="text-rx-secondary text-sm font-medium">Referral Program Platform</span></div>
+            <h1 className="text-5xl md:text-6xl font-bold text-rx-gray-900 mb-6 tracking-tight font-heading">Elevate<span className="text-rx-secondary">Me</span></h1>
+            <p className="text-xl text-rx-gray-600 max-w-2xl mx-auto mb-10">The complete referral program management platform. Track ambassadors, manage commissions, and grow your business through the power of referrals.</p>
           </div>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <button onClick={() => { setShowLogin(true); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-rx-primary/20">
+            <button onClick={() => { setShowLogin(true); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-rx-gray-200 hover:border-rx-primary/30">
               <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-primary-light flex items-center justify-center"><Shield className="w-7 h-7 text-rx-primary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900 font-heading">Admin Portal</h3><p className="text-rx-gray-500 text-sm">Program Manager</p></div></div>
               <p className="text-rx-gray-600 mb-6 leading-relaxed">Manage your referral programs, oversee ambassadors, track commissions, and analyze performance reports.</p>
               <div className="flex flex-wrap gap-2 mb-6">{["Dashboard","Ambassadors","Commissions","Reports"].map(f=><span key={f} className="text-xs bg-rx-gray-100 text-rx-gray-600 px-3 py-1 rounded-full font-medium">{f}</span>)}</div>
               <div className="flex items-center gap-2 text-rx-primary font-semibold group-hover:gap-3 transition-all">Enter Admin Portal <ArrowRight className="w-4 h-4"/></div>
             </button>
-            <button onClick={() => { router.push("/signup"); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-rx-secondary/20">
+            <button onClick={() => { router.push("/signup"); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-rx-gray-200 hover:border-rx-secondary/30">
               <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-secondary-light flex items-center justify-center"><Users className="w-7 h-7 text-rx-secondary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900 font-heading">Ambassador Portal</h3><p className="text-rx-gray-500 text-sm">Become an Ambassador</p></div></div>
               <p className="text-rx-gray-600 mb-6 leading-relaxed">Join our referral program, get your unique tracking link, and start earning rewards for every successful referral.</p>
               <div className="flex flex-wrap gap-2 mb-6">{["Dashboard","My Links","Referrals","Earnings"].map(f=><span key={f} className="text-xs bg-rx-gray-100 text-rx-gray-600 px-3 py-1 rounded-full font-medium">{f}</span>)}</div>
