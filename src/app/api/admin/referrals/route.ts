@@ -19,7 +19,14 @@ export async function GET(request: NextRequest) {
       .order('createdAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
-    if (status) query = query.eq('status', status)
+    // Only show referrals where the form was actually submitted (not just link clicks)
+    // "clicked" status = someone opened the link but didn't submit = belongs in tracking, not referrals
+    if (status) {
+      query = query.eq('status', status)
+    } else {
+      // Default: exclude pure "clicked" status — only show submitted/pending/enrolled/converted/cancelled
+      query = query.neq('status', 'clicked')
+    }
 
     const { data: referrals, error: dbError, count } = await query
 

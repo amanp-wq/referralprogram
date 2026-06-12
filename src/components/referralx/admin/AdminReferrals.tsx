@@ -34,15 +34,19 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
 }
 
 function getReferralStatus(r: Referral): { status: string; label: string } {
+  // "clicked" status should never appear in referrals — it's tracking data only
+  // But just in case it slips through, treat it as not a real referral
+  if (r.status === "clicked") {
+    return { status: "clicked", label: "Link Open" };
+  }
   if (r.status === "enrolled" || r.status === "converted" || r.status === "completed") {
     return { status: "enrolled", label: "Enrolled" };
   }
   if (r.status === "submitted") {
     return { status: "submitted", label: "Submitted" };
   }
-  // "clicked" status = someone clicked the link but hasn't submitted the form yet = Pending
   // "pending" status = form submitted but not yet enrolled
-  if (r.status === "pending" || r.status === "clicked") {
+  if (r.status === "pending") {
     const createdAt = new Date(r.createdAt);
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
@@ -112,16 +116,17 @@ export function AdminReferrals() {
   const referrals = data?.referrals || [];
   const total = data?.total || 0;
 
-  // Compute status counts using new logic
-  const submittedCount = referrals.filter(r => getReferralStatus(r).status === "submitted").length;
-  const enrolledCount = referrals.filter(r => getReferralStatus(r).status === "enrolled").length;
-  const pendingCount = referrals.filter(r => getReferralStatus(r).status === "pending").length;
-  const notEnrolledCount = referrals.filter(r => getReferralStatus(r).status === "not_enrolled").length;
+  // Compute status counts using new logic (exclude "clicked" — those are tracking, not referrals)
+  const realReferrals = referrals.filter(r => r.status !== "clicked");
+  const submittedCount = realReferrals.filter(r => getReferralStatus(r).status === "submitted").length;
+  const enrolledCount = realReferrals.filter(r => getReferralStatus(r).status === "enrolled").length;
+  const pendingCount = realReferrals.filter(r => getReferralStatus(r).status === "pending").length;
+  const notEnrolledCount = realReferrals.filter(r => getReferralStatus(r).status === "not_enrolled").length;
 
-  // Filter referrals based on status filter
+  // Filter referrals based on status filter (exclude clicked from display)
   const filteredReferrals = statusFilter === ""
-    ? referrals
-    : referrals.filter(r => getReferralStatus(r).status === statusFilter);
+    ? realReferrals
+    : realReferrals.filter(r => getReferralStatus(r).status === statusFilter);
 
   return (
     <div className="space-y-6">
@@ -131,7 +136,7 @@ export function AdminReferrals() {
           Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
-            <KpiCard label="Total Referrals" value={total.toLocaleString()} iconColor="primary" icon={<Share2 className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Total Referrals" value={realReferrals.length.toLocaleString()} iconColor="primary" icon={<Share2 className="w-[18px] h-[18px]" />} />
             <KpiCard label="Enrolled" value={enrolledCount.toLocaleString()} iconColor="success" icon={<UserCheck className="w-[18px] h-[18px]" />} />
             <KpiCard label="Pending" value={pendingCount.toLocaleString()} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
             <KpiCard label="Not Enrolled" value={notEnrolledCount.toLocaleString()} iconColor="danger" icon={<UserX className="w-[18px] h-[18px]" />} />
