@@ -8,6 +8,7 @@ import { AdminReferrals } from "@/components/referralx/admin/AdminReferrals";
 import { AdminLinks } from "@/components/referralx/admin/AdminLinks";
 import { AdminReports } from "@/components/referralx/admin/AdminReports";
 import { AdminSettings } from "@/components/referralx/admin/AdminSettings";
+import { AdminActivity } from "@/components/referralx/admin/AdminActivity";
 import { AffiliateDashboard } from "@/components/referralx/affiliate/AffiliateDashboard";
 import { AffiliateLinks } from "@/components/referralx/affiliate/AffiliateLinks";
 import { AffiliateReferrals } from "@/components/referralx/affiliate/AffiliateReferrals";
@@ -20,7 +21,7 @@ import { useRouter } from "next/navigation";
 import { Users, Target, BarChart3, Zap, Shield, ArrowRight, LogIn, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 type Role = "none" | "admin" | "affiliate";
-type AdminPage = "dashboard" | "affiliates" | "commissions" | "referrals" | "links" | "reports" | "settings";
+type AdminPage = "dashboard" | "affiliates" | "commissions" | "referrals" | "links" | "activity" | "reports" | "settings";
 type AffiliatePage = "dashboard" | "links" | "referrals" | "earnings" | "settings" | "help";
 
 // Login Form Component
@@ -133,11 +134,12 @@ export default function Home() {
         case "commissions": return <AdminCommissions />;
         case "referrals": return <AdminReferrals />;
         case "links": return <AdminLinks />;
+        case "activity": return <AdminActivity />;
         case "reports": return <AdminReports />;
         case "settings": return <AdminSettings />;
       }
     };
-    const pageTitles: Record<AdminPage, string> = { dashboard:"Dashboard", affiliates:"Ambassadors", commissions:"Commissions", referrals:"Referrals", links:"Tracking Links", reports:"Reports", settings:"Settings" };
+    const pageTitles: Record<AdminPage, string> = { dashboard:"Dashboard", affiliates:"Ambassadors", commissions:"Commissions", referrals:"Referrals", links:"Tracking Links", activity:"Activity Log", reports:"Reports", settings:"Settings" };
     return <AppShell role="admin" activePage={adminPage} onPageChange={(p) => setAdminPage(p as AdminPage)} pageTitle={pageTitles[adminPage]} onLogout={logout} userName={user.name} referralCount={referralCount}>{renderPage()}</AppShell>;
   }
 

@@ -317,7 +317,7 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
           )}
         </div>
 
-        <SectionCard title="Recent Activity">
+        <SectionCard title="Recent Activity" actions={<button onClick={() => onNavigate?.('activity')} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Zap className="w-3 h-3" /> View All</button>}>
           {loading ? (
             <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex gap-3 animate-pulse"><div className="w-9 h-9 bg-rx-gray-200 rounded-lg" /><div className="flex-1"><div className="h-4 w-full bg-rx-gray-100 rounded mb-1" /><div className="h-3 w-16 bg-rx-gray-100 rounded" /></div></div>)}</div>
           ) : activities.length === 0 ? (
@@ -345,6 +345,7 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Recent Referral Activity</h3>
+          <button onClick={() => onNavigate?.('activity')} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Zap className="w-3 h-3" /> View All</button>
         </div>
         {loading ? (
           <div className="p-5 space-y-4">{Array.from({ length: 5 }).map((_, i) => (

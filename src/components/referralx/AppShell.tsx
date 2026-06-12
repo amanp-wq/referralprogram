@@ -20,6 +20,7 @@ const adminNavGroups: NavGroup[] = [
   ]},
   { label: "Management", items: [
     { id: "links", label: "Tracking Links", icon: <Link2 className="w-[18px] h-[18px]" /> },
+    { id: "activity", label: "Activity Log", icon: <FileText className="w-[18px] h-[18px]" /> },
     { id: "reports", label: "Reports", icon: <FileText className="w-[18px] h-[18px]" /> },
     { id: "settings", label: "Settings", icon: <Settings className="w-[18px] h-[18px]" /> },
   ]},
@@ -58,6 +59,7 @@ export function AppShell({ role, activePage, onPageChange, pageTitle, onLogout, 
     dashboard: "Dashboard", affiliates: "Ambassador Management", commissions: "Commission Management",
     referrals: role === "admin" ? "Referral Tracking" : "Referrals",
     links: role === "admin" ? "Link Management" : "My Links",
+    activity: "Activity Log",
     reports: "Analytics Reports", settings: role === "admin" ? "System Settings" : "Settings",
     earnings: "Earnings", help: "Help Center",
   };
