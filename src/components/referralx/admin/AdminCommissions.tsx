@@ -79,6 +79,12 @@ export function AdminCommissions() {
   const [addForm, setAddForm] = useState({ affiliateId: "", amount: "", rate: "0", description: "", referralId: "" });
   const [submitting, setSubmitting] = useState(false);
 
+  // Edit Commission modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCommission, setEditingCommission] = useState<Commission | null>(null);
+  const [editCommissionForm, setEditCommissionForm] = useState({ amount: "", rate: "", description: "", type: "" });
+  const [savingCommission, setSavingCommission] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -173,6 +179,50 @@ export function AdminCommissions() {
         fetchData();
       }
     } catch {}
+  };
+
+  const handleOpenEditModal = (commission: Commission) => {
+    setEditingCommission(commission);
+    setEditCommissionForm({
+      amount: commission.amount.toString(),
+      rate: commission.rate.toString(),
+      description: commission.description || "",
+      type: commission.type || "commission",
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveCommission = async () => {
+    if (!editingCommission) return;
+    if (!editCommissionForm.amount || parseFloat(editCommissionForm.amount) <= 0) {
+      toast({ title: "Validation Error", description: "Amount must be greater than 0", variant: "destructive" });
+      return;
+    }
+    setSavingCommission(true);
+    try {
+      const res = await fetch("/api/admin/commissions", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingCommission.id,
+          amount: parseFloat(editCommissionForm.amount),
+          rate: parseFloat(editCommissionForm.rate) || 0,
+          description: editCommissionForm.description || null,
+          type: editCommissionForm.type,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to update commission");
+      }
+      toast({ title: "Commission Updated", description: "The commission has been successfully updated" });
+      setShowEditModal(false);
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update commission", variant: "destructive" });
+    } finally {
+      setSavingCommission(false);
+    }
   };
 
   const handleViewReferral = async (referralId: string | null) => {
@@ -329,17 +379,24 @@ export function AdminCommissions() {
                       <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(c.createdAt)}</td>
                       <td className="px-5 py-3.5"><StatusBadge status={c.status as any} /></td>
                       <td className="px-5 py-3.5">
-                        {c.status === "pending" && (
-                          <div className="flex gap-1">
-                            <button onClick={() => handleStatusChange(c.id, "approved")} className="text-xs px-2 py-1 bg-rx-secondary-light text-rx-secondary rounded hover:bg-rx-secondary/20 font-medium">Approve</button>
-                            <button onClick={() => handleStatusChange(c.id, "failed")} className="text-xs px-2 py-1 bg-rx-danger-light text-rx-danger rounded hover:bg-rx-danger/20 font-medium">Reject</button>
-                          </div>
-                        )}
-                        {c.status === "approved" && (
-                          <div className="flex gap-1">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleOpenEditModal(c)}
+                            className="text-xs px-2 py-1 bg-rx-gray-100 text-rx-gray-700 rounded hover:bg-rx-gray-200 font-medium flex items-center gap-1"
+                            title="Edit Commission"
+                          >
+                            <Pencil className="w-3 h-3" /> Edit
+                          </button>
+                          {c.status === "pending" && (
+                            <>
+                              <button onClick={() => handleStatusChange(c.id, "approved")} className="text-xs px-2 py-1 bg-rx-secondary-light text-rx-secondary rounded hover:bg-rx-secondary/20 font-medium">Approve</button>
+                              <button onClick={() => handleStatusChange(c.id, "failed")} className="text-xs px-2 py-1 bg-rx-danger-light text-rx-danger rounded hover:bg-rx-danger/20 font-medium">Reject</button>
+                            </>
+                          )}
+                          {c.status === "approved" && (
                             <button onClick={() => handleStatusChange(c.id, "released")} className="text-xs px-2 py-1 bg-rx-info-light text-rx-info rounded hover:bg-rx-info/20 font-medium">Release</button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -658,6 +715,111 @@ export function AdminCommissions() {
             ) : (
               <div className="text-center py-8 text-rx-gray-500 text-sm">No referral data found</div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Commission Modal */}
+      {showEditModal && editingCommission && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-semibold text-rx-gray-800">Edit Commission</h3>
+                <p className="text-xs text-rx-gray-500 mt-0.5">
+                  {editingCommission.Affiliate?.User?.name || editingCommission.Affiliate?.referralCode || "Unknown"} &middot; <StatusBadge status={editingCommission.status as any} />
+                </p>
+              </div>
+              <button onClick={() => setShowEditModal(false)} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Amount */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Amount <span className="text-rx-danger">*</span></label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-rx-gray-400 font-medium">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={editCommissionForm.amount}
+                    onChange={(e) => setEditCommissionForm({ ...editCommissionForm, amount: e.target.value })}
+                    className="w-full pl-7 pr-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
+                  />
+                </div>
+              </div>
+
+              {/* Rate */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Rate (%)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={editCommissionForm.rate}
+                    onChange={(e) => setEditCommissionForm({ ...editCommissionForm, rate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-rx-gray-400">%</span>
+                </div>
+              </div>
+
+              {/* Type */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Type</label>
+                <select
+                  value={editCommissionForm.type}
+                  onChange={(e) => setEditCommissionForm({ ...editCommissionForm, type: e.target.value })}
+                  className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
+                >
+                  <option value="commission">Commission</option>
+                  <option value="referral">Referral</option>
+                  <option value="bonus">Bonus</option>
+                  <option value="adjustment">Adjustment</option>
+                </select>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Description</label>
+                <textarea
+                  value={editCommissionForm.description}
+                  onChange={(e) => setEditCommissionForm({ ...editCommissionForm, description: e.target.value })}
+                  placeholder="Optional description"
+                  rows={2}
+                  className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light resize-none"
+                />
+              </div>
+
+              {/* Warning for already-approved commissions */}
+              {['approved', 'released', 'paid'].includes(editingCommission.status) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-amber-700">
+                    This commission is already <span className="font-semibold">{editingCommission.status}</span>. Changing the amount will automatically adjust the affiliate&apos;s earnings balance.
+                  </p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveCommission}
+                  disabled={savingCommission}
+                  className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" /> {savingCommission ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

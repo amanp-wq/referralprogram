@@ -155,30 +155,88 @@ export async function PUT(request: NextRequest) {
     if (!user) return NextResponse.json({ error }, { status: 401 })
 
     const body = await request.json()
-    const { id, status } = body
+    const { id, status, amount, rate, description, type } = body
 
-    if (!id || !status) return NextResponse.json({ error: 'ID and status are required' }, { status: 400 })
+    if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
 
     const supabase = getServerClient()
+
+    // Get existing commission for comparison and audit
+    const { data: existingCommission } = await supabase
+      .from('Commission')
+      .select('id, amount, rate, status, description, type, affiliateId')
+      .eq('id', id)
+      .single()
+
+    if (!existingCommission) {
+      return NextResponse.json({ error: 'Commission not found' }, { status: 404 })
+    }
+
+    // Build update data — only include fields that were provided
+    const updateData: Record<string, any> = { updatedAt: new Date().toISOString() }
+    if (status !== undefined) updateData.status = status
+    if (amount !== undefined) updateData.amount = amount
+    if (rate !== undefined) updateData.rate = rate
+    if (description !== undefined) updateData.description = description
+    if (type !== undefined) updateData.type = type
+
     const { error: dbError } = await supabase
       .from('Commission')
-      .update({ status, updatedAt: new Date().toISOString() })
+      .update(updateData)
       .eq('id', id)
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
 
-    // If approved, update affiliate's totalEarnings
-    if (status === 'approved') {
-      const { data: commission } = await supabase.from('Commission').select('affiliateId, amount').eq('id', id).single()
-      if (commission) {
-        const { data: affiliate } = await supabase.from('Affiliate').select('totalEarnings, balance').eq('id', commission.affiliateId).single()
-        if (affiliate) {
-          await supabase.from('Affiliate').update({
-            totalEarnings: affiliate.totalEarnings + commission.amount,
-            balance: affiliate.balance + commission.amount,
-            updatedAt: new Date().toISOString(),
-          }).eq('id', commission.affiliateId)
-        }
+    // Log activity for edits (amount/rate/description changes)
+    const changes: string[] = []
+    if (amount !== undefined && amount !== existingCommission.amount) changes.push(`amount: $${existingCommission.amount} → $${amount}`)
+    if (rate !== undefined && rate !== existingCommission.rate) changes.push(`rate: ${existingCommission.rate} → ${rate}`)
+    if (description !== undefined && description !== existingCommission.description) changes.push('description updated')
+    if (type !== undefined && type !== existingCommission.type) changes.push(`type: ${existingCommission.type} → ${type}`)
+    if (status !== undefined && status !== existingCommission.status) changes.push(`status: ${existingCommission.status} → ${status}`)
+
+    if (changes.length > 0) {
+      const { data: adminUser } = await supabase
+        .from('User')
+        .select('name')
+        .eq('id', user.id)
+        .single()
+      const adminName = adminUser?.name || 'Unknown'
+
+      await supabase.from('Activity').insert({
+        id: uuidv4(),
+        userId: user.id,
+        action: 'updated',
+        entity: 'commission',
+        entityId: id,
+        details: `Admin ${adminName} edited commission ${id.substring(0, 8)}: ${changes.join(', ')}`,
+        createdAt: new Date().toISOString(),
+      })
+    }
+
+    // If status changed to approved, update affiliate's totalEarnings
+    if (status === 'approved' && existingCommission.status !== 'approved') {
+      const effectiveAmount = amount !== undefined ? amount : existingCommission.amount
+      const { data: affiliate } = await supabase.from('Affiliate').select('totalEarnings, balance').eq('id', existingCommission.affiliateId).single()
+      if (affiliate) {
+        await supabase.from('Affiliate').update({
+          totalEarnings: affiliate.totalEarnings + effectiveAmount,
+          balance: affiliate.balance + effectiveAmount,
+          updatedAt: new Date().toISOString(),
+        }).eq('id', existingCommission.affiliateId)
+      }
+    }
+
+    // If amount was changed AND commission is already approved/released/paid, adjust affiliate earnings
+    if (amount !== undefined && amount !== existingCommission.amount && ['approved', 'released', 'paid'].includes(existingCommission.status)) {
+      const diff = amount - existingCommission.amount
+      const { data: affiliate } = await supabase.from('Affiliate').select('totalEarnings, balance').eq('id', existingCommission.affiliateId).single()
+      if (affiliate) {
+        await supabase.from('Affiliate').update({
+          totalEarnings: affiliate.totalEarnings + diff,
+          balance: affiliate.balance + diff,
+          updatedAt: new Date().toISOString(),
+        }).eq('id', existingCommission.affiliateId)
       }
     }
 
