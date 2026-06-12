@@ -164,3 +164,80 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { user, error } = await requireAdmin(request)
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { id, status } = body
+
+    if (!id || !status) {
+      return NextResponse.json({ error: 'Affiliate ID and status are required' }, { status: 400 })
+    }
+
+    const validStatuses = ['active', 'inactive', 'pending', 'suspended']
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })
+    }
+
+    const supabase = getServerClient()
+
+    // Get affiliate info for activity logging
+    const { data: affiliate } = await supabase
+      .from('Affiliate')
+      .select('id, userId, User!Affiliate_userId_fkey(name)')
+      .eq('id', id)
+      .single()
+
+    if (!affiliate) {
+      return NextResponse.json({ error: 'Affiliate not found' }, { status: 404 })
+    }
+
+    const affiliateName = (affiliate as any).User?.name || 'Unknown'
+
+    // Update affiliate status
+    const { error: dbError } = await supabase
+      .from('Affiliate')
+      .update({ status, updatedAt: new Date().toISOString() })
+      .eq('id', id)
+
+    if (dbError) {
+      return NextResponse.json({ error: dbError.message }, { status: 500 })
+    }
+
+    // Also update user status
+    await supabase
+      .from('User')
+      .update({ status, updatedAt: new Date().toISOString() })
+      .eq('id', affiliate.userId)
+
+    // Get admin name for activity logging
+    const { data: adminUser } = await supabase
+      .from('User')
+      .select('name')
+      .eq('id', user.id)
+      .single()
+
+    const adminName = adminUser?.name || 'Unknown'
+
+    // Log activity
+    await supabase.from('Activity').insert({
+      id: uuidv4(),
+      userId: user.id,
+      action: 'status_changed',
+      entity: 'affiliate',
+      entityId: id,
+      details: `Admin ${adminName} changed ambassador ${affiliateName} status to ${status}`,
+      createdAt: new Date().toISOString(),
+    })
+
+    return NextResponse.json({ message: 'Affiliate status updated successfully' })
+  } catch (error: any) {
+    console.error('Update affiliate status error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

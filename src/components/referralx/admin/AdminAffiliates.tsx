@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, getInitials } from "../shared";
-import { Users, UserPlus, UserCheck, UserX, Download, Search, Plus, Phone } from "lucide-react";
+import { Users, UserPlus, UserCheck, UserX, Download, Search, Plus, Phone, Upload, FileDown, Trash2, MoreHorizontal } from "lucide-react";
 
 function downloadCSV(filename: string, headers: string[], rows: string[][]) {
   const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -13,6 +13,28 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function parseCSV(text: string): string[][] {
+  const lines = text.split('\n').filter(line => line.trim());
+  return lines.map(line => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  });
 }
 
 interface AffiliateUser {
@@ -57,6 +79,20 @@ export function AdminAffiliates() {
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", phone: "", referralCode: "", commissionRate: "10", tier: "standard" });
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+
+  // Import modal state
+  const [showImport, setShowImport] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; failed: number; errors: { row: number; message: string }[] } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<Affiliate | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Status toggle loading
+  const [statusLoading, setStatusLoading] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -104,6 +140,90 @@ export function AdminAffiliates() {
     }
   };
 
+  const handleImport = async (file: File) => {
+    setImportLoading(true);
+    setImportResult(null);
+    setImportError(null);
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length < 2) {
+        setImportError("CSV file is empty or has no data rows");
+        setImportLoading(false);
+        return;
+      }
+
+      const headers = rows[0];
+      const affiliates = rows.slice(1).map(row => ({
+        name: row[headers.indexOf('Name')] || '',
+        email: row[headers.indexOf('Email')] || '',
+        phone: row[headers.indexOf('Phone')] || '',
+        referralCode: row[headers.indexOf('Referral Code')] || '',
+        commissionRate: row[headers.indexOf('Commission Rate')] || '10',
+        tier: row[headers.indexOf('Tier')] || 'standard',
+      })).filter(a => a.name && a.email);
+
+      if (affiliates.length === 0) {
+        setImportError("No valid rows found in CSV");
+        setImportLoading(false);
+        return;
+      }
+
+      const res = await fetch("/api/admin/affiliates/import", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ affiliates }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Import failed");
+
+      setImportResult(json);
+      fetchData();
+    } catch (err: any) {
+      setImportError(err.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/admin/affiliates/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to delete ambassador");
+      setDeleteTarget(null);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleStatusToggle = async (affiliate: Affiliate) => {
+    const newStatus = affiliate.status === 'active' ? 'inactive' : 'active';
+    setStatusLoading(affiliate.id);
+    try {
+      const res = await fetch("/api/admin/affiliates", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: affiliate.id, status: newStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update status");
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setStatusLoading(null);
+    }
+  };
+
   if (error) {
     return <ErrorWithRetry message={error} onRetry={fetchData} />;
   }
@@ -148,7 +268,7 @@ export function AdminAffiliates() {
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Ambassador List</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rx-gray-400" />
               <input
@@ -170,6 +290,10 @@ export function AdminAffiliates() {
               <option value="inactive">Inactive</option>
               <option value="suspended">Suspended</option>
             </select>
+            <button
+              onClick={() => setShowImport(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            ><Upload className="w-3 h-3" /> Import</button>
             <button
               onClick={() => {
                 const headers = ["Name", "Email", "Phone", "Unique Link", "Referrals", "Earnings", "Conversion Ratio", "Status"];
@@ -197,7 +321,7 @@ export function AdminAffiliates() {
         </div>
 
         {loading ? (
-          <TableSkeleton rows={5} cols={6} />
+          <TableSkeleton rows={5} cols={7} />
         ) : affiliates.length === 0 ? (
           <EmptyState title="No ambassadors found" description={search || statusFilter ? "Try adjusting your filters" : "Invite your first ambassador to get started"} />
         ) : (
@@ -212,6 +336,7 @@ export function AdminAffiliates() {
                   <th className="px-5 py-3">Earnings</th>
                   <th className="px-5 py-3">Conversion Ratio</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -249,7 +374,25 @@ export function AdminAffiliates() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5"><StatusBadge status={a.status as any} /></td>
+                      <td className="px-5 py-3.5">
+                        <button
+                          onClick={() => handleStatusToggle(a)}
+                          disabled={statusLoading === a.id}
+                          className="cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-50"
+                          title={`Click to toggle status (currently ${a.status})`}
+                        >
+                          <StatusBadge status={a.status as any} />
+                        </button>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <button
+                          onClick={() => setDeleteTarget(a)}
+                          className="p-1.5 rounded-lg text-rx-gray-400 hover:text-rx-danger hover:bg-rx-danger-light transition-colors"
+                          title="Delete ambassador"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -281,6 +424,116 @@ export function AdminAffiliates() {
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowInvite(false)} className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50">Cancel</button>
               <button onClick={handleInvite} disabled={inviteLoading} className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50">{inviteLoading ? "Creating..." : "Create Ambassador"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Dialog */}
+      {showImport && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Import Ambassadors</h3>
+              <button onClick={() => { setShowImport(false); setImportResult(null); setImportError(null); }} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
+            </div>
+
+            {importError && <div className="mb-4 p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg">{importError}</div>}
+
+            {importResult ? (
+              <div className="space-y-3">
+                <div className="p-4 bg-rx-secondary-light rounded-lg">
+                  <div className="text-sm font-semibold text-rx-secondary">Import Complete</div>
+                  <div className="mt-2 text-sm text-rx-gray-700">
+                    <span className="font-semibold text-rx-secondary">{importResult.created}</span> created,{' '}
+                    <span className="font-semibold text-rx-danger">{importResult.failed}</span> failed
+                  </div>
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="max-h-48 overflow-y-auto">
+                    <div className="text-xs font-semibold text-rx-gray-600 mb-2">Errors:</div>
+                    {importResult.errors.map((e, i) => (
+                      <div key={i} className="text-xs text-rx-danger mb-1">Row {e.row}: {e.message}</div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={() => { setShowImport(false); setImportResult(null); }}
+                  className="w-full py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark"
+                >Done</button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <button
+                    onClick={() => {
+                      const headers = ["Name", "Email", "Phone", "Referral Code", "Commission Rate", "Tier"];
+                      downloadCSV("ambassador_template.csv", headers, []);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-sm text-rx-primary hover:underline font-medium"
+                  ><FileDown className="w-4 h-4" /> Download Template</button>
+                  <p className="text-xs text-rx-gray-500 mt-1">Download the CSV template, fill in your data, and upload it below.</p>
+                </div>
+
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-rx-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-rx-primary hover:bg-rx-primary-light/20 transition-colors"
+                >
+                  <Upload className="w-8 h-8 text-rx-gray-400 mx-auto mb-2" />
+                  <div className="text-sm font-medium text-rx-gray-600">
+                    {importLoading ? "Uploading..." : "Click to upload CSV file"}
+                  </div>
+                  <div className="text-xs text-rx-gray-400 mt-1">.csv files only</div>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImport(file);
+                  }}
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowImport(false); setImportError(null); }}
+                    className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50"
+                  >Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-rx-danger-light flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-rx-danger" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-rx-gray-800">Delete Ambassador</h3>
+                <p className="text-sm text-rx-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-rx-gray-600 mb-5">
+              Are you sure? This will delete ambassador <span className="font-semibold">{deleteTarget.User?.name}</span> and all their data (referrals, commissions, links).
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50"
+              >Cancel</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 bg-rx-danger text-white rounded-lg text-sm font-semibold hover:bg-rx-danger/90 disabled:opacity-50"
+              >{deleteLoading ? "Deleting..." : "Delete"}</button>
             </div>
           </div>
         </div>

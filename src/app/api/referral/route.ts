@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Find a matching "clicked" referral from the same code to update
+    // Find a matching "opened"/"clicked" referral from the same code to update
     const { data: clickedReferral } = await supabase
       .from('Referral')
       .select('*')
       .eq('referralCode', referralCode)
-      .eq('status', 'clicked')
+      .in('status', ['clicked', 'opened'])
       .order('createdAt', { ascending: false })
       .limit(1)
       .single()
@@ -109,6 +109,15 @@ export async function POST(request: NextRequest) {
       details: `${visitorName} (${visitorEmail}) submitted enrollment via referral code ${referralCode}`,
       createdAt: new Date().toISOString(),
     })
+
+    // Send email notification to admin about new referral
+    try {
+      const { sendEmail, newReferralAdminEmail } = await import('@/app/api/email/route')
+      const affiliateName = (affiliate as any).User?.name || affiliate.referralCode || 'Ambassador'
+      await sendEmail(newReferralAdminEmail(visitorName, visitorEmail, affiliateName, referralCode))
+    } catch (emailErr) {
+      console.error('[REFERRAL] Email sending failed:', emailErr)
+    }
 
     return NextResponse.json({
       success: true,

@@ -160,6 +160,16 @@ export async function POST(request: NextRequest) {
       details: `New ambassador registered: ${name} (${email})`,
     })
 
+    // Send welcome email to affiliate + notification to admin
+    try {
+      const { sendEmail, newAffiliateEmail, newAffiliateAdminEmail } = await import('@/app/api/email/route')
+      await sendEmail(newAffiliateEmail(name, email, referralCode))
+      await sendEmail(newAffiliateAdminEmail(name, email))
+    } catch (emailErr) {
+      console.error('[REGISTER] Email sending failed:', emailErr)
+      // Don't fail registration if email fails
+    }
+
     // Auto-login: Create session
     const token = uuidv4()
     const expiresAt = new Date(

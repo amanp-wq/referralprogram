@@ -60,7 +60,7 @@ function EnrollForm() {
   // Success state
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center px-6">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-rx-secondary-light flex items-center justify-center mx-auto mb-5">
@@ -93,21 +93,15 @@ function EnrollForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20] flex items-center justify-center px-6 py-10 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-rx-secondary rounded-full blur-3xl" />
-      </div>
-
-      <div className="w-full max-w-md relative z-10">
+    <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center px-6 py-10">
+      <div className="w-full max-w-md">
         {/* Logo + Header */}
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="ElevateMe" className="h-14 w-auto mx-auto mb-4 brightness-0 invert" />
-          <h1 className="text-3xl font-bold text-white font-heading mb-2">
+          <img src="/logo.svg" alt="ElevateMe" className="h-14 w-auto mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-rx-gray-900 font-heading mb-2">
             Join ElevateMe
           </h1>
-          <p className="text-white/70 text-sm">
+          <p className="text-rx-gray-500 text-sm">
             {ambassadorName
               ? `You were referred by ${ambassadorName}`
               : "You've been referred by an ElevateMe Ambassador"}
@@ -217,7 +211,7 @@ function EnrollForm() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-white/40 text-xs mt-6">
+        <p className="text-center text-rx-gray-400 text-xs mt-6">
           &copy; 2026 ElevateMe. All rights reserved.
         </p>
       </div>
@@ -229,8 +223,8 @@ export default function EnrollPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-white animate-spin" />
+        <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-rx-primary animate-spin" />
         </div>
       }
     >

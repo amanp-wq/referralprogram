@@ -172,7 +172,7 @@ export default function Home() {
   // Login form
   if (showLogin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center px-6">
         <LoginForm onSwitch={() => setShowLogin(false)} onSignup={() => router.push("/signup")} />
       </div>
     );

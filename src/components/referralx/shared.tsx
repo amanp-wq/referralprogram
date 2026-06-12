@@ -66,7 +66,7 @@ export function KpiCardSkeleton() {
 }
 
 /* ─── StatusBadge ─── */
-type StatusType = "active" | "pending" | "inactive" | "paid" | "processing" | "failed" | "completed" | "refunded" | "suspended" | "cancelled" | "submitted" | "enrolled" | "not enrolled" | "not_enrolled" | "approved" | "released";
+type StatusType = "active" | "pending" | "inactive" | "paid" | "processing" | "failed" | "completed" | "refunded" | "suspended" | "cancelled" | "submitted" | "enrolled" | "not enrolled" | "not_enrolled" | "approved" | "released" | "opened";
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -90,6 +90,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     not_enrolled: "bg-rx-danger-light text-rx-danger",
     approved: "bg-rx-secondary-light text-rx-secondary",
     released: "bg-rx-info-light text-rx-info",
+    opened: "bg-rx-info-light text-rx-info",
   };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${styles[status] || "bg-rx-gray-100 text-rx-gray-500"}`}>
