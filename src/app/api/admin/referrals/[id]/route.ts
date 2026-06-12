@@ -111,16 +111,19 @@ export async function PATCH(
 
     const supabase = getServerClient()
 
-    // Get referral info for activity logging and commission creation
+    // Get referral info for activity logging and commission handling
     const { data: referral } = await supabase
       .from('Referral')
-      .select('id, visitorName, visitorEmail, affiliateId, programId')
+      .select('id, visitorName, visitorEmail, affiliateId, programId, status')
       .eq('id', id)
       .single()
 
     if (!referral) {
       return NextResponse.json({ error: 'Referral not found' }, { status: 404 })
     }
+
+    const previousStatus = (referral as any).status
+    const statusChanged = previousStatus !== status
 
     const updateData: Record<string, any> = {
       status,
@@ -129,6 +132,9 @@ export async function PATCH(
 
     if (status === 'enrolled') {
       updateData.convertedAt = new Date().toISOString()
+    } else {
+      // Clear convertedAt when moving away from enrolled
+      updateData.convertedAt = null
     }
 
     const { error: dbError } = await supabase
@@ -157,12 +163,87 @@ export async function PATCH(
       action: 'status_changed',
       entity: 'referral',
       entityId: id,
-      details: `Admin ${adminName} changed referral for ${visitorName} status to ${status}`,
+      details: `Admin ${adminName} changed referral for ${visitorName} status from ${previousStatus} to ${status}`,
       createdAt: new Date().toISOString(),
     })
 
+    // Handle commission reversal when moving AWAY from enrolled
+    if (previousStatus === 'enrolled' && status !== 'enrolled' && statusChanged) {
+      try {
+        const { affiliateId } = referral
+
+        // Find and cancel the auto-created commission linked to this referral
+        const { data: existingCommission } = await supabase
+          .from('Commission')
+          .select('id, amount, status')
+          .eq('referralId', id)
+          .eq('type', 'commission')
+          .order('createdAt', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (existingCommission && existingCommission.status === 'pending') {
+          // Cancel the commission (preserve audit trail instead of deleting)
+          const { error: cancelError } = await supabase
+            .from('Commission')
+            .update({
+              status: 'cancelled',
+              description: `Cancelled: referral for ${visitorName} changed from enrolled to ${status}`,
+              updatedAt: new Date().toISOString(),
+            })
+            .eq('id', existingCommission.id)
+
+          if (cancelError) {
+            console.error('[REFERRAL] Commission cancellation failed:', cancelError)
+          } else {
+            // Log activity for commission cancellation
+            await supabase.from('Activity').insert({
+              id: uuidv4(),
+              userId: user.id,
+              action: 'cancelled',
+              entity: 'commission',
+              entityId: existingCommission.id,
+              details: `Auto-cancelled commission of $${existingCommission.amount} — referral for ${visitorName} changed from enrolled to ${status}`,
+              createdAt: new Date().toISOString(),
+            })
+          }
+        } else if (existingCommission && existingCommission.status !== 'pending') {
+          // Commission already approved/paid — don't auto-cancel, just log a warning
+          await supabase.from('Activity').insert({
+            id: uuidv4(),
+            userId: user.id,
+            action: 'warning',
+            entity: 'commission',
+            entityId: existingCommission.id,
+            details: `Referral for ${visitorName} changed from enrolled to ${status}, but linked commission ($${existingCommission.amount}, status: ${existingCommission.status}) was NOT auto-cancelled. Manual review needed.`,
+            createdAt: new Date().toISOString(),
+          })
+        }
+
+        // Decrement affiliate's totalConversions
+        const { data: affiliate } = await supabase
+          .from('Affiliate')
+          .select('totalConversions')
+          .eq('id', affiliateId)
+          .single()
+
+        if (affiliate && (affiliate.totalConversions || 0) > 0) {
+          await supabase
+            .from('Affiliate')
+            .update({
+              totalConversions: (affiliate.totalConversions || 0) - 1,
+              updatedAt: new Date().toISOString(),
+            })
+            .eq('id', affiliateId)
+        }
+      } catch (reversalErr) {
+        console.error('[REFERRAL] Commission reversal error:', reversalErr)
+      }
+    }
+
     // Auto-create Commission and update affiliate when referral is marked as enrolled
-    if (status === 'enrolled') {
+    // Only create if status actually changed TO enrolled (not already enrolled)
+    if (status === 'enrolled' && previousStatus !== 'enrolled' && statusChanged) {
       try {
         const { affiliateId, programId } = referral
 
