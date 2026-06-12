@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       referralCode: code,
       visitorIp,
       source,
-      status: 'clicked',
+      status: 'opened',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })

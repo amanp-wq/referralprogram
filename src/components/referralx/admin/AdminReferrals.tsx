@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatDate, getInitials } from "../shared";
-import { Share2, UserPlus, RefreshCw, ArrowRight, Download, Clock, UserCheck, UserX } from "lucide-react";
+import { Share2, UserPlus, RefreshCw, ArrowRight, Download, Clock, UserCheck, UserX, Upload, FileDown, Trash2, ChevronDown, Eye } from "lucide-react";
 
 interface Referral {
   id: string;
@@ -12,6 +12,7 @@ interface Referral {
   referralCode: string;
   visitorEmail: string | null;
   visitorName: string | null;
+  visitorPhone: string | null;
   visitorIp: string | null;
   source: string | null;
   status: string;
@@ -33,11 +34,31 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
+function parseCSV(text: string): string[][] {
+  const lines = text.split('\n').filter(line => line.trim());
+  return lines.map(line => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  });
+}
+
 function getReferralStatus(r: Referral): { status: string; label: string } {
-  // "clicked" status should never appear in referrals — it's tracking data only
-  // But just in case it slips through, treat it as not a real referral
-  if (r.status === "clicked") {
-    return { status: "clicked", label: "Link Open" };
+  if (r.status === "clicked" || r.status === "opened") {
+    return { status: "opened", label: "Opened" };
   }
   if (r.status === "enrolled" || r.status === "converted" || r.status === "completed") {
     return { status: "enrolled", label: "Enrolled" };
@@ -45,7 +66,6 @@ function getReferralStatus(r: Referral): { status: string; label: string } {
   if (r.status === "submitted") {
     return { status: "submitted", label: "Submitted" };
   }
-  // "pending" status = form submitted but not yet enrolled
   if (r.status === "pending") {
     const createdAt = new Date(r.createdAt);
     const now = new Date();
@@ -55,7 +75,9 @@ function getReferralStatus(r: Referral): { status: string; label: string } {
     }
     return { status: "pending", label: "Pending" };
   }
-  // Fallback: time-based
+  if (r.status === "not_enrolled") {
+    return { status: "not_enrolled", label: "Not Enrolled" };
+  }
   const createdAt = new Date(r.createdAt);
   const now = new Date();
   const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
@@ -85,6 +107,21 @@ export function AdminReferrals() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
 
+  // Import modal state
+  const [showImport, setShowImport] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; failed: number; errors: { row: number; message: string }[] } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<Referral | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Status change state
+  const [statusLoading, setStatusLoading] = useState<string | null>(null);
+  const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -109,6 +146,90 @@ export function AdminReferrals() {
 
   useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
 
+  const handleImport = async (file: File) => {
+    setImportLoading(true);
+    setImportResult(null);
+    setImportError(null);
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length < 2) {
+        setImportError("CSV file is empty or has no data rows");
+        setImportLoading(false);
+        return;
+      }
+
+      const headers = rows[0];
+      const referrals = rows.slice(1).map(row => ({
+        ambassadorEmail: row[headers.indexOf('Ambassador Email')] || '',
+        visitorName: row[headers.indexOf('Visitor Name')] || '',
+        visitorEmail: row[headers.indexOf('Visitor Email')] || '',
+        visitorPhone: row[headers.indexOf('Visitor Phone')] || '',
+        source: row[headers.indexOf('Source')] || 'import',
+        status: row[headers.indexOf('Status')] || 'submitted',
+      })).filter(r => r.ambassadorEmail);
+
+      if (referrals.length === 0) {
+        setImportError("No valid rows found in CSV");
+        setImportLoading(false);
+        return;
+      }
+
+      const res = await fetch("/api/admin/referrals/import", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ referrals }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Import failed");
+
+      setImportResult(json);
+      fetchData();
+    } catch (err: any) {
+      setImportError(err.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/admin/referrals/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to delete referral");
+      setDeleteTarget(null);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (referralId: string, newStatus: string) => {
+    setStatusLoading(referralId);
+    setOpenStatusDropdown(null);
+    try {
+      const res = await fetch(`/api/admin/referrals/${referralId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update status");
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setStatusLoading(null);
+    }
+  };
+
   if (error) {
     return <ErrorWithRetry message={error} onRetry={fetchData} />;
   }
@@ -116,27 +237,35 @@ export function AdminReferrals() {
   const referrals = data?.referrals || [];
   const total = data?.total || 0;
 
-  // Compute status counts using new logic (exclude "clicked" — those are tracking, not referrals)
-  const realReferrals = referrals.filter(r => r.status !== "clicked");
+  const realReferrals = referrals.filter(r => r.status !== "clicked" && r.status !== "opened");
   const submittedCount = realReferrals.filter(r => getReferralStatus(r).status === "submitted").length;
   const enrolledCount = realReferrals.filter(r => getReferralStatus(r).status === "enrolled").length;
   const pendingCount = realReferrals.filter(r => getReferralStatus(r).status === "pending").length;
   const notEnrolledCount = realReferrals.filter(r => getReferralStatus(r).status === "not_enrolled").length;
+  const openedCount = referrals.filter(r => r.status === "clicked" || r.status === "opened").length;
 
-  // Filter referrals based on status filter (exclude clicked from display)
   const filteredReferrals = statusFilter === ""
-    ? realReferrals
-    : realReferrals.filter(r => getReferralStatus(r).status === statusFilter);
+    ? referrals
+    : referrals.filter(r => getReferralStatus(r).status === statusFilter);
+
+  const statusOptions = [
+    { value: 'opened', label: 'Opened' },
+    { value: 'submitted', label: 'Submitted' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'enrolled', label: 'Enrolled' },
+    { value: 'not_enrolled', label: 'Not Enrolled' },
+  ];
 
   return (
     <div className="space-y-6">
       {/* KPI Tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
         {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
+          Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
             <KpiCard label="Total Referrals" value={realReferrals.length.toLocaleString()} iconColor="primary" icon={<Share2 className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Opened" value={openedCount.toLocaleString()} iconColor="info" icon={<Eye className="w-[18px] h-[18px]" />} />
             <KpiCard label="Enrolled" value={enrolledCount.toLocaleString()} iconColor="success" icon={<UserCheck className="w-[18px] h-[18px]" />} />
             <KpiCard label="Pending" value={pendingCount.toLocaleString()} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
             <KpiCard label="Not Enrolled" value={notEnrolledCount.toLocaleString()} iconColor="danger" icon={<UserX className="w-[18px] h-[18px]" />} />
@@ -148,18 +277,23 @@ export function AdminReferrals() {
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Referral List</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 bg-white hover:bg-rx-gray-50"
             >
               <option value="">All Status</option>
+              <option value="opened">Opened</option>
               <option value="submitted">Submitted</option>
               <option value="pending">Pending</option>
               <option value="enrolled">Enrolled</option>
               <option value="not_enrolled">Not Enrolled</option>
             </select>
+            <button
+              onClick={() => setShowImport(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            ><Upload className="w-3 h-3" /> Import</button>
             <button
               onClick={() => {
                 const headers = ["Ambassador", "Referred Person", "Source", "Days Since Referral", "Status"];
@@ -181,7 +315,7 @@ export function AdminReferrals() {
         </div>
 
         {loading ? (
-          <TableSkeleton rows={5} cols={6} />
+          <TableSkeleton rows={5} cols={7} />
         ) : filteredReferrals.length === 0 ? (
           <EmptyState title="No referrals found" description={statusFilter ? "Try adjusting your filter" : "Referrals will appear here once they start coming in"} />
         ) : (
@@ -194,6 +328,7 @@ export function AdminReferrals() {
                   <th className="px-5 py-3">Source</th>
                   <th className="px-5 py-3">Days Since Referral</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,7 +361,48 @@ export function AdminReferrals() {
                           <span className="text-xs text-rx-gray-400">days</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5"><StatusBadge status={statusInfo.status as any} /></td>
+                      <td className="px-5 py-3.5">
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenStatusDropdown(openStatusDropdown === r.id ? null : r.id)}
+                            disabled={statusLoading === r.id}
+                            className="cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-50"
+                            title="Click to change status"
+                          >
+                            <div className="flex items-center gap-1">
+                              <StatusBadge status={statusInfo.status as any} />
+                              <ChevronDown className="w-3 h-3 text-rx-gray-400" />
+                            </div>
+                          </button>
+                          {openStatusDropdown === r.id && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setOpenStatusDropdown(null)} />
+                              <div className="absolute left-0 top-full mt-1 bg-white border border-rx-gray-200 rounded-lg shadow-lg z-20 min-w-[140px] py-1">
+                                {statusOptions.map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => handleStatusChange(r.id, opt.value)}
+                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-rx-gray-50 transition-colors ${
+                                      statusInfo.status === opt.value ? 'font-semibold text-rx-primary' : 'text-rx-gray-700'
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <button
+                          onClick={() => setDeleteTarget(r)}
+                          className="p-1.5 rounded-lg text-rx-gray-400 hover:text-rx-danger hover:bg-rx-danger-light transition-colors"
+                          title="Delete referral"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -235,6 +411,116 @@ export function AdminReferrals() {
           </div>
         )}
       </div>
+
+      {/* Import Dialog */}
+      {showImport && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Import Referrals</h3>
+              <button onClick={() => { setShowImport(false); setImportResult(null); setImportError(null); }} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
+            </div>
+
+            {importError && <div className="mb-4 p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg">{importError}</div>}
+
+            {importResult ? (
+              <div className="space-y-3">
+                <div className="p-4 bg-rx-secondary-light rounded-lg">
+                  <div className="text-sm font-semibold text-rx-secondary">Import Complete</div>
+                  <div className="mt-2 text-sm text-rx-gray-700">
+                    <span className="font-semibold text-rx-secondary">{importResult.created}</span> created,{' '}
+                    <span className="font-semibold text-rx-danger">{importResult.failed}</span> failed
+                  </div>
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="max-h-48 overflow-y-auto">
+                    <div className="text-xs font-semibold text-rx-gray-600 mb-2">Errors:</div>
+                    {importResult.errors.map((e, i) => (
+                      <div key={i} className="text-xs text-rx-danger mb-1">Row {e.row}: {e.message}</div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={() => { setShowImport(false); setImportResult(null); }}
+                  className="w-full py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark"
+                >Done</button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <button
+                    onClick={() => {
+                      const headers = ["Ambassador Email", "Visitor Name", "Visitor Email", "Visitor Phone", "Source", "Status"];
+                      downloadCSV("referral_template.csv", headers, []);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-sm text-rx-primary hover:underline font-medium"
+                  ><FileDown className="w-4 h-4" /> Download Template</button>
+                  <p className="text-xs text-rx-gray-500 mt-1">Download the CSV template, fill in your data, and upload it below.</p>
+                </div>
+
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-rx-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-rx-primary hover:bg-rx-primary-light/20 transition-colors"
+                >
+                  <Upload className="w-8 h-8 text-rx-gray-400 mx-auto mb-2" />
+                  <div className="text-sm font-medium text-rx-gray-600">
+                    {importLoading ? "Uploading..." : "Click to upload CSV file"}
+                  </div>
+                  <div className="text-xs text-rx-gray-400 mt-1">.csv files only</div>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImport(file);
+                  }}
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowImport(false); setImportError(null); }}
+                    className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50"
+                  >Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-rx-danger-light flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-rx-danger" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-rx-gray-800">Delete Referral</h3>
+                <p className="text-sm text-rx-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-rx-gray-600 mb-5">
+              Are you sure you want to delete the referral for <span className="font-semibold">{deleteTarget.visitorName || deleteTarget.visitorEmail || 'this visitor'}</span>?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50"
+              >Cancel</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 bg-rx-danger text-white rounded-lg text-sm font-semibold hover:bg-rx-danger/90 disabled:opacity-50"
+              >{deleteLoading ? "Deleting..." : "Delete"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

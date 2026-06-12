@@ -105,13 +105,8 @@ export default function SignupPage() {
   // Success state
   if (registered) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20] flex items-center justify-center px-6 py-10 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-rx-secondary rounded-full blur-3xl" />
-        </div>
-
-        <div className="w-full max-w-lg relative z-10">
+      <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center px-6 py-10">
+        <div className="w-full max-w-lg">
           <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
             <div className="w-20 h-20 rounded-full bg-rx-secondary-light flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-rx-secondary" />
@@ -183,7 +178,7 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <p className="text-center text-white/40 text-xs mt-6">
+          <p className="text-center text-rx-gray-400 text-xs mt-6">
             &copy; 2026 ElevateMe, Inc. All rights reserved.
           </p>
         </div>
@@ -192,29 +187,22 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rx-primary via-rx-primary-dark to-[#8B2E20] flex items-center justify-center px-4 py-10 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-rx-secondary rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-rx-warning rounded-full blur-3xl opacity-30" />
-      </div>
-
-      <div className="w-full max-w-5xl relative z-10 flex flex-col lg:flex-row gap-8 items-center">
+    <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-5xl flex flex-col lg:flex-row gap-8 items-center">
         {/* Left side - Marketing / Info */}
-        <div className="flex-1 text-white hidden lg:block">
+        <div className="flex-1 text-rx-gray-900 hidden lg:block">
           <div className="mb-8">
             <img
               src="/logo.svg"
               alt="ElevateMe"
-              className="h-12 w-auto brightness-0 invert mb-6"
+              className="h-12 w-auto mb-6"
             />
             <h1 className="text-4xl font-bold font-heading mb-4 leading-tight">
               Join the ElevateMe
               <br />
               <span className="text-rx-secondary">Ambassador Program</span>
             </h1>
-            <p className="text-white/70 text-lg leading-relaxed max-w-md">
+            <p className="text-rx-gray-600 text-lg leading-relaxed max-w-md">
               Help aspiring IT professionals find their path and earn rewards
               for every successful referral. It&apos;s simple — refer, earn,
               repeat.
@@ -223,7 +211,7 @@ export default function SignupPage() {
 
           {/* How it works */}
           <div className="space-y-5">
-            <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wider">
+            <h3 className="text-sm font-semibold text-rx-gray-400 uppercase tracking-wider">
               How It Works
             </h3>
             {[
@@ -251,21 +239,21 @@ export default function SignupPage() {
             ].map((item) => (
               <div
                 key={item.step}
-                className="flex items-start gap-4 bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10"
+                className="flex items-start gap-4 bg-white rounded-xl p-4 border border-rx-gray-200"
               >
-                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <item.icon className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-lg bg-rx-gray-100 flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-5 h-5 text-rx-gray-700" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <h4 className="font-semibold text-white text-sm">
+                    <h4 className="font-semibold text-rx-gray-900 text-sm">
                       {item.title}
                     </h4>
                     <span className="text-xs bg-rx-secondary/20 text-rx-secondary px-2 py-0.5 rounded-full font-medium">
                       {item.reward}
                     </span>
                   </div>
-                  <p className="text-white/50 text-xs">{item.desc}</p>
+                  <p className="text-rx-gray-500 text-xs">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -279,12 +267,12 @@ export default function SignupPage() {
             <img
               src="/logo.svg"
               alt="ElevateMe"
-              className="h-10 w-auto brightness-0 invert mx-auto mb-3"
+              className="h-10 w-auto mx-auto mb-3"
             />
-            <h1 className="text-2xl font-bold text-white font-heading">
+            <h1 className="text-2xl font-bold text-rx-gray-900 font-heading">
               Become an Ambassador
             </h1>
-            <p className="text-white/60 text-sm mt-1">
+            <p className="text-rx-gray-500 text-sm mt-1">
               Sign up to start earning with referrals
             </p>
           </div>
@@ -492,7 +480,7 @@ export default function SignupPage() {
           </div>
 
           {/* Footer */}
-          <p className="text-center text-white/40 text-xs mt-6">
+          <p className="text-center text-rx-gray-400 text-xs mt-6">
             &copy; 2026 ElevateMe, Inc. All rights reserved.
           </p>
         </div>

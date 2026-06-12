@@ -35,7 +35,7 @@ interface Activity {
 }
 
 interface ChartDataPoint {
-  month: string;
+  label: string;
   value: number;
 }
 
@@ -144,12 +144,12 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
   const topAffiliates = data?.topAffiliates || [];
   const activities = data?.activities || [];
 
-  // Chart data - prefer totalReferralsChart/enrolledReferralsChart, fallback to monthlyRevenue
-  const totalChart = (data as any)?.totalReferralsChart || (data as any)?.monthlyRevenue || [];
-  const enrolledChart = (data as any)?.enrolledReferralsChart || [];
+  // Chart data from API
+  const totalChart = data?.totalReferralsChart || [];
+  const enrolledChart = data?.enrolledReferralsChart || [];
 
-  const maxTotal = Math.max(...totalChart.map((m: any) => m.value || m.revenue || 0), 1);
-  const maxEnrolled = Math.max(...enrolledChart.map((m: any) => m.value || m.revenue || 0), 1);
+  const maxTotal = Math.max(...totalChart.map((m) => m.value || 0), 1);
+  const maxEnrolled = Math.max(...enrolledChart.map((m) => m.value || 0), 1);
 
   return (
     <div className="space-y-6">
@@ -186,8 +186,8 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
           ) : (
             <>
               <div className="h-[280px] flex items-end gap-2 px-2">
-                {totalChart.map((m: any, i: number) => {
-                  const val = m.value || m.revenue || 0;
+                {totalChart.map((m, i: number) => {
+                  const val = m.value || 0;
                   return (
                     <div key={i} className="flex-1 bg-gradient-to-t from-rx-primary to-rx-primary/60 rounded-t-md hover:from-rx-primary-dark hover:to-rx-primary transition-all cursor-pointer group relative" style={{ height: `${maxTotal > 0 ? (val / maxTotal) * 100 : 0}%`, minHeight: val > 0 ? "4px" : "0" }}>
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-rx-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{val}</div>
@@ -195,8 +195,12 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
                   );
                 })}
               </div>
-              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400">
-                {totalChart.map((m: any, i: number) => <span key={i}>{m.month || m.date || ""}</span>)}
+              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400 overflow-hidden">
+                {totalChart.filter((_, i) => {
+                  const len = totalChart.length;
+                  if (len <= 10) return true;
+                  return i % Math.ceil(len / 10) === 0 || i === len - 1;
+                }).map((m, i, arr) => <span key={i}>{m.label}</span>)}
               </div>
             </>
           )}
@@ -219,7 +223,7 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
           ) : (
             <>
               <div className="h-[280px] flex items-end gap-2 px-2">
-                {enrolledChart.map((m: any, i: number) => {
+                {enrolledChart.map((m, i: number) => {
                   const val = m.value || 0;
                   return (
                     <div key={i} className="flex-1 bg-gradient-to-t from-rx-secondary to-rx-secondary/60 rounded-t-md hover:from-[#059669] hover:to-rx-secondary transition-all cursor-pointer group relative" style={{ height: `${maxEnrolled > 0 ? (val / maxEnrolled) * 100 : 0}%`, minHeight: val > 0 ? "4px" : "0" }}>
@@ -228,8 +232,12 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
                   );
                 })}
               </div>
-              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400">
-                {enrolledChart.map((m: any, i: number) => <span key={i}>{m.month || m.date || ""}</span>)}
+              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400 overflow-hidden">
+                {enrolledChart.filter((_, i) => {
+                  const len = enrolledChart.length;
+                  if (len <= 10) return true;
+                  return i % Math.ceil(len / 10) === 0 || i === len - 1;
+                }).map((m, i) => <span key={i}>{m.label}</span>)}
               </div>
             </>
           )}

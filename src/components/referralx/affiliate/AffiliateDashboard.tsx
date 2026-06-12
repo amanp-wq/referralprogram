@@ -55,12 +55,19 @@ interface MonthlyEarning {
   amount: number;
 }
 
+interface ChartDataPoint {
+  label: string;
+  value: number;
+}
+
 interface DashboardData {
   affiliate: any;
   kpis: DashboardKpis;
   links: DashboardLink[];
   recentReferrals: RecentReferral[];
   monthlyEarnings: MonthlyEarning[];
+  totalReferralsChart: ChartDataPoint[];
+  enrolledReferralsChart: ChartDataPoint[];
   sources: Record<string, number>;
 }
 
@@ -93,8 +100,9 @@ function getDaysSince(dateStr: string): number {
 function getReferralStatus(ref: RecentReferral): string {
   if (ref.status === "completed" || ref.status === "converted" || ref.status === "enrolled") return "enrolled";
   if (ref.status === "submitted") return "submitted";
+  if (ref.status === "opened" || ref.status === "clicked") return "opened";
   const daysSince = getDaysSince(ref.createdAt);
-  if (ref.status === "pending" || ref.status === "clicked") {
+  if (ref.status === "pending") {
     if (daysSince > 30) return "not enrolled";
     return "pending";
   }
@@ -143,16 +151,11 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
     : 0;
   const conversionRatio = totalReferrals > 0 ? ((enrolledCount / totalReferrals) * 100).toFixed(1) : "0";
 
-  // Generate referral data for charts (mock based on monthly earnings)
-  const generateReferralChartData = (type: "total" | "enrolled") => {
-    const months = data?.monthlyEarnings || [];
-    return months.map((m) => ({
-      month: m.month,
-      value: type === "total"
-        ? Math.max(1, Math.round(m.amount / 25))
-        : Math.max(0, Math.round(m.amount / 50)),
-    }));
-  };
+  // Use real chart data from API
+  const totalChartData = data?.totalReferralsChart || [];
+  const enrolledChartData = data?.enrolledReferralsChart || [];
+  const maxTotalVal = Math.max(...totalChartData.map((d) => d.value), 1);
+  const maxEnrolledVal = Math.max(...enrolledChartData.map((d) => d.value), 1);
 
   const handleExportCSV = () => {
     const referrals = data?.recentReferrals || [];
@@ -203,7 +206,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-br from-rx-primary to-rx-primary-dark rounded-2xl px-8 py-7 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-br from-rx-secondary to-[#4a7a58] rounded-2xl px-8 py-7 text-white relative overflow-hidden">
         <div className="absolute -top-1/2 -right-[20%] w-[400px] h-[400px] bg-white/5 rounded-full" />
         <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
           <div>
@@ -284,7 +287,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
       )}
 
       {/* Referral Link Section - BIGGER */}
-      <div className="bg-gradient-to-br from-rx-primary to-rx-primary-dark rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-br from-rx-secondary to-[#4a7a58] rounded-2xl p-8 text-white">
         <div className="flex items-center gap-3 mb-5">
           <img src="/logo.svg" alt="ElevateMe" className="h-10 w-10" />
           <div>
@@ -371,9 +374,8 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
           ) : (
             <>
               <div className="h-[250px] flex items-end gap-2 px-2">
-                {generateReferralChartData("total").map((d, i) => {
-                  const maxVal = Math.max(...generateReferralChartData("total").map((e) => e.value), 1);
-                  const pct = maxVal > 0 ? (d.value / maxVal) * 100 : 0;
+                {totalChartData.map((d, i) => {
+                  const pct = maxTotalVal > 0 ? (d.value / maxTotalVal) * 100 : 0;
                   return (
                     <div
                       key={i}
@@ -389,9 +391,13 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                   );
                 })}
               </div>
-              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400">
-                {generateReferralChartData("total").map((d, i) => (
-                  <span key={i}>{d.month}</span>
+              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400 overflow-hidden">
+                {totalChartData.filter((_, i) => {
+                  const len = totalChartData.length;
+                  if (len <= 10) return true;
+                  return i % Math.ceil(len / 10) === 0 || i === len - 1;
+                }).map((d, i) => (
+                  <span key={i}>{d.label}</span>
                 ))}
               </div>
             </>
@@ -425,9 +431,8 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
           ) : (
             <>
               <div className="h-[250px] flex items-end gap-2 px-2">
-                {generateReferralChartData("enrolled").map((d, i) => {
-                  const maxVal = Math.max(...generateReferralChartData("enrolled").map((e) => e.value), 1);
-                  const pct = maxVal > 0 ? (d.value / maxVal) * 100 : 0;
+                {enrolledChartData.map((d, i) => {
+                  const pct = maxEnrolledVal > 0 ? (d.value / maxEnrolledVal) * 100 : 0;
                   return (
                     <div
                       key={i}
@@ -443,9 +448,13 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                   );
                 })}
               </div>
-              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400">
-                {generateReferralChartData("enrolled").map((d, i) => (
-                  <span key={i}>{d.month}</span>
+              <div className="flex justify-between mt-2 px-2 text-xs text-rx-gray-400 overflow-hidden">
+                {enrolledChartData.filter((_, i) => {
+                  const len = enrolledChartData.length;
+                  if (len <= 10) return true;
+                  return i % Math.ceil(len / 10) === 0 || i === len - 1;
+                }).map((d, i) => (
+                  <span key={i}>{d.label}</span>
                 ))}
               </div>
             </>
