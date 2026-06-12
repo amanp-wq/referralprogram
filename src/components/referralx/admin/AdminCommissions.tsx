@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
-import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info, User, Mail, Phone, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ReferralDetail {
@@ -30,7 +30,7 @@ interface Commission {
   createdAt: string;
   updatedAt: string;
   Affiliate?: { id: string; referralCode: string; User?: { name: string; email: string } };
-  Referral?: { id: string; visitorName: string | null; visitorEmail: string | null };
+  Referral?: { id: string; visitorName: string | null; visitorEmail: string | null; visitorPhone?: string | null; status: string; createdAt: string };
 }
 
 interface AffiliateOption {
@@ -302,7 +302,7 @@ export function AdminCommissions() {
         )}
       </div>
 
-      {/* Commissions Table */}
+      {/* Referral-wise Commission Cards */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <div className="flex gap-1">
@@ -319,14 +319,17 @@ export function AdminCommissions() {
             ><Plus className="w-3 h-3" /> Add Commission</button>
             <button
               onClick={() => {
-                const headers = ["Ambassador", "Referral", "Amount", "Rate", "Date", "Status"];
+                const headers = ["Referral Name", "Referral Email", "Referral Phone", "Referral Status", "Ambassador", "Amount", "Type", "Commission Status", "Date"];
                 const rows = commissions.map(c => [
+                  c.Referral?.visitorName || "-",
+                  c.Referral?.visitorEmail || "-",
+                  (c.Referral as any)?.visitorPhone || "-",
+                  c.Referral?.status || "-",
                   c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown",
-                  c.Referral?.visitorName || c.Referral?.visitorEmail || "-",
                   c.amount.toString(),
-                  `${c.rate}%`,
-                  formatDate(c.createdAt),
+                  c.type,
                   c.status,
+                  formatDate(c.createdAt),
                 ]);
                 downloadCSV("commissions.csv", headers, rows);
               }}
@@ -338,71 +341,119 @@ export function AdminCommissions() {
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
         ) : commissions.length === 0 ? (
-          <EmptyState title="No commissions found" description={statusFilter ? "Try adjusting your filter" : "Commissions will appear here once they are earned"} />
+          <EmptyState title="No commissions found" description={statusFilter ? "Try adjusting your filter" : "Commissions will appear here once referrals are marked as enrolled"} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
-                  <th className="px-5 py-3">Ambassador</th>
-                  <th className="px-5 py-3">Referral</th>
-                  <th className="px-5 py-3">Amount</th>
-                  <th className="px-5 py-3">Rate</th>
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {commissions.map((c) => {
-                  const affName = c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown";
-                  const referralName = c.Referral?.visitorName || c.Referral?.visitorEmail || "-";
-                  return (
-                    <tr key={c.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
-                      <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-800">{affName}</td>
-                      <td className="px-5 py-3.5">
+          <div className="divide-y divide-rx-gray-100">
+            {commissions.map((c) => {
+              const affName = c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown";
+              const affEmail = c.Affiliate?.User?.email || "";
+              const ref = c.Referral;
+              const refName = ref?.visitorName;
+              const refEmail = ref?.visitorEmail;
+              const refPhone = (ref as any)?.visitorPhone;
+              const refStatus = ref?.status;
+              const hasReferral = !!ref;
+
+              return (
+                <div key={c.id} className="px-5 py-4 hover:bg-rx-gray-50/50 transition-colors">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    {/* Referral Info — Primary */}
+                    <div className="flex-1 min-w-0">
+                      {hasReferral ? (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-rx-primary-light flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 text-rx-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-rx-gray-800 truncate">{refName || "Unknown"}</p>
+                              <div className="flex items-center gap-3 flex-wrap">
+                                {refEmail && (
+                                  <span className="inline-flex items-center gap-1 text-xs text-rx-gray-500">
+                                    <Mail className="w-3 h-3" /> {refEmail}
+                                  </span>
+                                )}
+                                {refPhone && (
+                                  <span className="inline-flex items-center gap-1 text-xs text-rx-gray-500">
+                                    <Phone className="w-3 h-3" /> {refPhone}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-10">
+                            <span className="text-[11px] text-rx-gray-400 uppercase tracking-wide font-medium">Referral Status</span>
+                            <StatusBadge status={refStatus as any} />
+                          </div>
+                        </div>
+                      ) : (
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-rx-gray-700">{referralName}</span>
-                          {c.referralId && (
-                            <button
-                              onClick={() => handleViewReferral(c.referralId)}
-                              className="text-rx-primary hover:text-rx-primary-dark transition-colors"
-                              title="View & Edit Referral"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <div className="w-8 h-8 rounded-full bg-rx-gray-100 flex items-center justify-center flex-shrink-0">
+                            <User className="w-4 h-4 text-rx-gray-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-rx-gray-400 italic">No linked referral</p>
+                            {c.description && <p className="text-xs text-rx-gray-500">{c.description}</p>}
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(c.amount)}</td>
-                      <td className="px-5 py-3.5 text-sm text-rx-gray-500">{c.rate}%</td>
-                      <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(c.createdAt)}</td>
-                      <td className="px-5 py-3.5"><StatusBadge status={c.status as any} /></td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleOpenEditModal(c)}
-                            className="text-xs px-2 py-1 bg-rx-gray-100 text-rx-gray-700 rounded hover:bg-rx-gray-200 font-medium flex items-center gap-1"
-                            title="Edit Commission"
-                          >
-                            <Pencil className="w-3 h-3" /> Edit
-                          </button>
-                          {c.status === "pending" && (
-                            <>
-                              <button onClick={() => handleStatusChange(c.id, "approved")} className="text-xs px-2 py-1 bg-rx-secondary-light text-rx-secondary rounded hover:bg-rx-secondary/20 font-medium">Approve</button>
-                              <button onClick={() => handleStatusChange(c.id, "failed")} className="text-xs px-2 py-1 bg-rx-danger-light text-rx-danger rounded hover:bg-rx-danger/20 font-medium">Reject</button>
-                            </>
-                          )}
-                          {c.status === "approved" && (
-                            <button onClick={() => handleStatusChange(c.id, "released")} className="text-xs px-2 py-1 bg-rx-info-light text-rx-info rounded hover:bg-rx-info/20 font-medium">Release</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      )}
+                    </div>
+
+                    {/* Ambassador — who referred */}
+                    <div className="flex items-center gap-2 lg:w-44 shrink-0">
+                      <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Ambassador</div>
+                      <div>
+                        <p className="text-sm font-medium text-rx-gray-700 truncate">{affName}</p>
+                        {affEmail && <p className="text-xs text-rx-gray-400 truncate">{affEmail}</p>}
+                      </div>
+                    </div>
+
+                    {/* Commission Amount */}
+                    <div className="lg:w-28 shrink-0">
+                      <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Amount</div>
+                      <p className="text-lg font-bold text-rx-gray-900">{formatCurrency(c.amount)}</p>
+                      <p className="text-xs text-rx-gray-400">{c.type} &middot; {c.rate}%</p>
+                    </div>
+
+                    {/* Commission Status */}
+                    <div className="lg:w-28 shrink-0">
+                      <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Commission Status</div>
+                      <StatusBadge status={c.status as any} />
+                      <p className="text-[11px] text-rx-gray-400 mt-0.5">{formatDate(c.createdAt)}</p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 lg:w-56 shrink-0">
+                      <button
+                        onClick={() => handleOpenEditModal(c)}
+                        className="text-xs px-2.5 py-1.5 bg-rx-gray-100 text-rx-gray-700 rounded-lg hover:bg-rx-gray-200 font-medium flex items-center gap-1 transition-colors"
+                        title="Edit Commission"
+                      >
+                        <Pencil className="w-3 h-3" /> Edit
+                      </button>
+                      {c.referralId && (
+                        <button
+                          onClick={() => handleViewReferral(c.referralId)}
+                          className="text-xs px-2.5 py-1.5 bg-rx-primary-light text-rx-primary rounded-lg hover:bg-rx-primary/20 font-medium flex items-center gap-1 transition-colors"
+                          title="View Referral"
+                        >
+                          <Eye className="w-3 h-3" /> Referral
+                        </button>
+                      )}
+                      {c.status === "pending" && (
+                        <>
+                          <button onClick={() => handleStatusChange(c.id, "approved")} className="text-xs px-2.5 py-1.5 bg-rx-secondary-light text-rx-secondary rounded-lg hover:bg-rx-secondary/20 font-medium transition-colors">Approve</button>
+                          <button onClick={() => handleStatusChange(c.id, "failed")} className="text-xs px-2.5 py-1.5 bg-rx-danger-light text-rx-danger rounded-lg hover:bg-rx-danger/20 font-medium transition-colors">Reject</button>
+                        </>
+                      )}
+                      {c.status === "approved" && (
+                        <button onClick={() => handleStatusChange(c.id, "released")} className="text-xs px-2.5 py-1.5 bg-rx-info-light text-rx-info rounded-lg hover:bg-rx-info/20 font-medium transition-colors">Release</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -649,7 +700,7 @@ export function AdminCommissions() {
                         <option value="submitted">Submitted</option>
                         <option value="pending">Pending</option>
                         <option value="enrolled">Enrolled</option>
-                        <option value="converted">Converted</option>
+                        <option value="not_enrolled">Not Enrolled</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
                     </div>
@@ -727,7 +778,7 @@ export function AdminCommissions() {
               <div>
                 <h3 className="text-lg font-semibold text-rx-gray-800">Edit Commission</h3>
                 <p className="text-xs text-rx-gray-500 mt-0.5">
-                  {editingCommission.Affiliate?.User?.name || editingCommission.Affiliate?.referralCode || "Unknown"} &middot; <StatusBadge status={editingCommission.status as any} />
+                  {editingCommission.Referral?.visitorName || editingCommission.Referral?.visitorEmail || "No referral"} &middot; <StatusBadge status={editingCommission.status as any} />
                 </p>
               </div>
               <button onClick={() => setShowEditModal(false)} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
