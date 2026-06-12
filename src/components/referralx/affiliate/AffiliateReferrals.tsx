@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, StatusBadge, Avatar, getInitials } from "../shared";
 import {
-  Users, UserCheck, Clock, UserX, Download, RefreshCw, AlertCircle,
+  Users, UserCheck, Clock, UserX, Download, RefreshCw, AlertCircle, ExternalLink,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
@@ -38,13 +38,14 @@ function getDaysSince(dateStr: string): number {
 function getReferralStatus(ref: Referral): string {
   if (ref.status === "completed" || ref.status === "converted" || ref.status === "enrolled") return "enrolled";
   if (ref.status === "submitted") return "submitted";
+  // "clicked" / "opened" = link was clicked but form not yet submitted = "opened"
+  if (ref.status === "clicked" || ref.status === "opened") return "opened";
   const daysSince = getDaysSince(ref.createdAt);
-  // "clicked" = link clicked but no form submitted yet = pending
-  if (ref.status === "pending" || ref.status === "clicked") {
+  if (ref.status === "pending") {
     if (daysSince > 30) return "not enrolled";
     return "pending";
   }
-  if (ref.status === "inactive" || ref.status === "cancelled" || ref.status === "failed") {
+  if (ref.status === "inactive" || ref.status === "cancelled" || ref.status === "failed" || ref.status === "not_enrolled") {
     return "not enrolled";
   }
   // Default: time-based
@@ -64,7 +65,7 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-type FilterTab = "All" | "Submitted" | "Pending" | "Enrolled" | "Not Enrolled";
+type FilterTab = "All" | "Opened" | "Submitted" | "Pending" | "Enrolled" | "Not Enrolled";
 
 export function AffiliateReferrals() {
   const { token } = useAuth();
@@ -106,6 +107,8 @@ export function AffiliateReferrals() {
   }));
 
   const totalReferrals = referralsWithStatus.length;
+  const openedCount = referralsWithStatus.filter((r) => r.computedStatus === "opened").length;
+  const submittedCount = referralsWithStatus.filter((r) => r.computedStatus === "submitted").length;
   const enrolledCount = referralsWithStatus.filter((r) => r.computedStatus === "enrolled").length;
   const pendingCount = referralsWithStatus.filter((r) => r.computedStatus === "pending").length;
   const notEnrolledCount = referralsWithStatus.filter((r) => r.computedStatus === "not enrolled").length;
@@ -114,6 +117,7 @@ export function AffiliateReferrals() {
   const filteredReferrals = activeFilter === "All"
     ? referralsWithStatus
     : referralsWithStatus.filter((r) => {
+        if (activeFilter === "Opened") return r.computedStatus === "opened";
         if (activeFilter === "Submitted") return r.computedStatus === "submitted";
         if (activeFilter === "Pending") return r.computedStatus === "pending";
         if (activeFilter === "Enrolled") return r.computedStatus === "enrolled";
@@ -164,12 +168,18 @@ export function AffiliateReferrals() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
           <KpiCard
             label="Total Referrals"
             value={totalReferrals.toLocaleString()}
             iconColor="primary"
             icon={<Users className="w-[18px] h-[18px]" />}
+          />
+          <KpiCard
+            label="Opened"
+            value={openedCount.toLocaleString()}
+            iconColor="info"
+            icon={<ExternalLink className="w-[18px] h-[18px]" />}
           />
           <KpiCard
             label="Enrolled"
@@ -196,7 +206,7 @@ export function AffiliateReferrals() {
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <div className="flex gap-1 overflow-x-auto">
-            {(["All", "Submitted", "Pending", "Enrolled", "Not Enrolled"] as FilterTab[]).map((tab) => (
+            {(["All", "Opened", "Submitted", "Pending", "Enrolled", "Not Enrolled"] as FilterTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveFilter(tab)}

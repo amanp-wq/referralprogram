@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, StatusBadge, CopyButton } from "../shared";
+import { KpiCard, StatusBadge, CopyButton, SectionCard, EmptyState, timeAgo } from "../shared";
 import {
   DollarSign, Users, UserCheck, Percent, Copy, BarChart3,
   RefreshCw, AlertCircle, ExternalLink, Link2, TrendingUp, Download,
-  Share2, MessageCircle,
+  Share2, MessageCircle, Eye, Send, ArrowRightLeft,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
@@ -60,6 +60,16 @@ interface ChartDataPoint {
   value: number;
 }
 
+interface RecentReferralActivity {
+  id: string;
+  userId: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  details: string;
+  createdAt: string;
+}
+
 interface DashboardData {
   affiliate: any;
   kpis: DashboardKpis;
@@ -69,6 +79,7 @@ interface DashboardData {
   totalReferralsChart: ChartDataPoint[];
   enrolledReferralsChart: ChartDataPoint[];
   sources: Record<string, number>;
+  recentReferralActivities: RecentReferralActivity[];
 }
 
 function formatCurrency(amount: number): string {
@@ -107,6 +118,20 @@ function getReferralStatus(ref: RecentReferral): string {
     return "pending";
   }
   return ref.status;
+}
+
+const referralActivityIcons: Record<string, { icon: React.ReactNode; color: string }> = {
+  referral_submitted: { icon: <Send className="w-3.5 h-3.5" />, color: "bg-rx-secondary-light text-rx-secondary" },
+  referral_click: { icon: <Eye className="w-3.5 h-3.5" />, color: "bg-rx-info-light text-rx-info" },
+  status_changed: { icon: <ArrowRightLeft className="w-3.5 h-3.5" />, color: "bg-rx-warning-light text-rx-warning" },
+  default: { icon: <TrendingUp className="w-3.5 h-3.5" />, color: "bg-rx-gray-100 text-rx-gray-600" },
+};
+
+function getReferralActivityMeta(action: string) {
+  for (const [key, val] of Object.entries(referralActivityIcons)) {
+    if (action.includes(key) || key === action) return val;
+  }
+  return referralActivityIcons.default;
 }
 
 export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string) => void }) {
@@ -357,7 +382,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                   key={p}
                   onClick={() => setPeriod(p)}
                   className={`px-3 py-1.5 border rounded-lg text-xs font-medium ${
-                    period === p ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"
+                    period === p ? "border-rx-secondary text-rx-secondary bg-rx-secondary-light" : "border-rx-gray-200 text-rx-gray-600"
                   }`}
                 >
                   {p}
@@ -379,7 +404,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                   return (
                     <div
                       key={i}
-                      className="flex-1 bg-gradient-to-t from-rx-primary to-rx-primary/60 rounded-t-md hover:from-rx-primary-dark hover:to-rx-primary transition-all group relative"
+                      className="flex-1 bg-gradient-to-t from-rx-secondary to-rx-secondary/60 rounded-t-md hover:from-[#059669] hover:to-rx-secondary transition-all group relative"
                       style={{ height: `${Math.max(pct, 2)}%` }}
                     >
                       {d.value > 0 && (
@@ -414,7 +439,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                   key={p}
                   onClick={() => setPeriod(p)}
                   className={`px-3 py-1.5 border rounded-lg text-xs font-medium ${
-                    period === p ? "border-rx-primary text-rx-primary bg-rx-primary-light" : "border-rx-gray-200 text-rx-gray-600"
+                    period === p ? "border-rx-secondary text-rx-secondary bg-rx-secondary-light" : "border-rx-gray-200 text-rx-gray-600"
                   }`}
                 >
                   {p}
@@ -588,6 +613,42 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
           </div>
         )}
       </div>
+
+      {/* Recent Referral Activity */}
+      <SectionCard title="Recent Referral Activity">
+        {loading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex gap-3 animate-pulse">
+                <div className="w-9 h-9 bg-rx-gray-200 rounded-lg" />
+                <div className="flex-1">
+                  <div className="h-4 w-full bg-rx-gray-100 rounded mb-1" />
+                  <div className="h-3 w-16 bg-rx-gray-100 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : data?.recentReferralActivities && data.recentReferralActivities.length > 0 ? (
+          <div className="space-y-4">
+            {data.recentReferralActivities.map((a, i) => {
+              const meta = getReferralActivityMeta(a.action);
+              return (
+                <div key={a.id} className={`flex gap-3 ${i < data.recentReferralActivities!.length - 1 ? "pb-4 border-b border-rx-gray-100" : ""}`}>
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.color}`}>
+                    {meta.icon}
+                  </div>
+                  <div>
+                    <div className="text-sm text-rx-gray-700 leading-relaxed">{a.details || a.action}</div>
+                    <div className="text-xs text-rx-gray-400 mt-1">{timeAgo(a.createdAt)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState title="No activity yet" description="Referral activity will appear here as actions occur" />
+        )}
+      </SectionCard>
     </div>
   );
 }
