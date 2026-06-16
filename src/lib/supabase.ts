@@ -40,6 +40,8 @@ export interface DbUser {
   company: string | null
   status: 'active' | 'inactive' | 'suspended'
   emailVerified: boolean
+  emailVerificationToken: string | null
+  emailVerificationExpiry: string | null
   createdAt: string
   updatedAt: string
 }

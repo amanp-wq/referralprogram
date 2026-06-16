@@ -11,18 +11,20 @@ datasource db {
 // ============ USERS & AUTH ============
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String
-  passwordHash  String?
-  role          String    @default("affiliate") // "admin" | "affiliate"
-  avatarUrl     String?
-  phone         String?
-  company       String?
-  status        String    @default("active") // "active" | "inactive" | "suspended"
-  emailVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  name                    String
+  passwordHash            String?
+  role                    String    @default("affiliate") // "admin" | "affiliate"
+  avatarUrl               String?
+  phone                   String?
+  company                 String?
+  status                  String    @default("active") // "active" | "inactive" | "suspended"
+  emailVerified           Boolean   @default(false)
+  emailVerificationToken  String?
+  emailVerificationExpiry DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   affiliate     Affiliate?
   sessions      Session[]
@@ -55,9 +57,9 @@ model Affiliate {
   totalConversions Int     @default(0)
   balance         Float    @default(0)
   bankName        String?
-  bankAccount     String?
-  bankIfsc        String?
-  upiId           String?
+  bankAccount     String?  // ENCRYPTED at app layer (see src/lib/crypto.ts) — format: "enc:v1:<base64>"
+  bankIfsc        String?  // ENCRYPTED at app layer
+  upiId           String?  // ENCRYPTED at app layer
   payoutMethod    String   @default("bank") // "bank" | "upi" | "paypal"
   payoutEmail     String?  // for PayPal
   status          String   @default("active") // "active" | "pending" | "inactive" | "suspended"

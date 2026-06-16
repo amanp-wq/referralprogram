@@ -91,7 +91,17 @@ async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; mes
 }
 
 // Pre-built email templates
-export function newAffiliateEmail(name: string, email: string, referralCode: string): EmailPayload {
+export function newAffiliateEmail(name: string, email: string, referralCode: string, verificationToken?: string): EmailPayload {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || 'https://elevateme.pro'
+  const verificationHtml = verificationToken
+    ? `
+      <div style="background: #fff7ed; border: 1px solid #fdba74; border-radius: 8px; padding: 16px; margin: 20px 0;">
+        <p style="color: #9a3412; font-weight: 600; margin: 0 0 8px 0;">⚠️ Verify your email</p>
+        <p style="color: #475569; line-height: 1.6; margin: 0 0 12px 0;">Please verify your email address to activate your account and unlock payout requests. The link expires in 24 hours.</p>
+        <a href="${baseUrl}/api/auth/verify-email?token=${verificationToken}" style="background: #C44838; color: white; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">Verify Email</a>
+      </div>`
+    : ''
+
   return {
     to: email,
     subject: 'Welcome to the ElevateMe Ambassador Program!',
@@ -103,6 +113,7 @@ export function newAffiliateEmail(name: string, email: string, referralCode: str
         <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 20px;">
           <h2 style="color: #0f172a; font-size: 20px; margin-top: 0;">Hi ${name},</h2>
           <p style="color: #475569; line-height: 1.6;">Thank you for joining the ElevateMe Ambassador Program! Your account has been created and is currently pending approval. Once approved, you'll get full access to your ambassador dashboard.</p>
+          ${verificationHtml}
           <div style="background: white; border: 2px solid #689775; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
             <p style="color: #689775; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Your Referral Code</p>
             <p style="color: #0f172a; font-size: 24px; font-weight: bold; font-family: monospace; margin: 0;">${referralCode}</p>
@@ -110,7 +121,7 @@ export function newAffiliateEmail(name: string, email: string, referralCode: str
           <p style="color: #475569; line-height: 1.6;">Share your unique referral link to start earning commissions for every successful enrollment!</p>
         </div>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://elevateme.pro'}" style="background: #689775; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Go to Dashboard</a>
+          <a href="${baseUrl}" style="background: #689775; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Go to Dashboard</a>
         </div>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
         <p style="color: #94a3b8; font-size: 12px; text-align: center;">&copy; 2026 ElevateMe, Inc. All rights reserved.</p>

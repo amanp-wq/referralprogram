@@ -69,6 +69,77 @@ ALTER TABLE "Referral" ADD CONSTRAINT "Referral_programId_fkey"
 -- No DB impact — 'commission' was a dead value that never matched anything.
 -- ────────────────────────────────────────────────────────────────────
 
+-- ────────────────────────────────────────────────────────────────────
+-- FIX 6: Replace USING(true) RLS policies with proper deny-by-default
+--   The old "Service role full access" policies used USING(true) which
+--   evaluates to true for EVERY role, not just service_role. This meant
+--   anyone with the anon key could read/write every table.
+--   New design: deny all direct browser access except public reads on
+--   active programs and a small set of public settings.
+-- ────────────────────────────────────────────────────────────────────
+DO $$
+BEGIN
+  -- Drop legacy blanket policies
+  DROP POLICY IF EXISTS "Service role full access" ON "User";
+  DROP POLICY IF EXISTS "Service role full access" ON "Session";
+  DROP POLICY IF EXISTS "Service role full access" ON "Affiliate";
+  DROP POLICY IF EXISTS "Service role full access" ON "Program";
+  DROP POLICY IF EXISTS "Service role full access" ON "Link";
+  DROP POLICY IF EXISTS "Service role full access" ON "Referral";
+  DROP POLICY IF EXISTS "Service role full access" ON "Commission";
+  DROP POLICY IF EXISTS "Service role full access" ON "Payout";
+  DROP POLICY IF EXISTS "Service role full access" ON "Invoice";
+  DROP POLICY IF EXISTS "Service role full access" ON "Activity";
+  DROP POLICY IF EXISTS "Service role full access" ON "Setting";
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Policy cleanup: %', SQLERRM;
+END $$;
+
+-- Force RLS on every table (no bypass via role)
+ALTER TABLE "User" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Session" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Affiliate" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Program" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Link" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Referral" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Commission" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Payout" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Invoice" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Activity" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Setting" FORCE ROW LEVEL SECURITY;
+
+-- Public read on active programs only (landing page)
+DROP POLICY IF EXISTS "Public read active programs" ON "Program";
+CREATE POLICY "Public read active programs"
+  ON "Program" FOR SELECT
+  USING ("isActive" = true);
+
+-- Public read on a small whitelist of settings
+DROP POLICY IF EXISTS "Public read settings" ON "Setting";
+CREATE POLICY "Public read settings"
+  ON "Setting" FOR SELECT
+  USING (key IN ('platform_name', 'platform_url', 'default_commission_rate', 'min_payout_amount', 'currency'));
+
+
+-- ────────────────────────────────────────────────────────────────────
+-- FIX 7: Remove seed admin/affiliate credentials from live DB
+--   These were inserted from the old supabase-schema.sql seed block.
+--   Delete them so the known-password accounts stop working.
+--   The admin must create fresh credentials via scripts/create-admin.ts
+-- ────────────────────────────────────────────────────────────────────
+DELETE FROM "Affiliate" WHERE id = 'clx_aff_rec_001';
+DELETE FROM "User"      WHERE id IN ('clx_admin_001', 'clx_affiliate_001');
+
+
+-- ────────────────────────────────────────────────────────────────────
+-- FIX 8: Add email verification columns to User table
+--   emailVerificationToken  — UUID sent in welcome email link
+--   emailVerificationExpiry — 24-hour expiry timestamp
+-- ────────────────────────────────────────────────────────────────────
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailVerificationToken" TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailVerificationExpiry" TIMESTAMP(3);
+
+
 COMMIT;
 
 -- ────────────────────────────────────────────────────────────────────
@@ -85,3 +156,13 @@ COMMIT;
 --
 -- SELECT DISTINCT status FROM "Referral";
 -- Expected values: opened, submitted, pending, enrolled, not_enrolled, cancelled
+--
+-- SELECT tablename, policyname, cmd, qual FROM pg_policies ORDER BY tablename;
+-- Expected:
+--   Program | Public read active programs | SELECT | ("isActive" = true)
+--   Setting | Public read settings        | SELECT | (key IN ('platform_name', ...))
+--   (no other policies — all other tables deny by default)
+--
+-- SELECT id, email FROM "User" WHERE id LIKE 'clx_%';
+-- Expected: 0 rows (seed users deleted)
+

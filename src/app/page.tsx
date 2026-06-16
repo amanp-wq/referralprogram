@@ -159,13 +159,14 @@ export default function Home() {
     return <AppShell role="affiliate" activePage={affiliatePage} onPageChange={(p) => setAffiliatePage(p as AffiliatePage)} pageTitle={pageTitles[affiliatePage]} onLogout={logout} userName={user.name} referralCount={referralCount}>{renderPage()}</AppShell>;
   }
 
-  // Loading state
+  // Loading state — proper SSR-safe skeleton (no blank flash)
   if (isLoading) {
     return (
       <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 text-rx-primary animate-spin mx-auto mb-4" />
-          <p className="text-rx-gray-500">Loading...</p>
+          <Loader2 className="w-8 h-8 text-rx-primary animate-spin mx-auto mb-4" aria-hidden="true" />
+          <p className="text-rx-gray-500 sr-only">Loading ElevateMe Referral…</p>
+          <p className="text-rx-gray-500" aria-hidden="true">Loading…</p>
         </div>
       </div>
     );

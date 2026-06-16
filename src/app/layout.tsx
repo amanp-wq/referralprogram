@@ -17,9 +17,36 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "ElevateMe Referral - Referral Program Management",
-  description: "Manage your referral programs, track affiliates, and grow your business with ElevateMe Referral.",
+  title: {
+    default: "ElevateMe Referral — Referral Program Management",
+    template: "%s · ElevateMe Referral",
+  },
+  description:
+    "Manage your referral programs, track ambassadors, and grow your business with ElevateMe Referral.",
   icons: { icon: "/favicon.svg" },
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      "https://referral.elevateme.pro"
+  ),
+  openGraph: {
+    title: "ElevateMe Referral Program",
+    description:
+      "Earn commissions by referring customers to ElevateMe products. Join our ambassador program today.",
+    type: "website",
+    siteName: "ElevateMe Referral",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ElevateMe Referral Program",
+    description:
+      "Earn commissions by referring customers to ElevateMe products.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

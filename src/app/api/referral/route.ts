@@ -1,20 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerClient } from '@/lib/supabase'
+import { validateBody, referralConvertSchema, sanitizeText } from '@/lib/validation'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { applyCors, handlePreflight } from '@/lib/cors'
 import { v4 as uuidv4 } from 'uuid'
+
+// Handle CORS preflight for cross-origin conversion POSTs
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  const requestOrigin = new URL(request.url).origin
+  return handlePreflight(origin, requestOrigin)
+}
 
 // This endpoint is called when a referred person submits the enrollment form
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  const requestOrigin = new URL(request.url).origin
   try {
-    const body = await request.json()
-    const { referralCode, visitorEmail, visitorName, visitorPhone, source } = body
-
-    if (!referralCode) {
-      return NextResponse.json({ error: 'Referral code is required' }, { status: 400 })
+    const body = await request.json().catch(() => null)
+    if (!body) {
+      return applyCors(
+        NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }),
+        origin,
+        requestOrigin
+      )
     }
 
-    if (!visitorName || !visitorEmail) {
-      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
+    // Validate input
+    const validation = validateBody(referralConvertSchema, body)
+    if (!validation.success) {
+      return applyCors(validation.response, origin, requestOrigin)
     }
+    const { referralCode, visitorEmail, visitorName, visitorPhone, source } = validation.data
+
+    // Rate limit: 5 submissions per IP per minute (anti-fraud)
+    const ip = getClientIp(request)
+    if (ip) {
+      const allowed = checkRateLimit(`referral:${ip}`, 5, 60_000)
+      if (!allowed) {
+        return applyCors(
+          NextResponse.json(
+            { error: 'Too many submissions. Please try again later.' },
+            { status: 429 }
+          ),
+          origin,
+          requestOrigin
+        )
+      }
+    }
+
+    // Sanitize free-text fields
+    const safeName = sanitizeText(visitorName, 100) || ''
+    const safeEmail = visitorEmail.toLowerCase().trim()
 
     const supabase = getServerClient()
 
@@ -35,12 +72,12 @@ export async function POST(request: NextRequest) {
       .from('Referral')
       .select('id, status')
       .eq('affiliateId', affiliate.id)
-      .eq('visitorEmail', visitorEmail)
+      .eq('visitorEmail', safeEmail)
       .order('createdAt', { ascending: false })
       .limit(1)
       .single()
 
-    if (existingReferral && (existingReferral.status === 'submitted' || existingReferral.status === 'enrolled' || existingReferral.status === 'converted')) {
+    if (existingReferral && (existingReferral.status === 'submitted' || existingReferral.status === 'enrolled')) {
       return NextResponse.json({
         success: true,
         message: 'You have already submitted your details with this email.',
@@ -48,12 +85,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Find a matching "opened"/"clicked" referral from the same code to update
+    // Find a matching "opened" referral from the same code to update
     const { data: clickedReferral } = await supabase
       .from('Referral')
       .select('*')
       .eq('referralCode', referralCode)
-      .in('status', ['clicked', 'opened'])
+      .in('status', ['opened'])
       .order('createdAt', { ascending: false })
       .limit(1)
       .single()
@@ -74,12 +111,13 @@ export async function POST(request: NextRequest) {
       targetProgramId = affiliateLink?.programId || null
     }
 
-    // Update existing "clicked" referral or create new one
+    // Update existing "opened" referral or create new one
     if (clickedReferral) {
       await supabase.from('Referral').update({
         status: 'submitted',
-        visitorEmail,
-        visitorName,
+        visitorEmail: safeEmail,
+        visitorName: safeName,
+        visitorPhone: visitorPhone || null,
         source: source || clickedReferral.source || 'direct',
         updatedAt: new Date().toISOString(),
       }).eq('id', clickedReferral.id)
@@ -90,8 +128,9 @@ export async function POST(request: NextRequest) {
         affiliateId: affiliate.id,
         programId: targetProgramId,
         referralCode,
-        visitorEmail,
-        visitorName,
+        visitorEmail: safeEmail,
+        visitorName: safeName,
+        visitorPhone: visitorPhone || null,
         source: source || 'direct',
         status: 'submitted',
         createdAt: new Date().toISOString(),
@@ -106,7 +145,7 @@ export async function POST(request: NextRequest) {
       action: 'referral_submitted',
       entity: 'referral',
       entityId: clickedReferral?.id || null,
-      details: `${visitorName} (${visitorEmail}) submitted enrollment via referral code ${referralCode}`,
+      details: `${safeName} (${safeEmail}) submitted enrollment via referral code ${referralCode}`,
       createdAt: new Date().toISOString(),
     })
 
@@ -114,18 +153,26 @@ export async function POST(request: NextRequest) {
     try {
       const { sendEmail, newReferralAdminEmail } = await import('@/app/api/email/route')
       const affiliateName = (affiliate as any).User?.name || affiliate.referralCode || 'Ambassador'
-      await sendEmail(newReferralAdminEmail(visitorName, visitorEmail, affiliateName, referralCode))
+      await sendEmail(newReferralAdminEmail(safeName, safeEmail, affiliateName, referralCode))
     } catch (emailErr) {
       console.error('[REFERRAL] Email sending failed:', emailErr)
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Enrollment submitted successfully! Your referral is now being processed.',
-      referralStatus: 'submitted',
-    })
+    return applyCors(
+      NextResponse.json({
+        success: true,
+        message: 'Enrollment submitted successfully! Your referral is now being processed.',
+        referralStatus: 'submitted',
+      }),
+      origin,
+      requestOrigin
+    )
   } catch (error: any) {
     console.error('Referral submission error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return applyCors(
+      NextResponse.json({ error: 'Internal server error' }, { status: 500 }),
+      request.headers.get('origin'),
+      new URL(request.url).origin
+    )
   }
 }

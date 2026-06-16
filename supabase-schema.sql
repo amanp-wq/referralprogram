@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS "User" (
   "company" TEXT,
   "status" TEXT NOT NULL DEFAULT 'active',
   "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+  "emailVerificationToken" TEXT,
+  "emailVerificationExpiry" TIMESTAMP(3),
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "User_pkey" PRIMARY KEY ("id")
@@ -241,40 +243,79 @@ ALTER TABLE "Invoice" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Activity" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Setting" ENABLE ROW LEVEL SECURITY;
 
--- Service role can do everything (used by our backend API)
-CREATE POLICY "Service role full access" ON "User" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Session" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Affiliate" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Program" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Link" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Referral" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Commission" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Payout" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Invoice" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Activity" FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON "Setting" FOR ALL USING (true) WITH CHECK (true);
+-- =====================================================
+-- ROW LEVEL SECURITY POLICIES
+-- =====================================================
+-- Design:
+--   - The Next.js API uses SUPABASE_SERVICE_ROLE_KEY, which bypasses
+--     RLS entirely. All browser interactions go through /api/* routes.
+--   - The browser Supabase client (NEXT_PUBLIC_SUPABASE_ANON_KEY)
+--     therefore needs almost NO direct access.
+--   - Default DENY for sensitive tables (User, Session, Commission,
+--     Payout, Invoice, Activity, Setting, Affiliate, Link, Referral).
+--   - Only "Public read active programs" is allowed for the landing page.
+-- =====================================================
 
--- Anon users can read active programs (for landing page)
-CREATE POLICY "Public read active programs" ON "Program" FOR SELECT USING ("isActive" = true);
+-- Drop legacy "Service role full access" policies (they were USING(true)
+-- which evaluated to true for EVERY role, not just service_role).
+DROP POLICY IF EXISTS "Service role full access" ON "User";
+DROP POLICY IF EXISTS "Service role full access" ON "Session";
+DROP POLICY IF EXISTS "Service role full access" ON "Affiliate";
+DROP POLICY IF EXISTS "Service role full access" ON "Program";
+DROP POLICY IF EXISTS "Service role full access" ON "Link";
+DROP POLICY IF EXISTS "Service role full access" ON "Referral";
+DROP POLICY IF EXISTS "Service role full access" ON "Commission";
+DROP POLICY IF EXISTS "Service role full access" ON "Payout";
+DROP POLICY IF EXISTS "Service role full access" ON "Invoice";
+DROP POLICY IF EXISTS "Service role full access" ON "Activity";
+DROP POLICY IF EXISTS "Service role full access" ON "Setting";
+
+-- Force RLS on every table (no bypass via role)
+ALTER TABLE "User" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Session" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Affiliate" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Program" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Link" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Referral" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Commission" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Payout" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Invoice" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Activity" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "Setting" FORCE ROW LEVEL SECURITY;
+
+-- Public read on active programs (for the landing page referral directory).
+-- This is the ONLY direct browser access allowed.
+CREATE POLICY "Public read active programs"
+  ON "Program" FOR SELECT
+  USING ("isActive" = true);
+
+-- Public read on public settings (platform name, currency, etc.)
+CREATE POLICY "Public read settings"
+  ON "Setting" FOR SELECT
+  USING (key IN ('platform_name', 'platform_url', 'default_commission_rate', 'min_payout_amount', 'currency'));
+
+-- NOTE: All other tables have NO policies. This means the anon/authenticated
+-- roles get ZERO rows. All access must go through the API routes which use
+-- the service role key (bypasses RLS).
+--
+-- If you later need browser-side realtime subscriptions (e.g. affiliate
+-- watching their own commission updates), add scoped policies like:
+--   CREATE POLICY "Affiliate reads own commissions"
+--     ON "Commission" FOR SELECT
+--     USING (affiliateId IN (
+--       SELECT id FROM "Affiliate" WHERE userId = <current_session_user_id>
+--     ));
+-- But this requires a custom auth function (auth.fn_current_user_id()) that
+-- reads the session cookie — out of scope for this pass.
 
 -- =====================================================
 -- SEED DATA
 -- =====================================================
-
--- Seed admin user (email: admin@elevateme.pro, password: admin123)
-INSERT INTO "User" ("id", "email", "name", "passwordHash", "role", "status", "emailVerified", "createdAt", "updatedAt")
-VALUES ('clx_admin_001', 'admin@elevateme.pro', 'Admin User', '$2b$10$iz4O5KL.TswOtIfzNkiFtO.ojf0RJqLFUWCCfSGTa9HtWbjw7Fh5K', 'admin', 'active', true, NOW(), NOW())
-ON CONFLICT DO NOTHING;
-
--- Seed affiliate user (email: affiliate@elevateme.pro, password: affiliate123)
-INSERT INTO "User" ("id", "email", "name", "passwordHash", "role", "status", "emailVerified", "createdAt", "updatedAt")
-VALUES ('clx_affiliate_001', 'affiliate@elevateme.pro', 'Demo Affiliate', '$2b$10$2IEfcySIlUWvl7OZ2rpp1OCZ2IxTzaWb0ttLqe6A1JMcQ3AHplGnO', 'affiliate', 'active', true, NOW(), NOW())
-ON CONFLICT DO NOTHING;
-
--- Seed affiliate record
-INSERT INTO "Affiliate" ("id", "userId", "referralCode", "tier", "commissionRate", "totalEarnings", "totalReferrals", "totalConversions", "balance", "status", "joinedAt", "updatedAt")
-VALUES ('clx_aff_rec_001', 'clx_affiliate_001', 'ELEVATE10', 'pro', 15, 0, 0, 0, 0, 'active', NOW(), NOW())
-ON CONFLICT DO NOTHING;
+-- NOTE: Do NOT seed admin or affiliate user accounts here.
+-- Create the first admin account via the secure setup script:
+--   bun run scripts/create-admin.ts <email> <password>
+-- or via the /signup page with the first admin invite code.
+-- Seeding credentials in schema SQL is a security anti-pattern.
 
 -- Seed demo programs
 INSERT INTO "Program" ("id", "name", "slug", "description", "commissionType", "commissionValue", "minPayout", "cookieDuration", "isActive", "createdAt", "updatedAt")

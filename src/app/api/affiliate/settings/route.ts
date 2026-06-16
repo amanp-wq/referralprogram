@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAffiliate } from '@/lib/auth'
 import { getServerClient } from '@/lib/supabase'
+import { encryptField, decryptField, maskSensitive } from '@/lib/crypto'
+import { sanitizeText } from '@/lib/validation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,10 +49,15 @@ export async function GET(request: NextRequest) {
         commissionRate: affiliate.commissionRate,
         payoutMethod: affiliate.payoutMethod,
         bankName: affiliate.bankName,
-        bankAccount: affiliate.bankAccount,
-        bankIfsc: affiliate.bankIfsc,
-        upiId: affiliate.upiId,
+        // Decrypt for the affiliate's own view (they own this data)
+        bankAccount: decryptField(affiliate.bankAccount),
+        bankIfsc: decryptField(affiliate.bankIfsc),
+        upiId: decryptField(affiliate.upiId),
         payoutEmail: affiliate.payoutEmail,
+        // Masked variants for displaying in form placeholders
+        bankAccountMasked: maskSensitive(affiliate.bankAccount),
+        bankIfscMasked: maskSensitive(affiliate.bankIfsc),
+        upiIdMasked: maskSensitive(affiliate.upiId),
       },
       notifications,
     })
@@ -65,35 +72,45 @@ export async function PUT(request: NextRequest) {
     const { user, affiliate, error } = await requireAffiliate(request)
     if (!user || !affiliate) return NextResponse.json({ error }, { status: 401 })
 
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
+    if (!body) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
     const { name, phone, company, payoutMethod, bankName, bankAccount, bankIfsc, upiId, payoutEmail,
       emailNotifications, conversionAlerts, payoutAlerts, weeklyReport, monthlyReport } = body
 
     const supabase = getServerClient()
 
-    // Update user
+    // Update user (with sanitization)
     if (name || phone || company) {
       await supabase.from('User').update({
-        ...(name && { name }),
-        ...(phone !== undefined && { phone }),
-        ...(company !== undefined && { company }),
+        ...(name && { name: sanitizeText(name, 100) }),
+        ...(phone !== undefined && { phone: phone ? sanitizeText(phone, 20) : null }),
+        ...(company !== undefined && { company: company ? sanitizeText(company, 100) : null }),
         updatedAt: new Date().toISOString(),
       }).eq('id', user.id)
     }
 
-    // Build affiliate update object
+    // Build affiliate update object — encrypt sensitive fields
+    // Only encrypt if the user provided a non-empty value. If they sent
+    // an empty string, we leave the existing value (don't wipe).
     const affiliateUpdate: Record<string, any> = {
       ...(payoutMethod && { payoutMethod }),
-      ...(bankName !== undefined && { bankName }),
-      ...(bankAccount !== undefined && { bankAccount }),
-      ...(bankIfsc !== undefined && { bankIfsc }),
-      ...(upiId !== undefined && { upiId }),
-      ...(payoutEmail !== undefined && { payoutEmail }),
+      ...(bankName !== undefined && { bankName: bankName ? sanitizeText(bankName, 100) : null }),
+      ...(bankAccount !== undefined && bankAccount && bankAccount !== '' && {
+        bankAccount: encryptField(sanitizeText(bankAccount, 50)),
+      }),
+      ...(bankIfsc !== undefined && bankIfsc && bankIfsc !== '' && {
+        bankIfsc: encryptField(sanitizeText(bankIfsc, 20)),
+      }),
+      ...(upiId !== undefined && upiId && upiId !== '' && {
+        upiId: encryptField(sanitizeText(upiId, 50)),
+      }),
+      ...(payoutEmail !== undefined && { payoutEmail: payoutEmail ? sanitizeText(payoutEmail, 254) : null }),
       updatedAt: new Date().toISOString(),
     }
 
-    // Store notification preferences as JSON in a meta field or use Setting table
-    // Since Affiliate table may not have notification columns, we use the Setting table
+    // Store notification preferences using the Setting table (key-value)
     const notificationSettings = {
       emailNotifications: emailNotifications !== undefined ? emailNotifications : true,
       conversionAlerts: conversionAlerts !== undefined ? conversionAlerts : true,
@@ -102,7 +119,6 @@ export async function PUT(request: NextRequest) {
       monthlyReport: monthlyReport !== undefined ? monthlyReport : false,
     }
 
-    // Save notification settings using the Setting table (key-value)
     for (const [key, value] of Object.entries(notificationSettings)) {
       const settingId = `notif_${affiliate.id}_${key}`
       await supabase.from('Setting').upsert({
