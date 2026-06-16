@@ -109,14 +109,15 @@ CREATE INDEX IF NOT EXISTS "Link_code_idx" ON "Link"("code");
 CREATE TABLE IF NOT EXISTS "Referral" (
   "id" TEXT NOT NULL,
   "affiliateId" TEXT NOT NULL,
-  "programId" TEXT NOT NULL,
+  "programId" TEXT,
   "linkId" TEXT,
   "referralCode" TEXT NOT NULL,
   "visitorEmail" TEXT,
   "visitorName" TEXT,
+  "visitorPhone" TEXT,
   "visitorIp" TEXT,
   "source" TEXT,
-  "status" TEXT NOT NULL DEFAULT 'clicked',
+  "status" TEXT NOT NULL DEFAULT 'submitted',
   "convertedAt" TIMESTAMP(3),
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -216,7 +217,7 @@ ALTER TABLE "Affiliate" ADD CONSTRAINT "Affiliate_userId_fkey" FOREIGN KEY ("use
 ALTER TABLE "Link" ADD CONSTRAINT "Link_affiliateId_fkey" FOREIGN KEY ("affiliateId") REFERENCES "Affiliate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Link" ADD CONSTRAINT "Link_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Referral" ADD CONSTRAINT "Referral_affiliateId_fkey" FOREIGN KEY ("affiliateId") REFERENCES "Affiliate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "Referral" ADD CONSTRAINT "Referral_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Referral" ADD CONSTRAINT "Referral_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "Referral" ADD CONSTRAINT "Referral_linkId_fkey" FOREIGN KEY ("linkId") REFERENCES "Link"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "Commission" ADD CONSTRAINT "Commission_affiliateId_fkey" FOREIGN KEY ("affiliateId") REFERENCES "Affiliate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Commission" ADD CONSTRAINT "Commission_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE;

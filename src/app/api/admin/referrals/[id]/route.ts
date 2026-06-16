@@ -177,7 +177,7 @@ export async function PATCH(
           .from('Commission')
           .select('id, amount, status, type')
           .eq('referralId', id)
-          .in('type', ['commission', 'bonus'])
+          .in('type', ['referral', 'bonus'])
           .order('createdAt', { ascending: false })
           .limit(1)
           .single()
