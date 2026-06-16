@@ -133,20 +133,21 @@ model Link {
 model Referral {
   id           String   @id @default(cuid())
   affiliateId  String
-  programId    String
+  programId    String?
   linkId       String?
   referralCode String
   visitorEmail String?
   visitorName  String?
+  visitorPhone String?
   visitorIp    String?
   source       String?  // "social" | "email" | "website" | "direct"
-  status       String   @default("clicked") // "clicked" | "registered" | "converted" | "cancelled"
+  status       String   @default("submitted") // "opened" | "submitted" | "pending" | "enrolled" | "not_enrolled" | "cancelled"
   convertedAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   affiliate    Affiliate   @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
-  program      Program     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  program      Program?    @relation(fields: [programId], references: [id], onDelete: SetNull)
   link         Link?       @relation(fields: [linkId], references: [id], onDelete: SetNull)
   commissions  Commission[]
 
@@ -166,7 +167,7 @@ model Commission {
   amount      Float
   rate        Float    // the commission rate at time of earning
   type        String   @default("referral") // "referral" | "bonus" | "adjustment"
-  status      String   @default("pending") // "pending" | "approved" | "paid" | "cancelled" | "refunded"
+  status      String   @default("pending") // "pending" | "approved" | "released" | "paid" | "cancelled" | "failed" | "refunded"
   payoutId    String?  // linked to payout when paid
   description String?
   createdAt   DateTime @default(now())

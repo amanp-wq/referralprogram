@@ -28,7 +28,7 @@ export async function DELETE(
     }
 
     const affiliateName = (affiliate as any).User?.name || 'Unknown'
-    const userId = affiliate.userId
+    const userId = (affiliate as any).userId
 
     // Delete affiliate first (cascades will handle related records)
     const { error: affDeleteError } = await supabase
@@ -58,7 +58,7 @@ export async function DELETE(
       .eq('id', user.id)
       .single()
 
-    const adminName = adminUser?.name || 'Unknown'
+    const adminName = (adminUser as any)?.name || 'Unknown'
 
     // Log activity
     await supabase.from('Activity').insert({

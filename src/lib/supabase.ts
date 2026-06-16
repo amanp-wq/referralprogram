@@ -21,7 +21,7 @@ export function createBrowserClient() {
 // Singleton for server-side usage
 let _serverClient: ReturnType<typeof createClient> | null = null
 
-export function getServerClient() {
+export function getServerClient(): ReturnType<typeof createClient> {
   if (!_serverClient) {
     _serverClient = createServerClient()
   }
@@ -109,14 +109,15 @@ export interface DbLink {
 export interface DbReferral {
   id: string
   affiliateId: string
-  programId: string
+  programId: string | null
   linkId: string | null
   referralCode: string
   visitorEmail: string | null
   visitorName: string | null
+  visitorPhone: string | null
   visitorIp: string | null
   source: string | null
-  status: 'clicked' | 'registered' | 'converted' | 'cancelled'
+  status: 'opened' | 'submitted' | 'pending' | 'enrolled' | 'not_enrolled' | 'cancelled'
   convertedAt: string | null
   createdAt: string
   updatedAt: string
@@ -130,7 +131,7 @@ export interface DbCommission {
   amount: number
   rate: number
   type: 'referral' | 'bonus' | 'adjustment'
-  status: 'pending' | 'approved' | 'paid' | 'cancelled' | 'refunded'
+  status: 'pending' | 'approved' | 'released' | 'paid' | 'cancelled' | 'failed' | 'refunded'
   payoutId: string | null
   description: string | null
   createdAt: string
