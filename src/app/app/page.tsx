@@ -10,6 +10,7 @@ import { AdminLinks } from "@/components/referralx/admin/AdminLinks";
 import { AdminReports } from "@/components/referralx/admin/AdminReports";
 import { AdminSettings } from "@/components/referralx/admin/AdminSettings";
 import { AdminActivity } from "@/components/referralx/admin/AdminActivity";
+import { AdminAdmins } from "@/components/referralx/admin/AdminAdmins";
 import { AffiliateDashboard } from "@/components/referralx/affiliate/AffiliateDashboard";
 import { AffiliateLinks } from "@/components/referralx/affiliate/AffiliateLinks";
 import { AffiliateReferrals } from "@/components/referralx/affiliate/AffiliateReferrals";
@@ -27,6 +28,7 @@ type AdminPage =
   | "referrals"
   | "links"
   | "activity"
+  | "admins"
   | "reports"
   | "settings";
 type AffiliatePage =
@@ -112,6 +114,8 @@ export default function AppPage() {
           return <AdminLinks />;
         case "activity":
           return <AdminActivity />;
+        case "admins":
+          return <AdminAdmins />;
         case "reports":
           return <AdminReports />;
         case "settings":
@@ -125,6 +129,7 @@ export default function AppPage() {
       referrals: "Referrals",
       links: "Tracking Links",
       activity: "Activity Log",
+      admins: "Admin Users",
       reports: "Reports",
       settings: "Settings",
     };
