@@ -3,6 +3,13 @@ import { requireAdmin } from '@/lib/auth'
 import { getServerClient } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+
+function generateSecurePassword(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  const bytes = crypto.randomBytes(12)
+  return Array.from(bytes).map(b => chars[b % chars.length]).join('')
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -107,7 +114,9 @@ export async function POST(request: NextRequest) {
 
     // Create user with default password
     const userId = `usr_${uuidv4().substring(0, 12)}`
-    const passwordHash = await bcrypt.hash('affiliate123', 10)
+    const tempPassword = generateSecurePassword()
+    console.log(`[AFFILIATE CREATE] Temporary password for ${email}: ${tempPassword}`)
+    const passwordHash = await bcrypt.hash(tempPassword, 10)
 
     const { error: userError } = await supabase.from('User').insert({
       id: userId,

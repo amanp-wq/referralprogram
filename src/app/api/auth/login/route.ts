@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser, setSessionCookie } from '@/lib/auth'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 10 login attempts per IP per minute (brute-force protection)
+    const ip = getClientIp(request)
+    if (ip) {
+      const allowed = checkRateLimit(`login:${ip}`, 10, 60_000)
+      if (!allowed) {
+        return NextResponse.json(
+          { error: 'Too many login attempts. Please try again later.' },
+          { status: 429 }
+        )
+      }
+    }
+
     const body = await request.json()
     const { email, password } = body
 

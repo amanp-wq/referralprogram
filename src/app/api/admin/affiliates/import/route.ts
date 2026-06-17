@@ -3,6 +3,13 @@ import { requireAdmin } from '@/lib/auth'
 import { getServerClient } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+
+function generateSecurePassword(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  const bytes = crypto.randomBytes(12)
+  return Array.from(bytes).map(b => chars[b % chars.length]).join('')
+}
 
 function generateReferralCode(name: string): string {
   const base = name
@@ -49,7 +56,6 @@ export async function POST(request: NextRequest) {
     const errors: { row: number; message: string }[] = []
     let created = 0
 
-    const passwordHash = await bcrypt.hash('ChangeMe123!', 10)
     const validTiers = ['standard', 'pro', 'elite']
 
     for (let i = 0; i < affiliates.length; i++) {
@@ -107,7 +113,10 @@ export async function POST(request: NextRequest) {
         const tier = validTiers.includes(row.tier || '') ? row.tier : 'standard'
         const commissionRate = row.commissionRate ? parseFloat(String(row.commissionRate)) : 10
 
-        // Create user
+        // Create user with a unique secure temporary password
+        const tempPassword = generateSecurePassword()
+        console.log(`[AFFILIATE IMPORT] Temporary password for ${row.email}: ${tempPassword}`)
+        const passwordHash = await bcrypt.hash(tempPassword, 10)
         const userId = uuidv4()
         const { error: userError } = await supabase.from('User').insert({
           id: userId,

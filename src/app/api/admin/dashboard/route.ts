@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const inactiveAffiliates = affiliates.filter((a: any) => a.status === 'inactive' || a.status === 'suspended').length
     const submittedReferrals = referrals.filter((r: any) => r.status !== 'clicked' && r.status !== 'opened')
     const totalReferrals = submittedReferrals.length
-    const conversions = submittedReferrals.filter((r: any) => r.status === 'converted' || r.status === 'enrolled' || r.status === 'completed').length
+    const conversions = submittedReferrals.filter((r: any) => r.status === 'enrolled').length
     const conversionRate = totalReferrals > 0 ? ((conversions / totalReferrals) * 100).toFixed(1) : '0'
     const pendingPayoutAmount = pendingPayouts.reduce((sum: number, p: any) => sum + p.amount, 0)
 
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Chart data based on period
-    const enrolledReferrals = referrals.filter((r: any) => r.status === 'enrolled' || r.status === 'converted' || r.status === 'completed')
+    const enrolledReferrals = referrals.filter((r: any) => r.status === 'enrolled')
 
     let totalReferralsChart: { label: string; value: number }[] = []
     let enrolledReferralsChart: { label: string; value: number }[] = []

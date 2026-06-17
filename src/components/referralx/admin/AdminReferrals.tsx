@@ -127,7 +127,9 @@ export function AdminReferrals() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (statusFilter) params.set("status", statusFilter);
+      if (statusFilter) {
+        params.set("status", statusFilter === "opened" ? "clicked,opened" : statusFilter);
+      }
       const res = await fetch(`/api/admin/referrals?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
@@ -249,23 +251,24 @@ export function AdminReferrals() {
     : referrals.filter(r => getReferralStatus(r).status === statusFilter);
 
   const statusOptions = [
-    { value: 'opened', label: 'Opened' },
     { value: 'submitted', label: 'Submitted' },
     { value: 'pending', label: 'Pending' },
     { value: 'enrolled', label: 'Enrolled' },
     { value: 'not_enrolled', label: 'Not Enrolled' },
+    { value: 'cancelled', label: 'Cancelled' },
   ];
 
   return (
     <div className="space-y-6">
       {/* KPI Tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-5">
         {loading ? (
-          Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
+          Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
             <KpiCard label="Total Referrals" value={realReferrals.length.toLocaleString()} iconColor="primary" icon={<Share2 className="w-[18px] h-[18px]" />} />
             <KpiCard label="Opened" value={openedCount.toLocaleString()} iconColor="info" icon={<Eye className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Submitted" value={submittedCount.toLocaleString()} iconColor="info" icon={<Upload className="w-[18px] h-[18px]" />} />
             <KpiCard label="Enrolled" value={enrolledCount.toLocaleString()} iconColor="success" icon={<UserCheck className="w-[18px] h-[18px]" />} />
             <KpiCard label="Pending" value={pendingCount.toLocaleString()} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
             <KpiCard label="Not Enrolled" value={notEnrolledCount.toLocaleString()} iconColor="danger" icon={<UserX className="w-[18px] h-[18px]" />} />

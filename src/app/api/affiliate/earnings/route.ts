@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     const monthlyEarnings = Object.entries(monthlyMap).map(([month, amount]) => ({ month, amount }))
 
     // Count commission types for the affiliate
-    const referralCommissions = commissions?.filter((c: any) => c.type === 'commission' || c.type === 'referral').length || 0
+    const referralCommissions = commissions?.filter((c: any) => c.type === 'referral').length || 0
     const bonusCommissions = commissions?.filter((c: any) => c.type === 'bonus').length || 0
 
     return NextResponse.json({

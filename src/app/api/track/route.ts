@@ -15,6 +15,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const origin = request.headers.get('origin')
   const requestOrigin = new URL(request.url).origin
+  let safeCode: string = ''
   try {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
         requestOrigin
       )
     }
-    const safeCode = codeCheck.data
+    safeCode = codeCheck.data
 
     // Validate source
     if (!['social', 'email', 'website', 'direct'].includes(source)) {

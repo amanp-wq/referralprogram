@@ -104,7 +104,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Status is required' }, { status: 400 })
     }
 
-    const validStatuses = ['submitted', 'pending', 'enrolled', 'not_enrolled']
+    const validStatuses = ['submitted', 'pending', 'enrolled', 'not_enrolled', 'cancelled']
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })
     }
@@ -247,24 +247,31 @@ export async function PATCH(
       try {
         const { affiliateId, programId } = referral
 
-        // Look up the Program to get commissionValue
+        // Look up the Program to get commissionType and commissionValue
         let commissionValue = 50 // default $50 bonus per enrolled referral
+        let commissionType = 'fixed'
         let effectiveProgramId = programId
 
         if (programId) {
           const { data: program } = await supabase
             .from('Program')
-            .select('id, commissionValue')
+            .select('id, commissionType, commissionValue')
             .eq('id', programId)
             .single()
 
           if (program) {
             commissionValue = program.commissionValue
+            commissionType = program.commissionType || 'fixed'
           }
         }
 
-        // Commission amount from program settings (always fixed manual bonus)
-        const amount = commissionValue
+        // Compute commission amount based on program type
+        // For percentage: amount = saleAmount * (commissionRate / 100)
+        // For fixed: amount = commissionValue directly
+        // Since referral enrollments don't have a sale amount, percentage is treated as a flat rate
+        const amount = commissionType === 'percentage'
+          ? commissionValue // commissionValue is the percentage rate; store as-is for percentage programs without a sale amount
+          : commissionValue
 
         // Create Commission record
         const commissionId = uuidv4()
@@ -276,7 +283,7 @@ export async function PATCH(
             programId: effectiveProgramId,
             referralId: id,
             amount,
-            rate: 0,
+            rate: commissionValue,
             type: 'bonus',
             status: 'pending',
             description: `Bonus for enrolled referral: ${visitorName}`,
@@ -314,6 +321,31 @@ export async function PATCH(
               updatedAt: new Date().toISOString(),
             })
             .eq('id', affiliateId)
+        }
+
+        // Increment Link.conversions for the referral's associated link
+        const { data: referralLink } = await supabase
+          .from('Referral')
+          .select('linkId')
+          .eq('id', id)
+          .single()
+
+        if (referralLink?.linkId) {
+          const { data: linkData } = await supabase
+            .from('Link')
+            .select('conversions')
+            .eq('id', referralLink.linkId)
+            .single()
+
+          if (linkData) {
+            await supabase
+              .from('Link')
+              .update({
+                conversions: (linkData.conversions || 0) + 1,
+                updatedAt: new Date().toISOString(),
+              })
+              .eq('id', referralLink.linkId)
+          }
         }
 
         // Send email to affiliate when referral is marked as enrolled

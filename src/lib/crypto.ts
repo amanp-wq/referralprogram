@@ -28,6 +28,13 @@ function getKey(): Buffer | null {
   if (cachedKey) return cachedKey
   const raw = process.env.BANK_ENCRYPTION_KEY
   if (!raw) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '[SECURITY] BANK_ENCRYPTION_KEY env var is not set in production. ' +
+          'Bank fields cannot be stored without encryption. ' +
+          'Set BANK_ENCRYPTION_KEY to a 32-byte base64 string (openssl rand -base64 32).'
+      )
+    }
     if (!warnedAboutMissingKey) {
       console.warn(
         '[SECURITY] BANK_ENCRYPTION_KEY env var is not set. ' +

@@ -285,15 +285,16 @@ export function AdminCommissions() {
   return (
     <div className="space-y-6">
       {/* KPI Tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
         {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
+          Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
             <KpiCard label="Total Commissions" value={formatCurrency(totalAmount)} iconColor="primary" icon={<DollarSign className="w-[18px] h-[18px]" />} />
             <KpiCard label="Pending" value={formatCurrency(pendingAmount)} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
             <KpiCard label="Approved" value={formatCurrency(approvedAmount)} iconColor="success" icon={<CheckCircle className="w-[18px] h-[18px]" />} />
             <KpiCard label="Released" value={formatCurrency(releasedAmount)} iconColor="info" icon={<Send className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Failed" value={formatCurrency(failedAmount)} iconColor="danger" icon={<XCircle className="w-[18px] h-[18px]" />} />
           </>
         )}
       </div>
@@ -302,7 +303,7 @@ export function AdminCommissions() {
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <div className="flex gap-1">
-            {["", "pending", "approved", "released", "failed"].map((s) => (
+            {["", "pending", "approved", "released", "failed", "cancelled"].map((s) => (
               <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 text-sm font-medium rounded-lg ${statusFilter === s ? "bg-rx-primary-light text-rx-primary font-semibold" : "text-rx-gray-500 hover:bg-rx-gray-50"}`}>
                 {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
@@ -437,7 +438,10 @@ export function AdminCommissions() {
                         </>
                       )}
                       {c.status === "approved" && (
-                        <button onClick={() => handleStatusChange(c.id, "released")} className="text-xs px-2.5 py-1.5 bg-rx-info-light text-rx-info rounded-lg hover:bg-rx-info/20 font-medium transition-colors">Release</button>
+                        <>
+                          <button onClick={() => handleStatusChange(c.id, "released")} className="text-xs px-2.5 py-1.5 bg-rx-info-light text-rx-info rounded-lg hover:bg-rx-info/20 font-medium transition-colors">Release</button>
+                          <button onClick={() => handleStatusChange(c.id, "pending")} className="text-xs px-2.5 py-1.5 bg-rx-warning-light text-rx-warning rounded-lg hover:bg-rx-warning/20 font-medium transition-colors">Revert to Pending</button>
+                        </>
                       )}
                     </div>
                   </div>

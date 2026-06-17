@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/auth'
 
 // Email sending utility using a configurable email service
 // This currently logs emails and supports integration with:
@@ -188,8 +189,12 @@ export function referralEnrolledEmail(affiliateEmail: string, visitorName: strin
   }
 }
 
-// GET endpoint to check email service status
-export async function GET() {
+// GET endpoint to check email service status (admin only)
+export async function GET(request: NextRequest) {
+  const { user, error } = await requireAdmin(request)
+  if (!user) {
+    return NextResponse.json({ error }, { status: 401 })
+  }
   return NextResponse.json({
     service: process.env.EMAIL_SERVICE || 'log',
     configured: !!(process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY),

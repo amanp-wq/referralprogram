@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAffiliate } from '@/lib/auth'
 import { getServerClient } from '@/lib/supabase'
-import { encryptField, decryptField, maskSensitive } from '@/lib/crypto'
+import { encryptField, maskSensitive } from '@/lib/crypto'
 import { sanitizeText } from '@/lib/validation'
 
 export async function GET(request: NextRequest) {
@@ -49,12 +49,12 @@ export async function GET(request: NextRequest) {
         commissionRate: affiliate.commissionRate,
         payoutMethod: affiliate.payoutMethod,
         bankName: affiliate.bankName,
-        // Decrypt for the affiliate's own view (they own this data)
-        bankAccount: decryptField(affiliate.bankAccount),
-        bankIfsc: decryptField(affiliate.bankIfsc),
-        upiId: decryptField(affiliate.upiId),
+        // Return only masked variants — never expose raw decrypted account/routing details
+        bankAccount: maskSensitive(affiliate.bankAccount),
+        bankIfsc: maskSensitive(affiliate.bankIfsc),
+        upiId: maskSensitive(affiliate.upiId),
         payoutEmail: affiliate.payoutEmail,
-        // Masked variants for displaying in form placeholders
+        // Masked variants for displaying in form placeholders (same as above)
         bankAccountMasked: maskSensitive(affiliate.bankAccount),
         bankIfscMasked: maskSensitive(affiliate.bankIfsc),
         upiIdMasked: maskSensitive(affiliate.upiId),
