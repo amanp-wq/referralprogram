@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         .from('Affiliate')
         .select('id, userId, referralCode, status, User!Affiliate_userId_fkey(name)')
         .eq('referralCode', safeCode)
-        .eq('status', 'active')
+        .in('status', ['active', 'pending'])  // allow pending ambassadors to receive clicks
         .single()
 
       if (!affiliate) {

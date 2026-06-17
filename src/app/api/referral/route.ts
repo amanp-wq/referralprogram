@@ -55,16 +55,63 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServerClient()
 
-    // Find the affiliate by referral code (allow pending + active — suspended/inactive cannot receive referrals)
-    const { data: affiliate } = await supabase
+    // ─────────────────────────────────────────────────────────────
+    // Look up the affiliate.
+    // The referralCode in the URL can be EITHER:
+    //   (a) The affiliate's primary referralCode (e.g. "ELEVATE10")
+    //       — used by the default ambassador link /ref/ELEVATE10
+    //   (b) A per-program Link code (e.g. "ELEVATE10-a1b2c3d4")
+    //       — created via POST /api/affiliate/links, format is
+    //       `${referralCode}-${uuid8}` and stored in the Link table.
+    // We need to handle both cases, otherwise custom per-program
+    // links break at form submission time.
+    //
+    // Status policy: allow 'active' AND 'pending' affiliates to
+    // receive referrals — newly signed-up ambassadors (status=
+    // 'pending' until admin approval) should still be able to share
+    // their links and collect referrals. Suspended/inactive cannot.
+    // ─────────────────────────────────────────────────────────────
+
+    let affiliate: any = null
+    let linkId: string | null = null
+    let targetProgramId: string | null = null
+
+    // First, try matching the Affiliate table directly (case (a))
+    const { data: affiliateByCode } = await supabase
       .from('Affiliate')
       .select('*')
       .eq('referralCode', referralCode)
       .in('status', ['active', 'pending'])
       .single()
 
+    if (affiliateByCode) {
+      affiliate = affiliateByCode
+    } else {
+      // Case (b): try matching the Link table by code, then join to Affiliate
+      const { data: linkRow } = await supabase
+        .from('Link')
+        .select('id, affiliateId, programId, Affiliate!Link_affiliateId_fkey(*)')
+        .eq('code', referralCode)
+        .eq('isActive', true)
+        .single()
+
+      if (linkRow) {
+        const linkedAffiliate = (linkRow as any).Affiliate
+        // Verify the affiliate is still active or pending
+        if (linkedAffiliate && ['active', 'pending'].includes(linkedAffiliate.status)) {
+          affiliate = linkedAffiliate
+          linkId = linkRow.id
+          targetProgramId = linkRow.programId
+        }
+      }
+    }
+
     if (!affiliate) {
-      return NextResponse.json({ error: 'Invalid referral code' }, { status: 404 })
+      return applyCors(
+        NextResponse.json({ error: 'Invalid referral code' }, { status: 404 }),
+        origin,
+        requestOrigin
+      )
     }
 
     // Check if this email has already been referred
@@ -95,20 +142,30 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single()
 
-    // Determine programId from the clicked referral or affiliate's links
-    let targetProgramId: string | null = null
-    if (clickedReferral?.programId) {
-      targetProgramId = clickedReferral.programId
-    } else {
-      // Try to find the affiliate's active program
-      const { data: affiliateLink } = await supabase
-        .from('Link')
-        .select('programId')
-        .eq('affiliateId', affiliate.id)
-        .eq('isActive', true)
-        .limit(1)
-        .single()
-      targetProgramId = affiliateLink?.programId || null
+    // Determine programId — prefer the Link we already looked up (case (b)),
+    // then the clicked Referral's programId (set by /api/track),
+    // then fall back to the affiliate's first active Link.
+    if (!targetProgramId) {
+      if (clickedReferral?.programId) {
+        targetProgramId = clickedReferral.programId
+      } else {
+        // Try to find the affiliate's active program
+        const { data: affiliateLink } = await supabase
+          .from('Link')
+          .select('programId')
+          .eq('affiliateId', affiliate.id)
+          .eq('isActive', true)
+          .limit(1)
+          .single()
+        targetProgramId = affiliateLink?.programId || null
+      }
+    }
+
+    // If we found an opened Referral from /api/track but didn't get a linkId
+    // from the affiliate lookup (case (a) — default ambassador link), use
+    // the linkId stored on the Referral record.
+    if (!linkId && clickedReferral?.linkId) {
+      linkId = clickedReferral.linkId
     }
 
     // Update existing "opened" referral or create new one
@@ -127,6 +184,7 @@ export async function POST(request: NextRequest) {
         id: `ref_${uuidv4().substring(0, 12)}`,
         affiliateId: affiliate.id,
         programId: targetProgramId,
+        linkId,  // may be null for default ambassador links
         referralCode,
         visitorEmail: safeEmail,
         visitorName: safeName,
