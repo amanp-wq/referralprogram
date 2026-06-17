@@ -55,12 +55,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServerClient()
 
-    // Find the affiliate by referral code
+    // Find the affiliate by referral code (allow pending + active — suspended/inactive cannot receive referrals)
     const { data: affiliate } = await supabase
       .from('Affiliate')
       .select('*')
       .eq('referralCode', referralCode)
-      .eq('status', 'active')
+      .in('status', ['active', 'pending'])
       .single()
 
     if (!affiliate) {
