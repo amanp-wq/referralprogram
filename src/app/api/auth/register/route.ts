@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Create user
     const userId = uuidv4()
+    const now = new Date().toISOString()
     const { error: userError } = await supabase.from('User').insert({
       id: userId,
       email,
@@ -85,6 +86,8 @@ export async function POST(request: NextRequest) {
       emailVerified: false,
       emailVerificationToken,
       emailVerificationExpiry,
+      createdAt: now,
+      updatedAt: now,
     })
 
     if (userError) {
@@ -123,8 +126,9 @@ export async function POST(request: NextRequest) {
       totalConversions: 0,
       balance: 0,
       payoutMethod: 'bank',
-      status: 'pending', // Pending until admin approves
-      joinedAt: new Date().toISOString(),
+      status: 'pending',
+      joinedAt: now,
+      updatedAt: now,
     })
 
     if (affiliateError) {
@@ -158,6 +162,8 @@ export async function POST(request: NextRequest) {
         conversions: 0,
         isActive: true,
         label: 'Default Link',
+        createdAt: now,
+        updatedAt: now,
       })
     }
 

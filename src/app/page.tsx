@@ -203,7 +203,7 @@ export default function SignupPage() {
               <span className="text-rx-secondary">Ambassador Program</span>
             </h1>
             <p className="text-rx-gray-600 text-lg leading-relaxed max-w-md">
-              Help aspiring IT professionals find their path and earn rewards
+              Help aspiring professionals find their path and earn rewards
               for every successful referral. It&apos;s simple — refer, earn,
               repeat.
             </p>
@@ -225,7 +225,7 @@ export default function SignupPage() {
               {
                 step: "2",
                 icon: Gift,
-                title: "Schedule a Session",
+                title: "Join Video Call",
                 desc: "Help connect them with our team for guidance",
                 reward: "Earn $100",
               },

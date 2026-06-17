@@ -108,12 +108,6 @@ export default function LoginPage() {
                 Sign up as Ambassador
               </button>
             </p>
-            <div className="flex items-center justify-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-rx-gray-400" />
-              <span className="text-xs text-rx-gray-400">
-                Admin access is granted manually by the platform administrator
-              </span>
-            </div>
           </div>
         </div>
 
