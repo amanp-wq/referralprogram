@@ -27,15 +27,16 @@ export async function GET(request: NextRequest) {
     const totalConversions = links.reduce((s: number, l: any) => s + l.conversions, 0)
     const pendingEarnings = commissions.filter((c: any) => c.status === 'pending').reduce((s: number, c: any) => s + c.amount, 0)
     const approvedEarnings = commissions.filter((c: any) => c.status === 'approved' || c.status === 'released' || c.status === 'paid').reduce((s: number, c: any) => s + c.amount, 0)
-    // Conversion rate = enrolled / submitted referrals (not clicks)
-    const conversionRate = submittedReferrals.length > 0 ? ((enrolledReferrals.length / submittedReferrals.length) * 100).toFixed(1) : '0'
 
     const now = new Date()
 
     // Period-based chart data
     const period = (request.nextUrl.searchParams.get('period') || '30D') as '7D' | '30D' | '90D'
     const submittedReferrals = referrals.filter((r: any) => r.status !== 'clicked' && r.status !== 'opened')
-    const enrolledReferrals = referrals.filter((r: any) => r.status === 'enrolled' || r.status === 'converted' || r.status === 'completed')
+    const enrolledReferrals = referrals.filter((r: any) => r.status === 'enrolled')
+
+    // Conversion rate = enrolled / submitted referrals (not clicks)
+    const conversionRate = submittedReferrals.length > 0 ? ((enrolledReferrals.length / submittedReferrals.length) * 100).toFixed(1) : '0'
 
     let totalReferralsChart: { label: string; value: number }[] = []
     let enrolledReferralsChart: { label: string; value: number }[] = []
