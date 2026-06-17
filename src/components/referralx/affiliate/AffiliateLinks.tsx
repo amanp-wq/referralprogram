@@ -15,6 +15,12 @@ export function AffiliateLinks() {
 
   const referralCodeDisplay = affiliate?.referralCode || "";
 
+  const nameParts = (user?.name || "").trim().split(/\s+/).filter(Boolean);
+  const firstInitial = nameParts[0]?.[0]?.toUpperCase() || "X";
+  const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1][0].toUpperCase() : "X";
+  const phoneDigits = (user?.phone || "").replace(/\D/g, "");
+  const last4 = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : phoneDigits.padStart(4, "0");
+
   // Social share helpers
   const shareMessage = `Join ElevateMe using my referral link! 🚀`;
   const shareSubject = "Join ElevateMe - Referral Invitation";
@@ -173,9 +179,27 @@ export function AffiliateLinks() {
               <div className="text-3xl font-bold font-mono text-rx-secondary tracking-widest">{referralCodeDisplay}</div>
             </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="bg-white rounded-lg p-4 border border-rx-gray-200">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">First Initial</div>
+              <div className="text-lg font-bold text-rx-gray-800">{firstInitial}</div>
+              <div className="text-xs text-rx-gray-400 mt-1">From &quot;{nameParts[0] || "Unknown"}&quot;</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-rx-gray-200">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">Last Initial</div>
+              <div className="text-lg font-bold text-rx-gray-800">{lastInitial}</div>
+              <div className="text-xs text-rx-gray-400 mt-1">From &quot;{nameParts.length > 1 ? nameParts[nameParts.length - 1] : "N/A"}&quot;</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-rx-gray-200">
+              <div className="text-xs text-rx-gray-500 font-medium mb-1">Phone Last 4</div>
+              <div className="text-lg font-bold text-rx-gray-800">{last4}</div>
+              <div className="text-xs text-rx-gray-400 mt-1">From &quot;{user?.phone || "N/A"}&quot;</div>
+            </div>
+          </div>
           <div className="mt-4 p-3 bg-rx-info-light rounded-lg">
             <p className="text-xs text-rx-info leading-relaxed">
-              This is your unique referral code assigned at registration. Share it or use your referral link above — both track your referrals and earnings.
+              <strong>Format:</strong> First Name initial + Last Name initial + Phone last 4 digits.
+              Example: &quot;JD5554&quot; for John Doe with phone ending in 5554.
             </p>
           </div>
         </div>

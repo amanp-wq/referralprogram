@@ -5,14 +5,15 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import bcrypt from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
 
-function generateReferralCode(name: string): string {
-  // Generate a readable referral code from name + random suffix
-  const base = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .substring(0, 8)
-  const suffix = Math.random().toString(36).substring(2, 6)
-  return `${base}-${suffix}`
+function generateReferralCode(name: string, phone: string, attempt = 0): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const firstInitial = parts[0]?.[0]?.toUpperCase() || 'X'
+  const lastInitial = parts.length > 1 ? parts[parts.length - 1][0].toUpperCase() : 'X'
+  const phoneDigits = phone.replace(/\D/g, '')
+  const last4 = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : phoneDigits.padStart(4, '0')
+  // On collision, append a random 2-char suffix
+  const suffix = attempt > 0 ? Math.random().toString(36).substring(2, 4).toUpperCase() : ''
+  return `${firstInitial}${lastInitial}${last4}${suffix}`
 }
 
 export async function POST(request: NextRequest) {
@@ -90,8 +91,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate unique referral code
-    let referralCode = generateReferralCode(safeName)
+    // Generate unique referral code: FirstInitial + LastInitial + Phone last 4
+    let referralCode = generateReferralCode(safeName, phone || '')
     let codeAttempts = 0
     while (codeAttempts < 5) {
       const { data: existingCode } = await supabase
@@ -101,8 +102,8 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (!existingCode) break
-      referralCode = generateReferralCode(safeName)
       codeAttempts++
+      referralCode = generateReferralCode(safeName, phone || '', codeAttempts)
     }
 
     // Create affiliate profile
