@@ -65,12 +65,6 @@ export async function POST(request: NextRequest) {
     const salt = await bcrypt.genSalt(12)
     const passwordHash = await bcrypt.hash(password, salt)
 
-    // Generate email verification token (24-hour expiry)
-    const emailVerificationToken = uuidv4()
-    const emailVerificationExpiry = new Date(
-      Date.now() + 24 * 60 * 60 * 1000
-    ).toISOString()
-
     // Create user
     const userId = uuidv4()
     const now = new Date().toISOString()
@@ -84,8 +78,6 @@ export async function POST(request: NextRequest) {
       company: safeCompany,
       status: 'active',
       emailVerified: false,
-      emailVerificationToken,
-      emailVerificationExpiry,
       createdAt: now,
       updatedAt: now,
     })
@@ -93,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (userError) {
       console.error('User creation error:', userError)
       return NextResponse.json(
-        { error: `DB_USER_ERROR: ${userError.message} | code: ${userError.code} | details: ${userError.details}` },
+        { error: 'Failed to create account. Please try again.' },
         { status: 500 }
       )
     }
@@ -135,7 +127,7 @@ export async function POST(request: NextRequest) {
       console.error('Affiliate creation error:', affiliateError)
       await supabase.from('User').delete().eq('id', userId)
       return NextResponse.json(
-        { error: `DB_AFFILIATE_ERROR: ${affiliateError.message} | code: ${affiliateError.code} | details: ${affiliateError.details}` },
+        { error: 'Failed to create account. Please try again.' },
         { status: 500 }
       )
     }
@@ -179,7 +171,7 @@ export async function POST(request: NextRequest) {
     // Send welcome email to affiliate + notification to admin
     try {
       const { sendEmail, newAffiliateEmail, newAffiliateAdminEmail } = await import('@/app/api/email/route')
-      await sendEmail(newAffiliateEmail(safeName, email, referralCode, emailVerificationToken))
+      await sendEmail(newAffiliateEmail(safeName, email, referralCode, ''))
       await sendEmail(newAffiliateAdminEmail(safeName, email))
     } catch (emailErr) {
       console.error('[REGISTER] Email sending failed:', emailErr)
