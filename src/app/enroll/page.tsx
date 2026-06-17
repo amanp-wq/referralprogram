@@ -81,10 +81,10 @@ function EnrollForm() {
               </p>
             </div>
             <a
-              href="/"
+              href="/login"
               className="inline-flex items-center gap-2 px-6 py-3 bg-rx-primary text-white rounded-lg font-semibold text-sm hover:bg-rx-primary-dark transition-colors"
             >
-              Go to Homepage <ArrowRight className="w-4 h-4" />
+              Sign In <ArrowRight className="w-4 h-4" />
             </a>
           </div>
         </div>

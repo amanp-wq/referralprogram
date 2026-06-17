@@ -1,229 +1,490 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { AdminDashboard } from "@/components/referralx/admin/AdminDashboard";
-import { AdminAffiliates } from "@/components/referralx/admin/AdminAffiliates";
-import { AdminCommissions } from "@/components/referralx/admin/AdminCommissions";
-import { AdminReferrals } from "@/components/referralx/admin/AdminReferrals";
-import { AdminLinks } from "@/components/referralx/admin/AdminLinks";
-import { AdminReports } from "@/components/referralx/admin/AdminReports";
-import { AdminSettings } from "@/components/referralx/admin/AdminSettings";
-import { AdminActivity } from "@/components/referralx/admin/AdminActivity";
-import { AffiliateDashboard } from "@/components/referralx/affiliate/AffiliateDashboard";
-import { AffiliateLinks } from "@/components/referralx/affiliate/AffiliateLinks";
-import { AffiliateReferrals } from "@/components/referralx/affiliate/AffiliateReferrals";
-import { AffiliateEarnings } from "@/components/referralx/affiliate/AffiliateEarnings";
-import { AffiliateSettings } from "@/components/referralx/affiliate/AffiliateSettings";
-import { AffiliateHelp } from "@/components/referralx/affiliate/AffiliateHelp";
-import { AppShell } from "@/components/referralx/AppShell";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Target, BarChart3, Zap, Shield, ArrowRight, LogIn, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  UserPlus,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  ArrowRight,
+  Shield,
+  Phone,
+  Mail,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  Gift,
+  DollarSign,
+  Users,
+  ChevronRight,
+} from "lucide-react";
 
-type Role = "none" | "admin" | "affiliate";
-type AdminPage = "dashboard" | "affiliates" | "commissions" | "referrals" | "links" | "activity" | "reports" | "settings";
-type AffiliatePage = "dashboard" | "links" | "referrals" | "earnings" | "settings" | "help";
-
-// Login Form Component
-function LoginForm({ onSwitch, onSignup }: { onSwitch: () => void; onSignup: () => void }) {
+export default function SignupPage() {
+  const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [registered, setRegistered] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+
+  const handleChange = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
-    const result = await login(email, password);
-    if (!result.success) {
-      setError(result.error || "Login failed");
+
+    // Validation
+    if (!form.name.trim()) {
+      setError("Full name is required");
+      return;
     }
-    setLoading(false);
+    if (!form.email.trim()) {
+      setError("Email address is required");
+      return;
+    }
+    if (form.password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim().toLowerCase(),
+          phone: form.phone.trim() || undefined,
+          password: form.password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      // Store token and log in the user automatically
+      if (data.token) {
+        localStorage.setItem("elevateme_token", data.token);
+        // Auto-login
+        await login(form.email.trim().toLowerCase(), form.password);
+      }
+
+      setReferralCode(data.affiliate?.referralCode || "");
+      setRegistered(true);
+    } catch (err: any) {
+      setError(err.message || "Failed to create account. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <div className="w-full max-w-md mx-auto">
-      <div className="bg-white rounded-2xl shadow-xl p-8 border border-rx-gray-200">
-        <div className="text-center mb-8">
-          <img src="/logo.svg" alt="ElevateMe" className="h-12 w-auto mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-rx-gray-900 font-heading">Welcome Back</h2>
-          <p className="text-rx-gray-500 mt-1">Sign in to your account</p>
-        </div>
-        {error && (
-          <div className="bg-rx-danger-light text-rx-danger px-4 py-3 rounded-lg text-sm font-medium mb-4">{error}</div>
-        )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-rx-gray-700 mb-1">Email</label>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              className="w-full px-4 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-rx-gray-700 mb-1">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required
-                className="w-full px-4 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all pr-10"
-                placeholder="Enter your password"
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-rx-gray-400 hover:text-rx-gray-600">
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+  // Success state
+  if (registered) {
+    return (
+      <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center px-6 py-10">
+        <div className="w-full max-w-lg">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
+            <div className="w-20 h-20 rounded-full bg-rx-secondary-light flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-10 h-10 text-rx-secondary" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-rx-gray-900 font-heading mb-2">
+              Welcome to ElevateMe!
+            </h2>
+            <p className="text-rx-gray-500 mb-2">
+              Your ambassador account has been created successfully,{" "}
+              <strong className="text-rx-gray-800">{form.name}</strong>!
+            </p>
+            <p className="text-rx-gray-400 text-sm mb-6">
+              Your profile is currently pending approval. You&apos;ll get full
+              access once an admin reviews your application.
+            </p>
+
+            {/* Referral Code */}
+            {referralCode && (
+              <div className="bg-rx-gray-50 rounded-xl p-5 mb-6 border border-rx-gray-200">
+                <p className="text-xs text-rx-gray-500 uppercase font-semibold tracking-wider mb-2">
+                  Your Referral Code
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl font-bold text-rx-primary font-mono tracking-wider">
+                    {referralCode}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(referralCode);
+                    }}
+                    className="text-rx-gray-400 hover:text-rx-primary transition-colors p-1"
+                    title="Copy code"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs text-rx-gray-400 mt-2">
+                  Share this code to start earning rewards
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => router.push("/app")}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-rx-primary text-white rounded-lg font-semibold text-sm hover:bg-rx-primary-dark transition-colors"
+              >
+                Go to Dashboard <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => router.push("/login")}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-rx-gray-100 text-rx-gray-700 rounded-lg font-semibold text-sm hover:bg-rx-gray-200 transition-colors"
+              >
+                Explore Programs
               </button>
             </div>
           </div>
-          <button
-            type="submit" disabled={loading}
-            className="w-full bg-rx-primary text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-rx-primary-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</> : <><LogIn className="w-4 h-4" /> Sign In</>}
-          </button>
-        </form>
-        <div className="mt-5 text-center">
-          <p className="text-sm text-rx-gray-500">Don&apos;t have an account?{" "}
-            <button onClick={onSignup} className="text-rx-secondary font-semibold hover:underline">Sign Up as Ambassador</button>
+
+          <p className="text-center text-rx-gray-400 text-xs mt-6">
+            &copy; 2026 ElevateMe, Inc. All rights reserved.
           </p>
         </div>
-        <div className="mt-4 text-center">
-          <button onClick={onSwitch} className="text-rx-gray-400 text-sm font-medium hover:text-rx-gray-600 hover:underline">← Back to home</button>
-        </div>
-        <div className="mt-4 pt-4 border-t border-rx-gray-100">
-          <p className="text-xs text-rx-gray-400 text-center">Demo: admin@elevateme.pro / admin123</p>
-          <p className="text-xs text-rx-gray-400 text-center">Demo: affiliate@elevateme.pro / affiliate123 (Ambassador)</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function Home() {
-  const router = useRouter();
-  const { user, affiliate, isLoading, logout, token } = useAuth();
-  const [showLogin, setShowLogin] = useState(false);
-  const [adminPage, setAdminPage] = useState<AdminPage>("dashboard");
-  const [affiliatePage, setAffiliatePage] = useState<AffiliatePage>("dashboard");
-  const [referralCount, setReferralCount] = useState<number>(0);
-
-  // Fetch referral count for sidebar badge
-  useEffect(() => {
-    if (!token || !user) return;
-    const fetchCount = async () => {
-      try {
-        const endpoint = user.role === "admin" ? "/api/admin/referrals" : "/api/affiliate/referrals";
-        const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
-          setReferralCount(data.total || 0);
-        }
-      } catch {}
-    };
-    fetchCount();
-  }, [token, user]);
-
-  // If logged in as admin
-  if (user && user.role === "admin") {
-    const renderPage = () => {
-      switch (adminPage) {
-        case "dashboard": return <AdminDashboard onNavigate={(p) => setAdminPage(p as AdminPage)} />;
-        case "affiliates": return <AdminAffiliates />;
-        case "commissions": return <AdminCommissions />;
-        case "referrals": return <AdminReferrals />;
-        case "links": return <AdminLinks />;
-        case "activity": return <AdminActivity />;
-        case "reports": return <AdminReports />;
-        case "settings": return <AdminSettings />;
-      }
-    };
-    const pageTitles: Record<AdminPage, string> = { dashboard:"Dashboard", affiliates:"Ambassadors", commissions:"Commissions", referrals:"Referrals", links:"Tracking Links", activity:"Activity Log", reports:"Reports", settings:"Settings" };
-    return <AppShell role="admin" activePage={adminPage} onPageChange={(p) => setAdminPage(p as AdminPage)} pageTitle={pageTitles[adminPage]} onLogout={logout} userName={user.name} referralCount={referralCount}>{renderPage()}</AppShell>;
-  }
-
-  // If logged in as affiliate
-  if (user && user.role === "affiliate") {
-    const renderPage = () => {
-      switch (affiliatePage) {
-        case "dashboard": return <AffiliateDashboard onNavigate={(p) => setAffiliatePage(p as AffiliatePage)} />;
-        case "links": return <AffiliateLinks />;
-        case "referrals": return <AffiliateReferrals />;
-        case "earnings": return <AffiliateEarnings />;
-        case "settings": return <AffiliateSettings />;
-        case "help": return <AffiliateHelp />;
-      }
-    };
-    const pageTitles: Record<AffiliatePage, string> = { dashboard:"Dashboard", links:"My Link", referrals:"Referrals", earnings:"Earnings", settings:"Settings", help:"Help Center" };
-    return <AppShell role="affiliate" activePage={affiliatePage} onPageChange={(p) => setAffiliatePage(p as AffiliatePage)} pageTitle={pageTitles[affiliatePage]} onLogout={logout} userName={user.name} referralCount={referralCount}>{renderPage()}</AppShell>;
-  }
-
-  // Loading state — proper SSR-safe skeleton (no blank flash)
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 text-rx-primary animate-spin mx-auto mb-4" aria-hidden="true" />
-          <p className="text-rx-gray-500 sr-only">Loading ElevateMe Referral…</p>
-          <p className="text-rx-gray-500" aria-hidden="true">Loading…</p>
-        </div>
       </div>
     );
   }
 
-  // Login form
-  if (showLogin) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-6">
-        <LoginForm onSwitch={() => setShowLogin(false)} onSignup={() => router.push("/signup")} />
-      </div>
-    );
-  }
-
-  // Landing page
   return (
-    <div className="min-h-screen bg-rx-gray-50">
-      <div className="relative overflow-hidden bg-white">
-        <div className="absolute inset-0 opacity-30"><div className="absolute top-20 left-20 w-72 h-72 bg-rx-secondary/10 rounded-full blur-3xl"/><div className="absolute bottom-20 right-20 w-96 h-96 bg-rx-primary/10 rounded-full blur-3xl"/><div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-rx-secondary/5 rounded-full blur-3xl"/></div>
-        {/* Navigation Header with Logo */}
-        <nav className="relative max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="ElevateMe" className="h-10 w-auto" />
+    <div className="min-h-screen bg-rx-gray-50 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-5xl flex flex-col lg:flex-row gap-8 items-center">
+        {/* Left side - Marketing / Info */}
+        <div className="flex-1 text-rx-gray-900 hidden lg:block">
+          <div className="mb-8">
+            <img
+              src="/logo.svg"
+              alt="ElevateMe"
+              className="h-12 w-auto mb-6"
+            />
+            <h1 className="text-4xl font-bold font-heading mb-4 leading-tight">
+              Join the ElevateMe
+              <br />
+              <span className="text-rx-secondary">Ambassador Program</span>
+            </h1>
+            <p className="text-rx-gray-600 text-lg leading-relaxed max-w-md">
+              Help aspiring IT professionals find their path and earn rewards
+              for every successful referral. It&apos;s simple — refer, earn,
+              repeat.
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setShowLogin(true)} className="text-rx-gray-600 hover:text-rx-primary text-sm font-medium transition-colors">Sign In</button>
-            <button onClick={() => router.push("/signup")} className="bg-rx-secondary/10 text-rx-secondary border border-rx-secondary/20 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-rx-secondary/20 transition-colors flex items-center gap-1.5"><UserPlus className="w-4 h-4"/>Sign Up</button>
-            <button onClick={() => setShowLogin(true)} className="bg-rx-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-rx-primary-dark transition-colors">Get Started</button>
-          </div>
-        </nav>
-        <div className="relative max-w-7xl mx-auto px-6 py-20">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-rx-secondary-light rounded-full px-4 py-2 mb-6"><Zap className="w-4 h-4 text-rx-secondary"/><span className="text-rx-secondary text-sm font-medium">Referral Program Platform</span></div>
-            <h1 className="text-5xl md:text-6xl font-bold text-rx-gray-900 mb-6 tracking-tight font-heading">Elevate<span className="text-rx-secondary">Me</span></h1>
-            <p className="text-xl text-rx-gray-600 max-w-2xl mx-auto mb-10">The complete referral program management platform. Track ambassadors, manage commissions, and grow your business through the power of referrals.</p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <button onClick={() => { setShowLogin(true); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-rx-gray-200 hover:border-rx-primary/30">
-              <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-primary-light flex items-center justify-center"><Shield className="w-7 h-7 text-rx-primary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900 font-heading">Admin Portal</h3><p className="text-rx-gray-500 text-sm">Program Manager</p></div></div>
-              <p className="text-rx-gray-600 mb-6 leading-relaxed">Manage your referral programs, oversee ambassadors, track commissions, and analyze performance reports.</p>
-              <div className="flex flex-wrap gap-2 mb-6">{["Dashboard","Ambassadors","Commissions","Reports"].map(f=><span key={f} className="text-xs bg-rx-gray-100 text-rx-gray-600 px-3 py-1 rounded-full font-medium">{f}</span>)}</div>
-              <div className="flex items-center gap-2 text-rx-primary font-semibold group-hover:gap-3 transition-all">Enter Admin Portal <ArrowRight className="w-4 h-4"/></div>
-            </button>
-            <button onClick={() => { router.push("/signup"); }} className="group bg-white rounded-2xl p-8 text-left shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-rx-gray-200 hover:border-rx-secondary/30">
-              <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 rounded-xl bg-rx-secondary-light flex items-center justify-center"><Users className="w-7 h-7 text-rx-secondary"/></div><div><h3 className="text-2xl font-bold text-rx-gray-900 font-heading">Ambassador Portal</h3><p className="text-rx-gray-500 text-sm">Become an Ambassador</p></div></div>
-              <p className="text-rx-gray-600 mb-6 leading-relaxed">Join our referral program, get your unique tracking link, and start earning rewards for every successful referral.</p>
-              <div className="flex flex-wrap gap-2 mb-6">{["Dashboard","My Links","Referrals","Earnings"].map(f=><span key={f} className="text-xs bg-rx-gray-100 text-rx-gray-600 px-3 py-1 rounded-full font-medium">{f}</span>)}</div>
-              <div className="flex items-center gap-2 text-rx-secondary font-semibold group-hover:gap-3 transition-all">Sign Up as Ambassador <ArrowRight className="w-4 h-4"/></div>
-            </button>
+
+          {/* How it works */}
+          <div className="space-y-5">
+            <h3 className="text-sm font-semibold text-rx-gray-400 uppercase tracking-wider">
+              How It Works
+            </h3>
+            {[
+              {
+                step: "1",
+                icon: Users,
+                title: "Refer a Student",
+                desc: "Share their details with the ElevateMe team",
+                reward: "Earn $50",
+              },
+              {
+                step: "2",
+                icon: Gift,
+                title: "Schedule a Session",
+                desc: "Help connect them with our team for guidance",
+                reward: "Earn $100",
+              },
+              {
+                step: "3",
+                icon: DollarSign,
+                title: "Track & Earn",
+                desc: "Monitor referrals and get paid for successes",
+                reward: "Unlimited",
+              },
+            ].map((item) => (
+              <div
+                key={item.step}
+                className="flex items-start gap-4 bg-white rounded-xl p-4 border border-rx-gray-200"
+              >
+                <div className="w-10 h-10 rounded-lg bg-rx-gray-100 flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-5 h-5 text-rx-gray-700" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h4 className="font-semibold text-rx-gray-900 text-sm">
+                      {item.title}
+                    </h4>
+                    <span className="text-xs bg-rx-secondary/20 text-rx-secondary px-2 py-0.5 rounded-full font-medium">
+                      {item.reward}
+                    </span>
+                  </div>
+                  <p className="text-rx-gray-500 text-xs">{item.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Right side - Signup Form */}
+        <div className="w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-6">
+            <img
+              src="/logo.svg"
+              alt="ElevateMe"
+              className="h-10 w-auto mx-auto mb-3"
+            />
+            <h1 className="text-2xl font-bold text-rx-gray-900 font-heading">
+              Become an Ambassador
+            </h1>
+            <p className="text-rx-gray-500 text-sm mt-1">
+              Sign up to start earning with referrals
+            </p>
+          </div>
+
+          {/* Form Card */}
+          <div className="bg-white rounded-2xl shadow-2xl p-7">
+            {/* Desktop Header */}
+            <div className="hidden lg:block mb-6 pb-5 border-b border-rx-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-rx-secondary-light flex items-center justify-center">
+                  <UserPlus className="w-5 h-5 text-rx-secondary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-rx-gray-900">
+                    Create Your Account
+                  </h3>
+                  <p className="text-xs text-rx-gray-500">
+                    Join as an ElevateMe Ambassador
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-rx-danger-light text-rx-danger px-4 py-3 rounded-lg text-sm font-medium mb-4 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                  Full Name <span className="text-rx-danger">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rx-gray-400" />
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="Enter your full name"
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                  Email Address <span className="text-rx-danger">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rx-gray-400" />
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="you@example.com"
+                  />
+                </div>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rx-gray-400" />
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => handleChange("phone", e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                  Password <span className="text-rx-danger">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rx-gray-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={form.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    required
+                    className="w-full pl-10 pr-10 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="Min. 8 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-rx-gray-400 hover:text-rx-gray-600"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                  Confirm Password <span className="text-rx-danger">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rx-gray-400" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={form.confirmPassword}
+                    onChange={(e) =>
+                      handleChange("confirmPassword", e.target.value)
+                    }
+                    required
+                    className="w-full pl-10 pr-10 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="Re-enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-rx-gray-400 hover:text-rx-gray-600"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Terms */}
+              <p className="text-xs text-rx-gray-400 leading-relaxed">
+                By signing up, you agree to ElevateMe&apos;s{" "}
+                <a
+                  href="https://elevateme.pro/terms-of-use/"
+                  target="_blank"
+                  className="text-rx-primary hover:underline"
+                >
+                  Terms of Use
+                </a>{" "}
+                and{" "}
+                <a
+                  href="https://elevateme.pro/privacy-policy/"
+                  target="_blank"
+                  className="text-rx-primary hover:underline"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </p>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-rx-secondary text-white py-3 rounded-lg font-semibold text-sm hover:bg-[#5a8566] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Creating
+                    Account...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" /> Create Ambassador Account
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Already have account */}
+            <div className="mt-5 pt-4 border-t border-rx-gray-100 text-center">
+              <p className="text-sm text-rx-gray-500">
+                Already have an account?{" "}
+                <button
+                  onClick={() => router.push("/login")}
+                  className="text-rx-primary font-semibold hover:underline"
+                >
+                  Sign In
+                </button>
+              </p>
+            </div>
+
+            {/* Trust badge */}
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Shield className="w-3.5 h-3.5 text-rx-gray-400" />
+              <span className="text-xs text-rx-gray-400">
+                Your information is secure and encrypted
+              </span>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <p className="text-center text-rx-gray-400 text-xs mt-6">
+            &copy; 2026 ElevateMe, Inc. All rights reserved.
+          </p>
+        </div>
       </div>
-      <div className="max-w-7xl mx-auto px-6 py-20">
-        <div className="text-center mb-16"><h2 className="text-3xl font-bold text-rx-gray-900 mb-4 font-heading">Everything You Need</h2><p className="text-rx-gray-500 text-lg max-w-2xl mx-auto">A complete platform to launch, manage, and scale your referral programs</p></div>
-        <div className="grid md:grid-cols-3 gap-8">{[{icon:Target,title:"Smart Tracking",desc:"Real-time tracking of referrals, clicks, and conversions with detailed analytics.",color:"bg-rx-primary-light text-rx-primary"},{icon:BarChart3,title:"Powerful Analytics",desc:"Comprehensive reports and insights to optimize your referral program performance.",color:"bg-rx-secondary-light text-rx-secondary"},{icon:Zap,title:"Instant Commissions",desc:"Automated commission calculations and flexible payout options for your ambassadors.",color:"bg-rx-warning-light text-rx-warning"}].map((feature,i)=><div key={i} className="bg-white rounded-xl p-8 border border-rx-gray-200 hover:shadow-lg transition-shadow"><div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-4`}><feature.icon className="w-6 h-6"/></div><h3 className="text-lg font-semibold text-rx-gray-900 mb-2 font-card-header">{feature.title}</h3><p className="text-rx-gray-500 leading-relaxed">{feature.desc}</p></div>)}</div>
-      </div>
-      <footer className="bg-white border-t border-rx-gray-200 py-8"><div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4"><div className="flex items-center gap-3"><img src="/logo.svg" alt="ElevateMe" className="h-8 w-auto" /></div><p className="text-rx-gray-500 text-sm">&copy; 2026 ElevateMe. All rights reserved.</p></div></footer>
     </div>
   );
 }
