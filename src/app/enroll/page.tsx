@@ -67,13 +67,13 @@ function EnrollForm() {
               <CheckCircle className="w-8 h-8 text-rx-secondary" />
             </div>
             <h2 className="text-2xl font-bold text-rx-gray-900 font-heading mb-2">
-              You&apos;re Enrolled!
+              Thank You!
             </h2>
             <p className="text-rx-gray-500 mb-2">
-              Thank you, <strong className="text-rx-gray-800">{form.name}</strong>! Your referral has been successfully submitted.
+              Thank you for filling your details, <strong className="text-rx-gray-800">{form.name}</strong>!
             </p>
             <p className="text-rx-gray-400 text-sm mb-6">
-              Our team will reach out to you soon at <strong>{form.email}</strong>.
+              Someone from the ElevateMe Team will reach out to you at <strong>{form.phone || form.email}</strong>.
             </p>
             <div className="bg-rx-gray-50 rounded-xl p-4 mb-6">
               <p className="text-xs text-rx-gray-500">
