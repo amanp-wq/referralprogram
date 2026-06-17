@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     if (userError) {
       console.error('User creation error:', userError)
       return NextResponse.json(
-        { error: 'Failed to create account. Please try again.' },
+        { error: `DB_USER_ERROR: ${userError.message} | code: ${userError.code} | details: ${userError.details}` },
         { status: 500 }
       )
     }
@@ -133,10 +133,9 @@ export async function POST(request: NextRequest) {
 
     if (affiliateError) {
       console.error('Affiliate creation error:', affiliateError)
-      // Roll back user creation
       await supabase.from('User').delete().eq('id', userId)
       return NextResponse.json(
-        { error: 'Failed to create affiliate profile. Please try again.' },
+        { error: `DB_AFFILIATE_ERROR: ${affiliateError.message} | code: ${affiliateError.code} | details: ${affiliateError.details}` },
         { status: 500 }
       )
     }
