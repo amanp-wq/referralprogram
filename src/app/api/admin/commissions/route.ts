@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error }, { status: 401 })
 
     const body = await request.json()
-    const { affiliateId, referralId, amount, rate, type, description, status } = body
+    const { affiliateId, programId: bodyProgramId, referralId, amount, rate, type, description, status } = body
 
     if (!affiliateId) {
       return NextResponse.json({ error: 'affiliateId is required' }, { status: 400 })
@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Affiliate not found' }, { status: 404 })
     }
 
-    // Get programId from referral if provided, otherwise from affiliate
-    let programId: string | null = null
-    if (referralId) {
+    // Resolve programId: body > referral > default active program
+    let programId: string | null = bodyProgramId || null
+    if (!programId && referralId) {
       const { data: referral } = await supabase
         .from('Referral')
         .select('programId')
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!programId) {
-      return NextResponse.json({ error: 'No program found for commission. Please ensure a program exists.' }, { status: 400 })
+      return NextResponse.json({ error: 'No active program found. Please create a program before adding commissions.' }, { status: 400 })
     }
 
     const commissionId = uuidv4()

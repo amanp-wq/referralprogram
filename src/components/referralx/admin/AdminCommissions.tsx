@@ -75,7 +75,8 @@ export function AdminCommissions() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [affiliates, setAffiliates] = useState<AffiliateOption[]>([]);
   const [affiliatesLoading, setAffiliatesLoading] = useState(false);
-  const [addForm, setAddForm] = useState({ affiliateId: "", amount: "", description: "", referralId: "" });
+  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [addForm, setAddForm] = useState({ affiliateId: "", programId: "", amount: "", description: "", referralId: "" });
   const [submitting, setSubmitting] = useState(false);
 
   // Edit Commission modal state
@@ -111,12 +112,22 @@ export function AdminCommissions() {
   const fetchAffiliates = useCallback(async () => {
     setAffiliatesLoading(true);
     try {
-      const res = await fetch("/api/admin/affiliates?limit=100", {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("Failed to load affiliates");
-      const json = await res.json();
-      setAffiliates(json.affiliates || []);
+      const [affiliatesRes, programsRes] = await Promise.all([
+        fetch("/api/admin/affiliates?limit=100", { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }),
+        fetch("/api/admin/programs?isActive=true", { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }),
+      ]);
+      if (!affiliatesRes.ok) throw new Error("Failed to load affiliates");
+      const affiliatesJson = await affiliatesRes.json();
+      setAffiliates(affiliatesJson.affiliates || []);
+      if (programsRes.ok) {
+        const programsJson = await programsRes.json();
+        const programList = programsJson.programs || [];
+        setPrograms(programList);
+        // Auto-select first program if only one exists
+        if (programList.length === 1) {
+          setAddForm(prev => ({ ...prev, programId: programList[0].id }));
+        }
+      }
     } catch {
       toast({ title: "Error", description: "Failed to load ambassadors", variant: "destructive" });
     } finally {
@@ -125,7 +136,7 @@ export function AdminCommissions() {
   }, [token]);
 
   const handleOpenAddModal = () => {
-    setAddForm({ affiliateId: "", amount: "", description: "", referralId: "" });
+    setAddForm({ affiliateId: "", programId: "", amount: "", description: "", referralId: "" });
     setShowAddModal(true);
     fetchAffiliates();
   };
@@ -133,6 +144,10 @@ export function AdminCommissions() {
   const handleSubmitCommission = async () => {
     if (!addForm.affiliateId) {
       toast({ title: "Validation Error", description: "Please select an ambassador", variant: "destructive" });
+      return;
+    }
+    if (!addForm.programId) {
+      toast({ title: "Validation Error", description: "Please select a program", variant: "destructive" });
       return;
     }
     if (!addForm.amount || parseFloat(addForm.amount) <= 0) {
@@ -146,6 +161,7 @@ export function AdminCommissions() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           affiliateId: addForm.affiliateId,
+          programId: addForm.programId,
           amount: parseFloat(addForm.amount),
           description: addForm.description || undefined,
           referralId: addForm.referralId || undefined,
@@ -414,7 +430,7 @@ export function AdminCommissions() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1.5 lg:w-56 shrink-0">
+                    <div className="flex flex-wrap items-center gap-1.5 lg:w-64 lg:justify-end shrink-0">
                       <button
                         onClick={() => handleOpenEditModal(c)}
                         className="text-xs px-2.5 py-1.5 bg-rx-gray-100 text-rx-gray-700 rounded-lg hover:bg-rx-gray-200 font-medium flex items-center gap-1 transition-colors"
@@ -546,6 +562,25 @@ export function AdminCommissions() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Program Select */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Program <span className="text-rx-danger">*</span></label>
+                <select
+                  value={addForm.programId}
+                  onChange={(e) => setAddForm({ ...addForm, programId: e.target.value })}
+                  disabled={affiliatesLoading}
+                  className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light disabled:opacity-50"
+                >
+                  <option value="">{affiliatesLoading ? "Loading..." : "Select a program"}</option>
+                  {programs.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                {programs.length === 0 && !affiliatesLoading && (
+                  <p className="mt-1 text-xs text-rx-danger">No active programs found. Create a program first.</p>
+                )}
               </div>
 
               {/* Amount */}

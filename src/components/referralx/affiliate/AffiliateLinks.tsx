@@ -3,7 +3,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { CopyButton } from "../shared";
 import {
-  Link2, ExternalLink, Share2, MessageCircle, Info,
+  Link2, ExternalLink, Share2, MessageCircle, Info, Instagram,
 } from "lucide-react";
 
 export function AffiliateLinks() {
@@ -31,8 +31,16 @@ export function AffiliateLinks() {
   const shareOnFacebook = () => {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`, "_blank");
   };
-  const shareOnTwitter = () => {
-    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareMessage)}`, "_blank");
+  const shareOnInstagram = async () => {
+    // Instagram has no web share-intent URL, so copy the link and open Instagram
+    // for the affiliate to paste into their bio / story / DM.
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      alert("Referral link copied! Paste it into your Instagram bio, story, or DM.");
+    } catch {
+      // Clipboard may be blocked — still open Instagram
+    }
+    window.open("https://www.instagram.com/", "_blank");
   };
   const shareOnLinkedIn = () => {
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`, "_blank");
@@ -123,15 +131,15 @@ export function AffiliateLinks() {
             </div>
           </button>
           <button
-            onClick={shareOnTwitter}
-            className="flex items-center gap-3 px-5 py-4 bg-[#1DA1F2]/10 border border-[#1DA1F2]/20 rounded-xl hover:bg-[#1DA1F2]/20 transition-colors group"
+            onClick={shareOnInstagram}
+            className="flex items-center gap-3 px-5 py-4 bg-[#E1306C]/10 border border-[#E1306C]/20 rounded-xl hover:bg-[#E1306C]/20 transition-colors group"
           >
-            <div className="w-10 h-10 rounded-lg bg-[#1DA1F2] flex items-center justify-center flex-shrink-0">
-              <Share2 className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-tr from-[#FEDA75] via-[#E1306C] to-[#833AB4] flex items-center justify-center flex-shrink-0">
+              <Instagram className="w-5 h-5 text-white" />
             </div>
             <div className="text-left">
-              <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-[#1DA1F2] transition-colors">Twitter/X</div>
-              <div className="text-xs text-rx-gray-500">Tweet your link</div>
+              <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-[#E1306C] transition-colors">Instagram</div>
+              <div className="text-xs text-rx-gray-500">Copy &amp; share</div>
             </div>
           </button>
           <button

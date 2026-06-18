@@ -130,6 +130,14 @@ export async function PATCH(
     const previousStatus = (referral as any).status
     const statusChanged = previousStatus !== status
 
+    // Block enrolling a referral that was never submitted — visitor details would be unknown
+    if (status === 'enrolled' && previousStatus === 'opened') {
+      return NextResponse.json(
+        { error: 'Cannot enroll a referral that has not been submitted. Update visitor details and set status to "submitted" first.' },
+        { status: 400 }
+      )
+    }
+
     const updateData: Record<string, any> = {
       status,
       updatedAt: new Date().toISOString(),
