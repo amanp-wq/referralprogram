@@ -434,7 +434,7 @@ export function AdminCommissions() {
                       {c.status === "pending" && (
                         <>
                           <button onClick={() => handleStatusChange(c.id, "approved")} className="text-xs px-2.5 py-1.5 bg-rx-secondary-light text-rx-secondary rounded-lg hover:bg-rx-secondary/20 font-medium transition-colors">Approve</button>
-                          <button onClick={() => handleStatusChange(c.id, "failed")} className="text-xs px-2.5 py-1.5 bg-rx-danger-light text-rx-danger rounded-lg hover:bg-rx-danger/20 font-medium transition-colors">Reject</button>
+                          <button onClick={() => handleStatusChange(c.id, "cancelled")} className="text-xs px-2.5 py-1.5 bg-rx-danger-light text-rx-danger rounded-lg hover:bg-rx-danger/20 font-medium transition-colors">Reject</button>
                         </>
                       )}
                       {c.status === "approved" && (

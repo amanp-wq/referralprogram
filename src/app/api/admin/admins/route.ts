@@ -110,6 +110,8 @@ export async function POST(request: NextRequest) {
       phone: safePhone,
       status: 'active',
       emailVerified: true, // admins are pre-verified since they're created by another admin
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     })
 
     if (insertError) {

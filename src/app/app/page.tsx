@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AdminDashboard } from "@/components/referralx/admin/AdminDashboard";
 import { AdminAffiliates } from "@/components/referralx/admin/AdminAffiliates";
 import { AdminCommissions } from "@/components/referralx/admin/AdminCommissions";
@@ -41,6 +41,7 @@ type AffiliatePage =
 
 export default function AppPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading, logout, token } = useAuth();
   const [adminPage, setAdminPage] = useState<AdminPage>("dashboard");
   const [affiliatePage, setAffiliatePage] = useState<AffiliatePage>("dashboard");
@@ -52,6 +53,20 @@ export default function AppPage() {
       router.replace("/login");
     }
   }, [isLoading, user, router]);
+
+  // Read tab from URL query param on mount so refresh stays on current tab
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (!tab || !user) return;
+    if (user.role === "admin") {
+      const validAdminPages: AdminPage[] = ["dashboard", "affiliates", "commissions", "referrals", "links", "activity", "admins", "reports", "settings"];
+      if (validAdminPages.includes(tab as AdminPage)) setAdminPage(tab as AdminPage);
+    } else {
+      const validAffiliatePages: AffiliatePage[] = ["dashboard", "links", "referrals", "earnings", "settings", "help"];
+      if (validAffiliatePages.includes(tab as AffiliatePage)) setAffiliatePage(tab as AffiliatePage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Fetch referral count for sidebar badge
   useEffect(() => {
@@ -67,7 +82,7 @@ export default function AppPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          setReferralCount(data.total || 0);
+          setReferralCount(data.referrals?.length ?? 0);
         }
       } catch {
         // ignore — sidebar badge is non-critical
@@ -137,7 +152,7 @@ export default function AppPage() {
       <AppShell
         role="admin"
         activePage={adminPage}
-        onPageChange={(p) => setAdminPage(p as AdminPage)}
+        onPageChange={(p) => { setAdminPage(p as AdminPage); router.replace(`/app?tab=${p}`); }}
         pageTitle={pageTitles[adminPage]}
         onLogout={logout}
         userName={user.name}
@@ -181,7 +196,7 @@ export default function AppPage() {
     <AppShell
       role="affiliate"
       activePage={affiliatePage}
-      onPageChange={(p) => setAffiliatePage(p as AffiliatePage)}
+      onPageChange={(p) => { setAffiliatePage(p as AffiliatePage); router.replace(`/app?tab=${p}`); }}
       pageTitle={pageTitles[affiliatePage]}
       onLogout={logout}
       userName={user.name}

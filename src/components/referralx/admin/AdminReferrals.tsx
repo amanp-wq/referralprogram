@@ -57,10 +57,10 @@ function parseCSV(text: string): string[][] {
 }
 
 function getReferralStatus(r: Referral): { status: string; label: string } {
-  if (r.status === "clicked" || r.status === "opened") {
+  if (r.status === "opened") {
     return { status: "opened", label: "Opened" };
   }
-  if (r.status === "enrolled" || r.status === "converted" || r.status === "completed") {
+  if (r.status === "enrolled") {
     return { status: "enrolled", label: "Enrolled" };
   }
   if (r.status === "submitted") {
@@ -128,7 +128,7 @@ export function AdminReferrals() {
     try {
       const params = new URLSearchParams();
       if (statusFilter) {
-        params.set("status", statusFilter === "opened" ? "clicked,opened" : statusFilter);
+        params.set("status", statusFilter);
       }
       const res = await fetch(`/api/admin/referrals?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -239,12 +239,12 @@ export function AdminReferrals() {
   const referrals = data?.referrals || [];
   const total = data?.total || 0;
 
-  const realReferrals = referrals.filter(r => r.status !== "clicked" && r.status !== "opened");
+  const realReferrals = referrals.filter(r => r.status !== "opened");
   const submittedCount = realReferrals.filter(r => getReferralStatus(r).status === "submitted").length;
   const enrolledCount = realReferrals.filter(r => getReferralStatus(r).status === "enrolled").length;
   const pendingCount = realReferrals.filter(r => getReferralStatus(r).status === "pending").length;
   const notEnrolledCount = realReferrals.filter(r => getReferralStatus(r).status === "not_enrolled").length;
-  const openedCount = referrals.filter(r => r.status === "clicked" || r.status === "opened").length;
+  const openedCount = referrals.filter(r => r.status === "opened").length;
 
   const filteredReferrals = statusFilter === ""
     ? referrals

@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const totalApproved = approvedCommissions.reduce((s: number, c: any) => s + c.amount, 0)
     const totalPayouts = payouts.filter((p: any) => p.status === 'completed').reduce((s: number, p: any) => s + p.amount, 0)
     const newReferrals = referrals.length
-    const conversions = referrals.filter((r: any) => r.status === 'converted').length
+    const conversions = referrals.filter((r: any) => r.status === 'enrolled').length
 
     // Tier breakdown
     const byTier = affiliates.reduce((acc: any, a: any) => {

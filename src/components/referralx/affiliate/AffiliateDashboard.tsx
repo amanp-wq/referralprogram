@@ -110,14 +110,15 @@ function getDaysSince(dateStr: string): number {
 }
 
 function getReferralStatus(ref: RecentReferral): string {
-  if (ref.status === "completed" || ref.status === "converted" || ref.status === "enrolled") return "enrolled";
+  if (ref.status === "enrolled") return "enrolled";
   if (ref.status === "submitted") return "submitted";
-  if (ref.status === "opened" || ref.status === "clicked") return "opened";
+  if (ref.status === "opened") return "opened";
   const daysSince = getDaysSince(ref.createdAt);
   if (ref.status === "pending") {
     if (daysSince > 30) return "not enrolled";
     return "pending";
   }
+  if (ref.status === "not_enrolled" || ref.status === "cancelled") return "not enrolled";
   return ref.status;
 }
 
@@ -254,7 +255,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
           <div className="flex gap-3">
             <CopyButton text={referralLink} label={<><Copy className="w-4 h-4" /> Copy Link</>} />
             <button
-              onClick={() => window.location.href = "/dashboard?tab=earnings"}
+              onClick={() => onNavigate?.("earnings")}
               className="px-4 py-2.5 border border-white/40 rounded-lg text-sm font-semibold hover:bg-white/10 flex items-center gap-2"
             >
               <BarChart3 className="w-4 h-4" /> View Report

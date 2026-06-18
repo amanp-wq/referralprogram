@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
     if (status) {
       query = query.eq('status', status)
     } else {
-      // Default: exclude pure "clicked" status — only show submitted/pending/enrolled/converted/cancelled
-      query = query.neq('status', 'clicked')
+      // Default: exclude pure "opened" status — only show submitted/pending/enrolled/cancelled
+      query = query.neq('status', 'opened')
     }
 
     const { data: referrals, error: dbError, count } = await query

@@ -125,17 +125,22 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingReferral && (existingReferral.status === 'submitted' || existingReferral.status === 'enrolled')) {
-      return NextResponse.json({
-        success: true,
-        message: 'You have already submitted your details with this email.',
-        alreadyExists: true,
-      })
+      return applyCors(
+        NextResponse.json({
+          success: true,
+          message: 'You have already submitted your details with this email.',
+          alreadyExists: true,
+        }),
+        origin,
+        requestOrigin
+      )
     }
 
-    // Find a matching "opened" referral from the same code to update
+    // Find a matching "opened" referral from the same affiliate and code to update
     const { data: clickedReferral } = await supabase
       .from('Referral')
       .select('*')
+      .eq('affiliateId', affiliate.id)
       .eq('referralCode', referralCode)
       .in('status', ['opened'])
       .order('createdAt', { ascending: false })

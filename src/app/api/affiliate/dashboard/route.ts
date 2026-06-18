@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Period-based chart data
     const period = (request.nextUrl.searchParams.get('period') || '30D') as '7D' | '30D' | '90D'
-    const submittedReferrals = referrals.filter((r: any) => r.status !== 'clicked' && r.status !== 'opened')
+    const submittedReferrals = referrals.filter((r: any) => r.status !== 'opened')
     const enrolledReferrals = referrals.filter((r: any) => r.status === 'enrolled')
 
     // Conversion rate = enrolled / submitted referrals (not clicks)

@@ -44,12 +44,17 @@ export async function PUT(
 
     const supabase = getServerClient()
 
+    const validPutStatuses = ['submitted', 'pending', 'enrolled', 'not_enrolled', 'cancelled']
+    if (status && !validPutStatuses.includes(status)) {
+      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })
+    }
+
     const updateData: Record<string, any> = { updatedAt: new Date().toISOString() }
     if (visitorName !== undefined) updateData.visitorName = visitorName
     if (visitorEmail !== undefined) updateData.visitorEmail = visitorEmail
     if (visitorPhone !== undefined) updateData.visitorPhone = visitorPhone
     if (status !== undefined) updateData.status = status
-    if (status === 'enrolled' || status === 'converted') {
+    if (status === 'enrolled') {
       updateData.convertedAt = new Date().toISOString()
     }
 

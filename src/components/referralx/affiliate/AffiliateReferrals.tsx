@@ -36,16 +36,15 @@ function getDaysSince(dateStr: string): number {
 }
 
 function getReferralStatus(ref: Referral): string {
-  if (ref.status === "completed" || ref.status === "converted" || ref.status === "enrolled") return "enrolled";
+  if (ref.status === "enrolled") return "enrolled";
   if (ref.status === "submitted") return "submitted";
-  // "clicked" / "opened" = link was clicked but form not yet submitted = "opened"
-  if (ref.status === "clicked" || ref.status === "opened") return "opened";
+  if (ref.status === "opened") return "opened";
   const daysSince = getDaysSince(ref.createdAt);
   if (ref.status === "pending") {
     if (daysSince > 30) return "not enrolled";
     return "pending";
   }
-  if (ref.status === "inactive" || ref.status === "cancelled" || ref.status === "failed" || ref.status === "not_enrolled") {
+  if (ref.status === "cancelled" || ref.status === "not_enrolled") {
     return "not enrolled";
   }
   // Default: time-based

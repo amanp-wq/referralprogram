@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const totalRevenue = commissions.reduce((sum: number, c: any) => sum + (c.status === 'approved' || c.status === 'paid' ? c.amount : 0), 0)
     const activeAffiliates = affiliates.filter((a: any) => a.status === 'active').length
     const inactiveAffiliates = affiliates.filter((a: any) => a.status === 'inactive' || a.status === 'suspended').length
-    const submittedReferrals = referrals.filter((r: any) => r.status !== 'clicked' && r.status !== 'opened')
+    const submittedReferrals = referrals.filter((r: any) => r.status !== 'opened')
     const totalReferrals = submittedReferrals.length
     const conversions = submittedReferrals.filter((r: any) => r.status === 'enrolled').length
     const conversionRate = totalReferrals > 0 ? ((conversions / totalReferrals) * 100).toFixed(1) : '0'

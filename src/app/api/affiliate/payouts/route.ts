@@ -80,22 +80,6 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     }).eq('id', affiliate.id)
 
-    // Link approved commissions to this payout if paying full balance
-    if (payoutAmount === affiliate.balance) {
-      const { data: pendingComms } = await supabase
-        .from('Commission')
-        .select('id')
-        .eq('affiliateId', affiliate.id)
-        .eq('status', 'approved')
-
-      if (pendingComms && pendingComms.length > 0) {
-        await supabase
-          .from('Commission')
-          .update({ payoutId, status: 'paid', updatedAt: new Date().toISOString() })
-          .in('id', pendingComms.map((c: any) => c.id))
-      }
-    }
-
     // Log activity
     await supabase.from('Activity').insert({
       id: `act_${uuidv4().substring(0, 12)}`,

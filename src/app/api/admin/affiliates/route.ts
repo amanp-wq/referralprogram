@@ -28,10 +28,11 @@ export async function GET(request: NextRequest) {
     // If search term provided, first find matching user IDs by name/email
     let matchingUserIds: string[] | null = null
     if (search) {
+      const safeSearch = search.replace(/[(),%]/g, '')
       const { data: usersByName } = await supabase
         .from('User')
         .select('id')
-        .or(`name.ilike.%${search}%,email.ilike.%${search}%`)
+        .or(`name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`)
       matchingUserIds = (usersByName || []).map((u: any) => u.id)
     }
 
@@ -45,10 +46,11 @@ export async function GET(request: NextRequest) {
 
     // Apply search filter - by referralCode OR by matching user IDs
     if (search) {
+      const safeSearch = search.replace(/[(),%]/g, '')
       if (matchingUserIds && matchingUserIds.length > 0) {
-        query = query.or(`referralCode.ilike.%${search}%,userId.in.(${matchingUserIds.join(',')})`)
+        query = query.or(`referralCode.ilike.%${safeSearch}%,userId.in.(${matchingUserIds.join(',')})`)
       } else {
-        query = query.ilike('referralCode', `%${search}%`)
+        query = query.ilike('referralCode', `%${safeSearch}%`)
       }
     }
 
