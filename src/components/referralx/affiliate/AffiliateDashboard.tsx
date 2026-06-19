@@ -205,8 +205,9 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
   const shareOnFacebook = () => {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`, "_blank");
   };
-  const shareOnTwitter = () => {
-    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareMessage)}`, "_blank");
+  const shareOnInstagram = async () => {
+    try { await navigator.clipboard.writeText(referralLink); alert("Referral link copied! Paste it into your Instagram bio, story, or DM."); } catch {}
+    window.open("https://www.instagram.com/", "_blank");
   };
   const shareOnLinkedIn = () => {
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`, "_blank");
@@ -350,10 +351,10 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
             <Share2 className="w-4 h-4" /> Facebook
           </button>
           <button
-            onClick={shareOnTwitter}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1DA1F2] text-white rounded-lg text-sm font-semibold hover:bg-[#0C85D0] transition-colors"
+            onClick={shareOnInstagram}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#E1306C] text-white rounded-lg text-sm font-semibold hover:bg-[#c02560] transition-colors"
           >
-            <Share2 className="w-4 h-4" /> Twitter/X
+            <Share2 className="w-4 h-4" /> Instagram
           </button>
           <button
             onClick={shareOnLinkedIn}
@@ -512,7 +513,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                 direct: <Users className="w-4 h-4" />,
                 whatsapp: <MessageCircle className="w-4 h-4" />,
                 facebook: <Share2 className="w-4 h-4" />,
-                twitter: <Share2 className="w-4 h-4" />,
+                instagram: <Share2 className="w-4 h-4" />,
                 linkedin: <Share2 className="w-4 h-4" />,
               };
               const colors: Record<string, string> = {
@@ -522,7 +523,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                 direct: "bg-rx-info-light text-rx-info",
                 whatsapp: "bg-[#25D366]/15 text-[#25D366]",
                 facebook: "bg-[#1877F2]/15 text-[#1877F2]",
-                twitter: "bg-[#1DA1F2]/15 text-[#1DA1F2]",
+                instagram: "bg-[#E1306C]/15 text-[#E1306C]",
                 linkedin: "bg-[#0A66C2]/15 text-[#0A66C2]",
               };
               return (
