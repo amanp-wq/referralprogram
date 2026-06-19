@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       totalConversions: 0,
       balance: 0,
       payoutMethod: 'bank',
-      status: 'pending',
+      status: 'active',
       joinedAt: now,
       updatedAt: now,
     })
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         message:
-          'Account created successfully! Your ambassador profile is pending approval.',
+          'Account created successfully! Welcome to the ElevateMe Ambassador Program.',
         user: {
           id: userId,
           email,
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
         affiliate: {
           id: affiliateId,
           referralCode,
-          status: 'pending',
+          status: 'active',
           tier: 'standard',
         },
         token,

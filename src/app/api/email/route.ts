@@ -130,7 +130,7 @@ export function newAffiliateEmail(name: string, email: string, referralCode: str
         </div>
         <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 20px;">
           <h2 style="color: #0f172a; font-size: 20px; margin-top: 0;">Hi ${name},</h2>
-          <p style="color: #475569; line-height: 1.6;">Thank you for joining the ElevateMe Ambassador Program! Your account has been created and is currently pending approval. Once approved, you'll get full access to your ambassador dashboard.</p>
+          <p style="color: #475569; line-height: 1.6;">Thank you for joining the ElevateMe Ambassador Program! Your account is now active and ready to use. Start sharing your referral link to earn commissions!</p>
           ${verificationHtml}
           <div style="background: white; border: 2px solid #689775; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
             <p style="color: #689775; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Your Referral Code</p>

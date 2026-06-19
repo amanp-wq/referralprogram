@@ -119,10 +119,6 @@ export default function SignupPage() {
               Your ambassador account has been created successfully,{" "}
               <strong className="text-rx-gray-800">{form.name}</strong>!
             </p>
-            <p className="text-rx-gray-400 text-sm mb-6">
-              Your profile is currently pending approval. You&apos;ll get full
-              access once an admin reviews your application.
-            </p>
 
             {/* Referral Code */}
             {referralCode && (
