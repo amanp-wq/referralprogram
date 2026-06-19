@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     // Update existing "opened" referral or create new one
     if (clickedReferral) {
-      await supabase.from('Referral').update({
+      const { error: updateError } = await supabase.from('Referral').update({
         status: 'submitted',
         visitorEmail: safeEmail,
         visitorName: safeName,
@@ -183,9 +183,17 @@ export async function POST(request: NextRequest) {
         source: source || clickedReferral.source || 'direct',
         updatedAt: new Date().toISOString(),
       }).eq('id', clickedReferral.id)
+
+      if (updateError) {
+        console.error('[REFERRAL] Failed to update referral status:', updateError)
+        return applyCors(
+          NextResponse.json({ error: 'Failed to save your submission. Please try again.' }, { status: 500 }),
+          origin, requestOrigin
+        )
+      }
     } else {
       // Create new referral record if none exists (direct form submission)
-      await supabase.from('Referral').insert({
+      const { error: insertError } = await supabase.from('Referral').insert({
         id: `ref_${uuidv4().substring(0, 12)}`,
         affiliateId: affiliate.id,
         programId: targetProgramId,
@@ -199,6 +207,14 @@ export async function POST(request: NextRequest) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })
+
+      if (insertError) {
+        console.error('[REFERRAL] Failed to insert referral:', insertError)
+        return applyCors(
+          NextResponse.json({ error: 'Failed to save your submission. Please try again.' }, { status: 500 }),
+          origin, requestOrigin
+        )
+      }
     }
 
     // Log activity
