@@ -21,12 +21,10 @@ const emailLog: Array<{ to: string; subject: string; sentAt: string; status: str
 async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; message: string }> {
   const { to, subject, html } = payload
 
-  // Check for email service configuration
   const emailService = process.env.EMAIL_SERVICE || 'log' // 'log' | 'resend' | 'sendgrid' | 'smtp'
   const resendApiKey = process.env.RESEND_API_KEY
   const sendGridApiKey = process.env.SENDGRID_API_KEY
 
-  // Log the email regardless of service
   const recipients = Array.isArray(to) ? to.join(', ') : to
   console.log(`[EMAIL] To: ${recipients} | Subject: ${subject}`)
   emailLog.push({ to: recipients, subject, sentAt: new Date().toISOString(), status: 'sent' })
@@ -46,9 +44,7 @@ async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; mes
           html,
         }),
       })
-      if (response.ok) {
-        return { success: true, message: 'Email sent via Resend' }
-      }
+      if (response.ok) return { success: true, message: 'Email sent via Resend' }
       const err = await response.text()
       console.error('[EMAIL] Resend error:', err)
       return { success: false, message: `Resend error: ${err}` }
@@ -73,9 +69,7 @@ async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; mes
           content: [{ type: 'text/html', value: html }],
         }),
       })
-      if (response.status === 202) {
-        return { success: true, message: 'Email sent via SendGrid' }
-      }
+      if (response.status === 202) return { success: true, message: 'Email sent via SendGrid' }
       const err = await response.text()
       console.error('[EMAIL] SendGrid error:', err)
       return { success: false, message: `SendGrid error: ${err}` }
@@ -85,9 +79,32 @@ async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; mes
     }
   }
 
-  // Default: log mode (for development/demo)
+  if (emailService === 'smtp') {
+    try {
+      const nodemailer = await import('nodemailer')
+      const transporter = nodemailer.default.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '465'),
+        secure: process.env.SMTP_PORT !== '587', // true for 465, false for 587
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS, // Gmail App Password
+        },
+      })
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || `ElevateMe <${process.env.SMTP_USER}>`,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+      })
+      return { success: true, message: 'Email sent via SMTP' }
+    } catch (error: any) {
+      console.error('[EMAIL] SMTP error:', error.message)
+      return { success: false, message: `SMTP error: ${error.message}` }
+    }
+  }
+
   console.log('[EMAIL] No email service configured. Email logged but not sent.')
-  console.log('[EMAIL] Configure EMAIL_SERVICE, RESEND_API_KEY or SENDGRID_API_KEY in .env')
   return { success: true, message: 'Email logged (no email service configured)' }
 }
 
