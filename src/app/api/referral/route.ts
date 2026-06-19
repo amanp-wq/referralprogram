@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     // First, try matching the Affiliate table directly (case (a))
     const { data: affiliateByCode } = await supabase
       .from('Affiliate')
-      .select('*')
+      .select('*, User!Affiliate_userId_fkey(name, email)')
       .eq('referralCode', referralCode)
       .in('status', ['active', 'pending'])
       .single()

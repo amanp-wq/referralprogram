@@ -163,7 +163,9 @@ export function newReferralAdminEmail(visitorName: string, visitorEmail: string,
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Referral Code:</td><td style="padding: 8px 0; font-weight: 600; font-family: monospace; color: #0f172a;">${referralCode}</td></tr>
           </table>
         </div>
-        <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://elevateme.pro'}" style="background: #C44838; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View in Dashboard</a>
+        <a href="${process.env.APP_URL || 'https://referral.elevateme.pro'}/app?tab=referrals" style="background: #C44838; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View in Dashboard</a>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">&copy; 2026 ElevateMe, Inc. All rights reserved.</p>
       </div>
     `,
   }
@@ -181,9 +183,11 @@ export function newAffiliateAdminEmail(name: string, email: string): EmailPayloa
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Name:</td><td style="padding: 8px 0; font-weight: 600; color: #0f172a;">${name}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Email:</td><td style="padding: 8px 0; font-weight: 600; color: #0f172a;">${email}</td></tr>
           </table>
-          <p style="color: #475569; margin-top: 16px;">This ambassador is currently pending approval. Please review and approve their account.</p>
+          <p style="color: #475569; margin-top: 16px;">A new ambassador has registered. You can view and manage their account in the dashboard.</p>
         </div>
-        <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://elevateme.pro'}" style="background: #C44838; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Review in Dashboard</a>
+        <a href="${process.env.APP_URL || 'https://referral.elevateme.pro'}/app?tab=affiliates" style="background: #C44838; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Review in Dashboard</a>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">&copy; 2026 ElevateMe, Inc. All rights reserved.</p>
       </div>
     `,
   }
