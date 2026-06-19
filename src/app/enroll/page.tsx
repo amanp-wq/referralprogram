@@ -81,10 +81,12 @@ function EnrollForm() {
               </p>
             </div>
             <a
-              href="/login"
+              href="https://elevateme.pro/wp-content/uploads/2025/09/Placement-Plan-Handbook.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3 bg-rx-primary text-white rounded-lg font-semibold text-sm hover:bg-rx-primary-dark transition-colors"
             >
-              Sign In <ArrowRight className="w-4 h-4" />
+              Download Handbook <ArrowRight className="w-4 h-4" />
             </a>
           </div>
         </div>

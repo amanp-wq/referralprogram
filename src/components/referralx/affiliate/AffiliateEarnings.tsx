@@ -95,18 +95,6 @@ export function AffiliateEarnings() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
           <KpiCard
-            label="Total Earnings"
-            value={formatCurrency(data?.kpis.totalEarnings ?? 0)}
-            iconColor="primary"
-            icon={<DollarSign className="w-[18px] h-[18px]" />}
-          />
-          <KpiCard
-            label="Available Balance"
-            value={formatCurrency(data?.kpis.balance ?? 0)}
-            iconColor="success"
-            icon={<TrendingUp className="w-[18px] h-[18px]" />}
-          />
-          <KpiCard
             label="Pending"
             value={formatCurrency(data?.kpis.pendingEarnings ?? 0)}
             iconColor="warning"
@@ -117,6 +105,18 @@ export function AffiliateEarnings() {
             value={formatCurrency(data?.kpis.approvedEarnings ?? 0)}
             iconColor="info"
             icon={<CheckCircle className="w-[18px] h-[18px]" />}
+          />
+          <KpiCard
+            label="To Be Collected"
+            value={formatCurrency((data?.kpis as any)?.releasedEarnings ?? 0)}
+            iconColor="success"
+            icon={<TrendingUp className="w-[18px] h-[18px]" />}
+          />
+          <KpiCard
+            label="Total Earnings"
+            value={formatCurrency(data?.kpis.totalEarnings ?? 0)}
+            iconColor="primary"
+            icon={<DollarSign className="w-[18px] h-[18px]" />}
           />
         </div>
       )}

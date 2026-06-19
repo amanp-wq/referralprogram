@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
     const totalClicks = links.reduce((s: number, l: any) => s + l.clicks, 0)
     const totalConversions = links.reduce((s: number, l: any) => s + l.conversions, 0)
     const pendingEarnings = commissions.filter((c: any) => c.status === 'pending').reduce((s: number, c: any) => s + c.amount, 0)
-    const approvedEarnings = commissions.filter((c: any) => c.status === 'approved' || c.status === 'released' || c.status === 'paid').reduce((s: number, c: any) => s + c.amount, 0)
+    const approvedEarnings = commissions.filter((c: any) => c.status === 'approved').reduce((s: number, c: any) => s + c.amount, 0)
+    const releasedEarnings = commissions.filter((c: any) => c.status === 'released' || c.status === 'paid').reduce((s: number, c: any) => s + c.amount, 0)
+    const totalEarningsSum = commissions.filter((c: any) => c.status === 'released' || c.status === 'paid').reduce((s: number, c: any) => s + c.amount, 0)
 
     const now = new Date()
 
@@ -139,9 +141,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       affiliate,
       kpis: {
-        totalEarnings: affiliate.totalEarnings,
+        totalEarnings: totalEarningsSum,
         pendingEarnings,
         approvedEarnings,
+        releasedEarnings,
         balance: affiliate.balance,
         totalClicks,
         totalConversions,
