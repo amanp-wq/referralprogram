@@ -513,6 +513,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                 direct: <Users className="w-4 h-4" />,
                 whatsapp: <MessageCircle className="w-4 h-4" />,
                 facebook: <Share2 className="w-4 h-4" />,
+                link: <ExternalLink className="w-4 h-4" />,
                 instagram: <Share2 className="w-4 h-4" />,
                 linkedin: <Share2 className="w-4 h-4" />,
               };
@@ -523,6 +524,7 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
                 direct: "bg-rx-info-light text-rx-info",
                 whatsapp: "bg-[#25D366]/15 text-[#25D366]",
                 facebook: "bg-[#1877F2]/15 text-[#1877F2]",
+                link: "bg-rx-primary-light text-rx-primary",
                 instagram: "bg-[#E1306C]/15 text-[#E1306C]",
                 linkedin: "bg-[#0A66C2]/15 text-[#0A66C2]",
               };

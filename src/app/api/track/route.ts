@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
-    const source = searchParams.get('source') || 'direct'
+    const source = searchParams.get('source') || 'link'
 
     if (!code) {
       return applyCors(
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     safeCode = codeCheck.data
 
     // Validate source
-    if (!['social', 'email', 'website', 'direct'].includes(source)) {
+    if (!['social', 'email', 'website', 'direct', 'link'].includes(source)) {
       return applyCors(
         NextResponse.redirect(new URL(`/?error=invalid_source`, request.url)),
         origin,
