@@ -175,8 +175,8 @@ export function AffiliateReferrals() {
             icon={<Users className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="Opened"
-            value={openedCount.toLocaleString()}
+            label="Submitted"
+            value={submittedCount.toLocaleString()}
             iconColor="info"
             icon={<ExternalLink className="w-[18px] h-[18px]" />}
           />
