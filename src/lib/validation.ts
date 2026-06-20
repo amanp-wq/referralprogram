@@ -16,7 +16,7 @@ import { z, ZodError } from 'zod'
 export const emailSchema = z.string().email().max(254).toLowerCase().trim()
 export const phoneSchema = z.string().max(20).optional().nullable()
 export const urlSchema = z.string().url().max(2048)
-export const referralCodeSchema = z.string().min(3).max(50).regex(/^[A-Za-z0-9_-]+$/)
+export const referralCodeSchema = z.string().min(2).max(50).regex(/^[A-Za-z0-9_-]+$/)
 export const uuidSchema = z.string().uuid()
 export const cuidSchema = z.string().regex(/^c[a-z0-9]{20,}$/i)
 
@@ -36,7 +36,7 @@ export const loginSchema = z.object({
 
 export const referralTrackSchema = z.object({
   referralCode: referralCodeSchema,
-  source: z.enum(['social', 'email', 'website', 'direct']).optional(),
+  source: z.enum(['social', 'email', 'website', 'direct', 'link']).optional(),
   visitorEmail: emailSchema.optional(),
   visitorName: z.string().max(100).optional(),
   visitorPhone: phoneSchema,
@@ -47,7 +47,7 @@ export const referralConvertSchema = z.object({
   visitorEmail: emailSchema,
   visitorName: z.string().max(100).optional(),
   visitorPhone: phoneSchema,
-  source: z.enum(['social', 'email', 'website', 'direct']).optional(),
+  source: z.enum(['social', 'email', 'website', 'direct', 'link']).optional(),
   // Optional metadata for the conversion event
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
@@ -89,7 +89,7 @@ export const referralImportSchema = z.object({
     visitorName: z.string().max(100).optional(),
     visitorEmail: emailSchema.optional(),
     visitorPhone: phoneSchema,
-    source: z.enum(['social', 'email', 'website', 'direct']).optional(),
+    source: z.enum(['social', 'email', 'website', 'direct', 'link']).optional(),
     status: z.enum(['opened', 'submitted', 'pending', 'enrolled', 'not_enrolled', 'cancelled']).optional(),
   })).min(1).max(1000),
 })
