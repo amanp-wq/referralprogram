@@ -189,7 +189,7 @@ function EnrollForm() {
 
             {/* SMS Consent */}
             <p className="text-xs text-rx-gray-400 leading-relaxed">
-              By providing a telephone number and submitting this form, you are consenting to be contacted by ElevateMe via SMS text message. Message &amp; data rates may apply. Message frequency may vary. Privacy Policy. Reply HELP for more information. You can reply STOP to opt-out of further messaging.
+              By providing a telephone number and submitting this form, you are consenting to be contacted by ElevateMe via SMS text message. Message &amp; data rates may apply. Message frequency may vary. <a href="https://elevateme.pro/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline text-rx-gray-500">Privacy Policy</a>. Reply HELP for more information. You can reply STOP to opt-out of further messaging.
             </p>
 
             {/* Submit Button */}
