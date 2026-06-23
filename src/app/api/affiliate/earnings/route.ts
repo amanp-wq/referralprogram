@@ -65,7 +65,8 @@ export async function GET(request: NextRequest) {
       kpis: {
         totalEarnings,
         pendingEarnings: pending,
-        approvedEarnings: approved + released + paid,
+        approvedEarnings: approved,
+        releasedEarnings: released + paid,
         balance,
       },
       monthlyEarnings,

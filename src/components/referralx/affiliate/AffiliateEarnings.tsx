@@ -227,6 +227,10 @@ export function AffiliateEarnings() {
               <span className="text-sm text-rx-gray-600">Approved (Awaiting Payout)</span>
               <span className="text-lg font-bold text-rx-info">{formatCurrency(data?.kpis.approvedEarnings ?? 0)}</span>
             </div>
+            <div className="flex items-center justify-between py-3 border-b border-rx-gray-100">
+              <span className="text-sm text-rx-gray-600">To Be Collected</span>
+              <span className="text-lg font-bold text-rx-secondary">{formatCurrency((data?.kpis as any)?.releasedEarnings ?? 0)}</span>
+            </div>
             {data?.summary && (
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-rx-gray-600">Total Commission Entries</span>
