@@ -214,7 +214,7 @@ export async function PUT(request: NextRequest) {
       })
     }
 
-    // If status changed to approved, update affiliate's totalEarnings
+    // If status changed to approved, add to affiliate's balance
     if (status === 'approved' && existingCommission.status !== 'approved') {
       const effectiveAmount = amount !== undefined ? amount : existingCommission.amount
       const { data: affiliate } = await supabase.from('Affiliate').select('totalEarnings, balance').eq('id', existingCommission.affiliateId).single()
@@ -222,6 +222,18 @@ export async function PUT(request: NextRequest) {
         await supabase.from('Affiliate').update({
           totalEarnings: affiliate.totalEarnings + effectiveAmount,
           balance: affiliate.balance + effectiveAmount,
+          updatedAt: new Date().toISOString(),
+        }).eq('id', existingCommission.affiliateId)
+      }
+    }
+
+    // If status changed to released or paid, deduct from affiliate's balance (payment has been sent)
+    if (['released', 'paid'].includes(status) && !['released', 'paid'].includes(existingCommission.status)) {
+      const effectiveAmount = amount !== undefined ? amount : existingCommission.amount
+      const { data: affiliate } = await supabase.from('Affiliate').select('balance').eq('id', existingCommission.affiliateId).single()
+      if (affiliate) {
+        await supabase.from('Affiliate').update({
+          balance: Math.max(0, affiliate.balance - effectiveAmount),
           updatedAt: new Date().toISOString(),
         }).eq('id', existingCommission.affiliateId)
       }
