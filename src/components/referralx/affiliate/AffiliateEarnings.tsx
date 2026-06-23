@@ -107,7 +107,7 @@ export function AffiliateEarnings() {
             icon={<CheckCircle className="w-[18px] h-[18px]" />}
           />
           <KpiCard
-            label="To Be Collected"
+            label="Released"
             value={formatCurrency((data?.kpis as any)?.releasedEarnings ?? 0)}
             iconColor="success"
             icon={<TrendingUp className="w-[18px] h-[18px]" />}
@@ -228,7 +228,7 @@ export function AffiliateEarnings() {
               <span className="text-lg font-bold text-rx-info">{formatCurrency(data?.kpis.approvedEarnings ?? 0)}</span>
             </div>
             <div className="flex items-center justify-between py-3 border-b border-rx-gray-100">
-              <span className="text-sm text-rx-gray-600">To Be Collected</span>
+              <span className="text-sm text-rx-gray-600">Released</span>
               <span className="text-lg font-bold text-rx-secondary">{formatCurrency((data?.kpis as any)?.releasedEarnings ?? 0)}</span>
             </div>
             {data?.summary && (
