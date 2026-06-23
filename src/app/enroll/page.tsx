@@ -117,8 +117,8 @@ function EnrollForm() {
               <UserPlus className="w-5 h-5 text-rx-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-rx-gray-900">Submit Your Reference</h3>
-              <p className="text-xs text-rx-gray-500">Fill in your info to complete the referral</p>
+              <h3 className="text-lg font-bold text-rx-gray-900">Submit your details</h3>
+              <p className="text-xs text-rx-gray-500">Fill out info to be contacted by ElevateMe</p>
             </div>
           </div>
 
@@ -187,11 +187,16 @@ function EnrollForm() {
             {/* Referral Code is hidden from submitter */}
             <input type="hidden" value={code} name="referralCode" />
 
+            {/* SMS Consent */}
+            <p className="text-xs text-rx-gray-400 leading-relaxed">
+              By providing a telephone number and submitting this form, you are consenting to be contacted by ElevateMe via SMS text message. Message &amp; data rates may apply. Message frequency may vary. Privacy Policy. Reply HELP for more information. You can reply STOP to opt-out of further messaging.
+            </p>
+
             {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-rx-primary text-white py-3 rounded-lg font-semibold text-sm hover:bg-rx-primary-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-rx-primary text-white py-3 rounded-lg font-semibold text-sm hover:bg-rx-primary-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-1"
             >
               {loading ? (
                 <>
@@ -199,7 +204,7 @@ function EnrollForm() {
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4" /> Submit Your Reference
+                  <UserPlus className="w-4 h-4" /> Submit
                 </>
               )}
             </button>
