@@ -238,6 +238,24 @@ export function AdminCommissions() {
     }
   };
 
+  const handleDeleteCommission = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this bonus? This cannot be undone.')) return
+    try {
+      const res = await fetch(`/api/admin/commissions?id=${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to delete bonus')
+      }
+      toast({ title: 'Bonus Deleted', description: 'The bonus has been removed.' })
+      fetchData()
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to delete bonus', variant: 'destructive' })
+    }
+  }
+
   const handleQuickStatusChange = async (commissionId: string, newStatus?: string, newType?: string) => {
     try {
       const body: any = { id: commissionId }
@@ -500,6 +518,13 @@ export function AdminCommissions() {
                           <button onClick={() => handleStatusChange(c.id, "pending")} className="text-xs px-2.5 py-1.5 bg-rx-warning-light text-rx-warning rounded-lg hover:bg-rx-warning/20 font-medium transition-colors">Revert to Pending</button>
                         </>
                       )}
+                      <button
+                        onClick={() => handleDeleteCommission(c.id)}
+                        className="text-xs px-2.5 py-1.5 bg-rx-danger-light text-rx-danger rounded-lg hover:bg-rx-danger/20 font-medium flex items-center gap-1 transition-colors"
+                        title="Delete Bonus"
+                      >
+                        <X className="w-3 h-3" /> Delete
+                      </button>
                     </div>
                   </div>
                 </div>

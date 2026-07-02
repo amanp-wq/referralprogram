@@ -258,3 +258,44 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { user, error } = await requireAdmin(request)
+    if (!user) return NextResponse.json({ error }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+
+    const supabase = getServerClient()
+
+    const { data: commission } = await supabase
+      .from('Commission')
+      .select('id, amount, status, affiliateId')
+      .eq('id', id)
+      .single()
+
+    if (!commission) return NextResponse.json({ error: 'Commission not found' }, { status: 404 })
+
+    // If approved, reverse the balance impact before deleting
+    if (commission.status === 'approved') {
+      const { data: affiliate } = await supabase.from('Affiliate').select('totalEarnings, balance').eq('id', commission.affiliateId).single()
+      if (affiliate) {
+        await supabase.from('Affiliate').update({
+          totalEarnings: Math.max(0, affiliate.totalEarnings - commission.amount),
+          balance: Math.max(0, affiliate.balance - commission.amount),
+          updatedAt: new Date().toISOString(),
+        }).eq('id', commission.affiliateId)
+      }
+    }
+
+    const { error: deleteError } = await supabase.from('Commission').delete().eq('id', id)
+    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+
+    return NextResponse.json({ message: 'Bonus deleted successfully' })
+  } catch (error: any) {
+    console.error('Delete commission error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
