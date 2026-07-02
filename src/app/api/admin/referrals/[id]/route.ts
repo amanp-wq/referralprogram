@@ -180,6 +180,32 @@ export async function PATCH(
       createdAt: new Date().toISOString(),
     })
 
+    // Auto-create $0 bonus when enrolled
+    if (status === 'enrolled' && statusChanged) {
+      const { data: program } = await supabase
+        .from('Program')
+        .select('id')
+        .eq('isActive', true)
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (program && referral.affiliateId) {
+        await supabase.from('Commission').insert({
+          id: uuidv4(),
+          affiliateId: referral.affiliateId,
+          programId: program.id,
+          referralId: id,
+          amount: 0,
+          rate: 0,
+          type: 'referral_bonus',
+          status: 'pending',
+          description: `Auto-created for enrolled referral: ${referral.visitorName || referral.visitorEmail || id.substring(0, 8)}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+      }
+    }
 
     return NextResponse.json({ message: 'Referral status updated successfully' })
   } catch (error: any) {

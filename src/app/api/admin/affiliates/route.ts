@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('Affiliate')
-      .select('*, User!Affiliate_userId_fkey(id, email, name, phone, avatarUrl, status, createdAt)', { count: 'exact' })
+      .select('*, User!Affiliate_userId_fkey(id, email, name, phone, avatarUrl, status, createdAt), Referral!Referral_affiliateId_fkey(id)', { count: 'exact' })
       .order('joinedAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
@@ -61,7 +61,10 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      affiliates: affiliates || [],
+      affiliates: (affiliates || []).map((a: any) => ({
+        ...a,
+        referralCount: a.Referral?.length ?? 0,
+      })),
       total: count || 0,
       page,
       limit,

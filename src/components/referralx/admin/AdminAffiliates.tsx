@@ -360,7 +360,7 @@ export function AdminAffiliates() {
                   a.User?.email || "-",
                   a.User?.phone || "-",
                   `/ref/${a.referralCode}`,
-                  a.totalReferrals.toString(),
+                  (((a as any).referralCount ?? a.totalReferrals) as number).toString(),
                   a.totalEarnings.toString(),
                   a.totalReferrals > 0 ? ((a.totalConversions / a.totalReferrals) * 100).toFixed(1) + "%" : "0%",
                   a.status,
@@ -465,7 +465,7 @@ export function AdminAffiliates() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5"><span className="text-xs font-mono bg-rx-gray-100 px-2 py-0.5 rounded">/ref/{a.referralCode}</span></td>
-                      <td className="px-5 py-3.5 text-sm text-rx-gray-700">{a.totalReferrals}</td>
+                      <td className="px-5 py-3.5 text-sm text-rx-gray-700">{(a as any).referralCount ?? a.totalReferrals}</td>
                       <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(a.totalEarnings)}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
