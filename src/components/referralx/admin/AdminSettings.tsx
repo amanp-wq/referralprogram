@@ -120,42 +120,6 @@ export function AdminSettings() {
         </>
       ) : (
         <>
-          <SectionCard title="General Settings">
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Program Name</label>
-                <input type="text" value={settings.programName || ""} onChange={(e) => updateField("programName", e.target.value)} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Commission Type</label>
-                  <select value={settings.commissionType || "percentage"} onChange={(e) => updateField("commissionType", e.target.value)} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light bg-white">
-                    <option value="percentage">Percentage</option>
-                    <option value="fixed">Fixed Amount</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Commission Rate / Amount</label>
-                  <input type="text" value={settings.commissionRate || ""} onChange={(e) => updateField("commissionRate", e.target.value)} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Minimum Payout</label>
-                  <input type="text" value={settings.minimumPayout || ""} onChange={(e) => updateField("minimumPayout", e.target.value)} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Payout Schedule</label>
-                  <select value={settings.payoutSchedule || "monthly"} onChange={(e) => updateField("payoutSchedule", e.target.value)} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light bg-white">
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </SectionCard>
-
           <SectionCard title="Notification Preferences">
             <div className="space-y-1">
               {boolToggle("emailNotifications", "Email Notifications", "Receive email alerts for important events")}
