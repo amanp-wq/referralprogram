@@ -461,7 +461,7 @@ export function AdminAffiliates() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5">
                           <Phone className="w-3.5 h-3.5 text-rx-gray-400" />
-                          <span className="text-sm text-rx-gray-700">{phone || "-"}</span>
+                          <span className="text-sm text-rx-gray-700">{phone ? formatPhone(phone) : "-"}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3.5"><span className="text-xs font-mono bg-rx-gray-100 px-2 py-0.5 rounded">/ref/{a.referralCode}</span></td>
