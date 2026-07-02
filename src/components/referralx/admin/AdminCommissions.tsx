@@ -396,6 +396,15 @@ export function AdminCommissions() {
         ) : commissions.length === 0 ? (
           <EmptyState title="No bonuses found" description={statusFilter ? "Try adjusting your filter" : "Bonuses will appear here once referrals are marked as enrolled"} />
         ) : (
+          <div>
+            {/* Table Header */}
+            <div className="hidden lg:flex items-center px-5 py-2.5 bg-rx-gray-50 border-b border-rx-gray-200 text-xs font-semibold text-rx-gray-500 uppercase tracking-wide">
+              <div className="flex-1">Referral</div>
+              <div className="w-44 shrink-0">Ambassador</div>
+              <div className="w-36 shrink-0">Amount / Type</div>
+              <div className="w-36 shrink-0">Status</div>
+              <div className="w-64 shrink-0 text-right">Actions</div>
+            </div>
           <div className="divide-y divide-rx-gray-100">
             {commissions.map((c) => {
               const affName = c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown";
@@ -518,9 +527,10 @@ export function AdminCommissions() {
                           <button onClick={() => handleStatusChange(c.id, "pending")} className="text-xs px-2.5 py-1.5 bg-rx-warning-light text-rx-warning rounded-lg hover:bg-rx-warning/20 font-medium transition-colors">Revert to Pending</button>
                         </>
                       )}
+                      <div className="w-px h-4 bg-rx-gray-200 mx-1" />
                       <button
                         onClick={() => handleDeleteCommission(c.id)}
-                        className="text-xs px-2.5 py-1.5 bg-rx-danger-light text-rx-danger rounded-lg hover:bg-rx-danger/20 font-medium flex items-center gap-1 transition-colors"
+                        className="text-[11px] px-2 py-1 text-rx-gray-400 hover:text-rx-danger hover:bg-rx-danger-light rounded font-medium flex items-center gap-0.5 transition-colors"
                         title="Delete Bonus"
                       >
                         <X className="w-3 h-3" /> Delete
@@ -530,6 +540,7 @@ export function AdminCommissions() {
                 </div>
               );
             })}
+          </div>
           </div>
         )}
       </div>
