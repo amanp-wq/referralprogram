@@ -238,6 +238,24 @@ export function AdminCommissions() {
     }
   };
 
+  const handleQuickStatusChange = async (commissionId: string, newStatus: string) => {
+    try {
+      const res = await fetch("/api/admin/commissions", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: commissionId, status: newStatus }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to update status");
+      }
+      toast({ title: "Status Updated", description: `Commission marked as ${newStatus}` });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update status", variant: "destructive" });
+    }
+  };
+
   const handleViewReferral = async (referralId: string | null) => {
     if (!referralId) {
       toast({ title: "No referral", description: "This commission has no linked referral", variant: "destructive" });
@@ -424,9 +442,19 @@ export function AdminCommissions() {
                     </div>
 
                     {/* Commission Status */}
-                    <div className="lg:w-28 shrink-0">
+                    <div className="lg:w-36 shrink-0">
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Commission Status</div>
-                      <StatusBadge status={c.status as any} />
+                      <select
+                        value={c.status}
+                        onChange={(e) => handleQuickStatusChange(c.id, e.target.value)}
+                        className="text-xs px-2.5 py-1.5 border border-rx-gray-200 rounded-lg bg-white focus:outline-none focus:border-rx-primary cursor-pointer font-medium"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="released">Released</option>
+                        <option value="failed">Failed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
                       <p className="text-[11px] text-rx-gray-400 mt-0.5">{formatDate(c.createdAt)}</p>
                     </div>
 
