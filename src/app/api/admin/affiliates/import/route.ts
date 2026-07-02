@@ -11,13 +11,20 @@ function generateSecurePassword(): string {
   return Array.from(bytes).map(b => chars[b % chars.length]).join('')
 }
 
-function generateReferralCode(name: string): string {
-  const base = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .substring(0, 8)
-  const suffix = Math.random().toString(36).substring(2, 6)
-  return `${base}-${suffix}`
+function generateReferralCode(name: string, phone?: string): string {
+  const parts = name.trim().split(/\s+/)
+  const firstInitial = (parts[0]?.[0] || '').toUpperCase()
+  const lastInitial = (parts[parts.length > 1 ? parts.length - 1 : 0]?.[0] || '').toUpperCase()
+  const initials = parts.length > 1 ? `${firstInitial}${lastInitial}` : `${firstInitial}${parts[0]?.[1] || ''}`.toUpperCase()
+
+  if (phone) {
+    const digits = phone.replace(/\D/g, '')
+    const suffix = digits.slice(-4)
+    return `${initials}${suffix}`
+  }
+
+  const randomNum = Math.floor(1000 + Math.random() * 9000).toString()
+  return `${initials}${randomNum}`
 }
 
 export async function POST(request: NextRequest) {
@@ -33,9 +40,6 @@ export async function POST(request: NextRequest) {
         name: string
         email: string
         phone?: string
-        referralCode?: string
-        commissionRate?: number | string
-        tier?: string
       }[]
     }
 
@@ -55,8 +59,7 @@ export async function POST(request: NextRequest) {
     const adminName = adminUser?.name || 'Unknown'
     const errors: { row: number; message: string }[] = []
     let created = 0
-
-    const validTiers = ['standard', 'pro', 'elite']
+    let skipped = 0
 
     for (let i = 0; i < affiliates.length; i++) {
       const row = affiliates[i]
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Check if email already exists
+        // Check if email already exists — skip (duplicate)
         const { data: existingUser } = await supabase
           .from('User')
           .select('id')
@@ -76,42 +79,29 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (existingUser) {
-          errors.push({ row: rowNum, message: `Email ${row.email} already exists` })
+          skipped++
           continue
         }
 
-        // Generate referral code if not provided
-        let referralCode = row.referralCode || generateReferralCode(row.name)
+        // Auto-generate referral code from initials + last 4 digits of phone
+        let referralCode = generateReferralCode(row.name, row.phone)
 
-        // Check if referral code already exists
-        if (row.referralCode) {
+        // Ensure uniqueness: if taken, append incrementing number
+        let suffix = 1
+        const baseCode = referralCode
+        while (true) {
           const { data: existingCode } = await supabase
             .from('Affiliate')
             .select('id')
             .eq('referralCode', referralCode)
             .single()
-
-          if (existingCode) {
-            // Auto-generate instead
-            referralCode = generateReferralCode(row.name)
-          }
-        } else {
-          // Ensure auto-generated code is unique
-          let codeAttempts = 0
-          while (codeAttempts < 5) {
-            const { data: existingCode } = await supabase
-              .from('Affiliate')
-              .select('id')
-              .eq('referralCode', referralCode)
-              .single()
-            if (!existingCode) break
-            referralCode = generateReferralCode(row.name)
-            codeAttempts++
-          }
+          if (!existingCode) break
+          referralCode = `${baseCode}${suffix}`
+          suffix++
         }
 
-        const tier = validTiers.includes(row.tier || '') ? row.tier : 'standard'
-        const commissionRate = row.commissionRate ? parseFloat(String(row.commissionRate)) : 10
+        const tier = 'standard'
+        const commissionRate = 10
 
         // Create user with a unique secure temporary password
         const tempPassword = generateSecurePassword()
@@ -178,7 +168,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     })
 
-    return NextResponse.json({ created, failed: errors.length, errors })
+    return NextResponse.json({ created, skipped, failed: errors.length, errors })
   } catch (error: any) {
     console.error('Import affiliates error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

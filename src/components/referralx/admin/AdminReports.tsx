@@ -122,7 +122,7 @@ export function AdminReports() {
           ["Period", period],
         ];
         if (dailyCommissions.length > 0) {
-          headers = ["Date", "Commission Amount", ...headers];
+          headers = ["Date", "Bonus Amount", ...headers];
           rows = dailyCommissions.map((d) => [d.date, String(d.amount), "", ""]);
         }
         break;
@@ -166,7 +166,7 @@ export function AdminReports() {
         ];
         break;
       case "monthly":
-        headers = ["Date", "Commission Amount"];
+        headers = ["Date", "Bonus Amount"];
         rows = dailyCommissions.length > 0
           ? dailyCommissions.map((d) => [d.date, String(d.amount)])
           : [["No data available", "0"]];
@@ -362,7 +362,7 @@ export function AdminReports() {
       {stats && !loading && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-4 border border-rx-gray-200">
-            <div className="text-xs text-rx-gray-500 mb-1">Total Commissions</div>
+            <div className="text-xs text-rx-gray-500 mb-1">Total Bonuses</div>
             <div className="text-xl font-bold text-rx-gray-900">{formatCurrency(stats.totalCommissions)}</div>
           </div>
           <div className="bg-white rounded-xl p-4 border border-rx-gray-200">

@@ -167,11 +167,11 @@ export function AffiliateEarnings() {
 
           {/* Commission Process */}
           <div className="mt-6 bg-white/10 border border-white/20 rounded-xl p-5">
-            <h4 className="font-semibold mb-4">Commission Process</h4>
+            <h4 className="font-semibold mb-4">Bonus Process</h4>
             <div className="flex items-center justify-between flex-wrap gap-3">
               {[
                 { label: "Referral Enrolled", icon: "🎯" },
-                { label: "Commission Created", icon: "💰" },
+                { label: "Bonus Created", icon: "💰" },
                 { label: "Admin Approves", icon: "✅" },
                 { label: "Payment Released", icon: "🎉" },
               ].map((step, i) => (
@@ -220,7 +220,7 @@ export function AffiliateEarnings() {
               <span className="text-lg font-bold text-rx-secondary">{formatCurrency(data?.kpis.balance ?? 0)}</span>
             </div>
             <div className="flex items-center justify-between py-3 border-b border-rx-gray-100">
-              <span className="text-sm text-rx-gray-600">Pending Commissions</span>
+              <span className="text-sm text-rx-gray-600">Pending Bonuses</span>
               <span className="text-lg font-bold text-rx-warning">{formatCurrency(data?.kpis.pendingEarnings ?? 0)}</span>
             </div>
             <div className="flex items-center justify-between py-3 border-b border-rx-gray-100">
@@ -233,7 +233,7 @@ export function AffiliateEarnings() {
             </div>
             {data?.summary && (
               <div className="flex items-center justify-between py-3">
-                <span className="text-sm text-rx-gray-600">Total Commission Entries</span>
+                <span className="text-sm text-rx-gray-600">Total Bonus Entries</span>
                 <span className="text-lg font-bold text-rx-gray-700">{data.summary.totalCommissions}</span>
               </div>
             )}

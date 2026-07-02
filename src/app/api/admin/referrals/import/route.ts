@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
         visitorName?: string
         visitorEmail?: string
         visitorPhone?: string
-        source?: string
         status?: string
       }[]
     }
@@ -38,6 +37,7 @@ export async function POST(request: NextRequest) {
     const adminName = adminUser?.name || 'Unknown'
     const errors: { row: number; message: string }[] = []
     let created = 0
+    let skipped = 0
 
     const validStatuses = ['submitted', 'pending', 'enrolled', 'not_enrolled']
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (!ambassadorUser) {
-          errors.push({ row: rowNum, message: `No user found with email ${row.ambassadorEmail}` })
+          skipped++
           continue
         }
 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (!affiliate) {
-          errors.push({ row: rowNum, message: `No affiliate profile found for ${row.ambassadorEmail}` })
+          skipped++
           continue
         }
 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
           visitorEmail: row.visitorEmail || null,
           visitorName: row.visitorName || null,
           visitorIp: null,
-          source: row.source || 'import',
+          source: 'import',
           status,
           convertedAt: (status === 'enrolled') ? new Date().toISOString() : null,
           createdAt: new Date().toISOString(),
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     })
 
-    return NextResponse.json({ created, failed: errors.length, errors })
+    return NextResponse.json({ created, skipped, failed: errors.length, errors })
   } catch (error: any) {
     console.error('Import referrals error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

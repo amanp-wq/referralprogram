@@ -110,7 +110,7 @@ export function AdminReferrals() {
   // Import modal state
   const [showImport, setShowImport] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; failed: number; errors: { row: number; message: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: number; skipped?: number; failed: number; errors: { row: number; message: string }[] } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +121,10 @@ export function AdminReferrals() {
   // Status change state
   const [statusLoading, setStatusLoading] = useState<string | null>(null);
   const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -167,7 +171,6 @@ export function AdminReferrals() {
         visitorName: row[headers.indexOf('Visitor Name')] || '',
         visitorEmail: row[headers.indexOf('Visitor Email')] || '',
         visitorPhone: row[headers.indexOf('Visitor Phone')] || '',
-        source: row[headers.indexOf('Source')] || 'import',
         status: row[headers.indexOf('Status')] || 'submitted',
       })).filter(r => r.ambassadorEmail);
 
@@ -229,6 +232,62 @@ export function AdminReferrals() {
       alert(err.message);
     } finally {
       setStatusLoading(null);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (list: Referral[]) => {
+    if (selectedIds.size === list.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(list.map(r => r.id)));
+    }
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        fetch(`/api/admin/referrals/${id}`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        })
+      ));
+      setSelectedIds(new Set());
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} referral(s)? This cannot be undone.`)) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        fetch(`/api/admin/referrals/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        })
+      ));
+      setSelectedIds(new Set());
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -317,6 +376,19 @@ export function AdminReferrals() {
           </div>
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 px-5 py-3 bg-rx-primary-light border-b border-rx-primary/20">
+            <span className="text-sm font-semibold text-rx-primary">{selectedIds.size} selected</span>
+            <div className="flex gap-2 ml-auto flex-wrap">
+              <button onClick={() => handleBulkStatus('submitted')} disabled={bulkLoading} className="px-3 py-1.5 bg-rx-info text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">Mark Submitted</button>
+              <button onClick={() => handleBulkStatus('enrolled')} disabled={bulkLoading} className="px-3 py-1.5 bg-rx-success text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">Mark Enrolled</button>
+              <button onClick={() => handleBulkStatus('cancelled')} disabled={bulkLoading} className="px-3 py-1.5 bg-rx-warning text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">Mark Cancelled</button>
+              <button onClick={handleBulkDelete} disabled={bulkLoading} className="px-3 py-1.5 bg-rx-danger text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">Delete</button>
+              <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 border border-rx-gray-200 text-rx-gray-600 rounded-lg text-xs hover:bg-rx-gray-50">Clear</button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
         ) : filteredReferrals.length === 0 ? (
@@ -326,6 +398,14 @@ export function AdminReferrals() {
             <table className="w-full">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
+                  <th className="px-5 py-3">
+                    <input
+                      type="checkbox"
+                      checked={filteredReferrals.length > 0 && selectedIds.size === filteredReferrals.length}
+                      onChange={() => toggleSelectAll(filteredReferrals)}
+                      className="w-4 h-4 rounded border-rx-gray-300 text-rx-primary cursor-pointer"
+                    />
+                  </th>
                   <th className="px-5 py-3">Ambassador</th>
                   <th className="px-5 py-3">Referred</th>
                   <th className="px-5 py-3">Source</th>
@@ -343,7 +423,15 @@ export function AdminReferrals() {
                   const statusInfo = getReferralStatus(r);
                   const daysSince = getDaysSinceReferral(r.createdAt);
                   return (
-                    <tr key={r.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
+                    <tr key={r.id} className={`border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50 ${selectedIds.has(r.id) ? 'bg-rx-primary-light/30' : ''}`}>
+                      <td className="px-5 py-3.5">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(r.id)}
+                          onChange={() => toggleSelect(r.id)}
+                          className="w-4 h-4 rounded border-rx-gray-300 text-rx-primary cursor-pointer"
+                        />
+                      </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <Avatar initials={initials} />
@@ -432,6 +520,7 @@ export function AdminReferrals() {
                   <div className="text-sm font-semibold text-rx-secondary">Import Complete</div>
                   <div className="mt-2 text-sm text-rx-gray-700">
                     <span className="font-semibold text-rx-secondary">{importResult.created}</span> created,{' '}
+                    {importResult.skipped ? <><span className="font-semibold text-rx-warning">{importResult.skipped}</span> skipped (ambassador not found),{' '}</> : null}
                     <span className="font-semibold text-rx-danger">{importResult.failed}</span> failed
                   </div>
                 </div>
@@ -453,12 +542,12 @@ export function AdminReferrals() {
                 <div>
                   <button
                     onClick={() => {
-                      const headers = ["Ambassador Email", "Visitor Name", "Visitor Email", "Visitor Phone", "Source", "Status"];
+                      const headers = ["Ambassador Email", "Visitor Name", "Visitor Email", "Visitor Phone", "Status"];
                       downloadCSV("referral_template.csv", headers, []);
                     }}
                     className="inline-flex items-center gap-1.5 text-sm text-rx-primary hover:underline font-medium"
                   ><FileDown className="w-4 h-4" /> Download Template</button>
-                  <p className="text-xs text-rx-gray-500 mt-1">Download the CSV template, fill in your data, and upload it below.</p>
+                  <p className="text-xs text-rx-gray-500 mt-1">Required: Ambassador Email. Optional: Visitor Name, Visitor Email, Visitor Phone, Status (defaults to submitted).</p>
                 </div>
 
                 <div

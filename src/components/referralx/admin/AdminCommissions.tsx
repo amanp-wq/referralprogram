@@ -172,11 +172,11 @@ export function AdminCommissions() {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || "Failed to create commission");
       }
-      toast({ title: "Commission Created", description: "The commission has been successfully created" });
+      toast({ title: "Bonus Created", description: "The bonus has been successfully created" });
       setShowAddModal(false);
       fetchData();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to create commission", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to create bonus", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -228,11 +228,11 @@ export function AdminCommissions() {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || "Failed to update commission");
       }
-      toast({ title: "Commission Updated", description: "The commission has been successfully updated" });
+      toast({ title: "Bonus Updated", description: "The bonus has been successfully updated" });
       setShowEditModal(false);
       fetchData();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to update commission", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to update bonus", variant: "destructive" });
     } finally {
       setSavingCommission(false);
     }
@@ -328,7 +328,7 @@ export function AdminCommissions() {
           Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
-            <KpiCard label="Total Commissions" value={formatCurrency(totalAmount)} iconColor="primary" icon={<DollarSign className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Total Bonuses" value={formatCurrency(totalAmount)} iconColor="primary" icon={<DollarSign className="w-[18px] h-[18px]" />} />
             <KpiCard label="Pending" value={formatCurrency(pendingAmount)} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
             <KpiCard label="Approved" value={formatCurrency(approvedAmount)} iconColor="success" icon={<CheckCircle className="w-[18px] h-[18px]" />} />
             <KpiCard label="Released" value={formatCurrency(releasedAmount)} iconColor="info" icon={<Send className="w-[18px] h-[18px]" />} />
@@ -351,7 +351,7 @@ export function AdminCommissions() {
             <button
               onClick={handleOpenAddModal}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rx-primary text-white rounded-lg text-xs font-semibold hover:bg-rx-primary-dark transition-colors"
-            ><Plus className="w-3 h-3" /> Add Commission</button>
+            ><Plus className="w-3 h-3" /> Add Bonus</button>
             <button
               onClick={() => {
                 const headers = ["Referral Name", "Referral Email", "Referral Phone", "Referral Status", "Ambassador", "Amount", "Type", "Commission Status", "Date"];
@@ -376,7 +376,7 @@ export function AdminCommissions() {
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
         ) : commissions.length === 0 ? (
-          <EmptyState title="No commissions found" description={statusFilter ? "Try adjusting your filter" : "Commissions will appear here once referrals are marked as enrolled"} />
+          <EmptyState title="No bonuses found" description={statusFilter ? "Try adjusting your filter" : "Bonuses will appear here once referrals are marked as enrolled"} />
         ) : (
           <div className="divide-y divide-rx-gray-100">
             {commissions.map((c) => {
@@ -542,7 +542,7 @@ export function AdminCommissions() {
           <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
             <div className="flex items-center gap-2 mb-3">
               <Info className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-800">How Commissions Work</span>
+              <span className="text-sm font-semibold text-emerald-800">How Bonuses Work</span>
             </div>
             <div className="space-y-2.5">
               <div className="flex items-start gap-3">
@@ -582,7 +582,7 @@ export function AdminCommissions() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-rx-gray-800">Add Commission</h3>
+              <h3 className="text-lg font-semibold text-rx-gray-800">Add Bonus</h3>
               <button onClick={() => setShowAddModal(false)} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
             </div>
 
@@ -843,7 +843,7 @@ export function AdminCommissions() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-semibold text-rx-gray-800">Edit Commission</h3>
+                <h3 className="text-lg font-semibold text-rx-gray-800">Edit Bonus</h3>
                 <p className="text-xs text-rx-gray-500 mt-0.5">
                   {editingCommission.Referral?.visitorName || editingCommission.Referral?.visitorEmail || "No referral"} &middot; <StatusBadge status={editingCommission.status as any} />
                 </p>

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, getInitials } from "../shared";
-import { Users, UserPlus, UserCheck, UserX, Download, Search, Plus, Phone, Upload, FileDown, Trash2, MoreHorizontal } from "lucide-react";
+import { Users, UserPlus, UserCheck, UserX, Download, Search, Plus, Phone, Upload, FileDown, Trash2, CheckSquare } from "lucide-react";
 
 function downloadCSV(filename: string, headers: string[], rows: string[][]) {
   const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -83,7 +83,7 @@ export function AdminAffiliates() {
   // Import modal state
   const [showImport, setShowImport] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; failed: number; errors: { row: number; message: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: number; skipped?: number; failed: number; errors: { row: number; message: string }[] } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -93,6 +93,10 @@ export function AdminAffiliates() {
 
   // Status toggle loading
   const [statusLoading, setStatusLoading] = useState<string | null>(null);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -158,9 +162,6 @@ export function AdminAffiliates() {
         name: row[headers.indexOf('Name')] || '',
         email: row[headers.indexOf('Email')] || '',
         phone: row[headers.indexOf('Phone')] || '',
-        referralCode: row[headers.indexOf('Referral Code')] || '',
-        commissionRate: row[headers.indexOf('Commission Rate')] || '10',
-        tier: row[headers.indexOf('Tier')] || 'standard',
       })).filter(a => a.name && a.email);
 
       if (affiliates.length === 0) {
@@ -221,6 +222,62 @@ export function AdminAffiliates() {
       alert(err.message);
     } finally {
       setStatusLoading(null);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (affiliateList: Affiliate[]) => {
+    if (selectedIds.size === affiliateList.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(affiliateList.map(a => a.id)));
+    }
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        fetch("/api/admin/affiliates", {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status }),
+        })
+      ));
+      setSelectedIds(new Set());
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} ambassador(s)? This cannot be undone.`)) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        fetch(`/api/admin/affiliates/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        })
+      ));
+      setSelectedIds(new Set());
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -320,6 +377,33 @@ export function AdminAffiliates() {
           </div>
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 px-5 py-3 bg-rx-primary-light border-b border-rx-primary/20">
+            <span className="text-sm font-semibold text-rx-primary">{selectedIds.size} selected</span>
+            <div className="flex gap-2 ml-auto">
+              <button
+                onClick={() => handleBulkStatus('active')}
+                disabled={bulkLoading}
+                className="px-3 py-1.5 bg-rx-success text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+              >Activate</button>
+              <button
+                onClick={() => handleBulkStatus('suspended')}
+                disabled={bulkLoading}
+                className="px-3 py-1.5 bg-rx-warning text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+              >Suspend</button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkLoading}
+                className="px-3 py-1.5 bg-rx-danger text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+              >Delete</button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 border border-rx-gray-200 text-rx-gray-600 rounded-lg text-xs hover:bg-rx-gray-50"
+              >Clear</button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
         ) : affiliates.length === 0 ? (
@@ -329,6 +413,14 @@ export function AdminAffiliates() {
             <table className="w-full">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
+                  <th className="px-5 py-3">
+                    <input
+                      type="checkbox"
+                      checked={affiliates.length > 0 && selectedIds.size === affiliates.length}
+                      onChange={() => toggleSelectAll(affiliates)}
+                      className="w-4 h-4 rounded border-rx-gray-300 text-rx-primary cursor-pointer"
+                    />
+                  </th>
                   <th className="px-5 py-3">Ambassador</th>
                   <th className="px-5 py-3">Phone</th>
                   <th className="px-5 py-3">Unique Link</th>
@@ -347,7 +439,15 @@ export function AdminAffiliates() {
                   const initials = getInitials(name);
                   const conversionRatio = a.totalReferrals > 0 ? ((a.totalConversions / a.totalReferrals) * 100).toFixed(1) : "0.0";
                   return (
-                    <tr key={a.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
+                    <tr key={a.id} className={`border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50 ${selectedIds.has(a.id) ? 'bg-rx-primary-light/30' : ''}`}>
+                      <td className="px-5 py-3.5">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(a.id)}
+                          onChange={() => toggleSelect(a.id)}
+                          className="w-4 h-4 rounded border-rx-gray-300 text-rx-primary cursor-pointer"
+                        />
+                      </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <Avatar initials={initials} src={a.User?.avatarUrl} />
@@ -446,6 +546,7 @@ export function AdminAffiliates() {
                   <div className="text-sm font-semibold text-rx-secondary">Import Complete</div>
                   <div className="mt-2 text-sm text-rx-gray-700">
                     <span className="font-semibold text-rx-secondary">{importResult.created}</span> created,{' '}
+                    {importResult.skipped ? <><span className="font-semibold text-rx-warning">{importResult.skipped}</span> skipped (duplicate),{' '}</> : null}
                     <span className="font-semibold text-rx-danger">{importResult.failed}</span> failed
                   </div>
                 </div>
@@ -467,12 +568,12 @@ export function AdminAffiliates() {
                 <div>
                   <button
                     onClick={() => {
-                      const headers = ["Name", "Email", "Phone", "Referral Code", "Commission Rate", "Tier"];
+                      const headers = ["Name", "Email", "Phone"];
                       downloadCSV("ambassador_template.csv", headers, []);
                     }}
                     className="inline-flex items-center gap-1.5 text-sm text-rx-primary hover:underline font-medium"
                   ><FileDown className="w-4 h-4" /> Download Template</button>
-                  <p className="text-xs text-rx-gray-500 mt-1">Download the CSV template, fill in your data, and upload it below.</p>
+                  <p className="text-xs text-rx-gray-500 mt-1">Required: Name, Email. Optional: Phone (used to generate referral code).</p>
                 </div>
 
                 <div

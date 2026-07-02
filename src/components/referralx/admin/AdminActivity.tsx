@@ -171,7 +171,7 @@ export function AdminActivity() {
             <div className="w-8 h-8 rounded-lg bg-rx-warning-light flex items-center justify-center">
               <DollarSign className="w-4 h-4 text-rx-warning" />
             </div>
-            <span className="text-xs font-medium text-rx-gray-500">Commissions</span>
+            <span className="text-xs font-medium text-rx-gray-500">Bonuses</span>
           </div>
           <p className="text-2xl font-bold text-rx-gray-900">{entityCounts["commission"] || 0}</p>
         </div>

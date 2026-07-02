@@ -29,7 +29,7 @@ const adminNavGroups: NavGroup[] = [
   {
     label: "Finance",
     items: [
-      { id: "commissions", label: "Commissions", icon: <DollarSign className="w-[18px] h-[18px]" /> },
+      { id: "commissions", label: "Bonuses", icon: <DollarSign className="w-[18px] h-[18px]" /> },
     ],
   },
   {
@@ -121,7 +121,7 @@ export function AppShell({
   const breadcrumbMap: Record<string, string> = {
     dashboard: "Dashboard",
     affiliates: "Ambassador Management",
-    commissions: "Commission Management",
+    commissions: "Bonus Management",
     referrals: role === "admin" ? "Referral Tracking" : "Referrals",
     links: role === "admin" ? "Link Management" : "My Links",
     activity: "Activity Log",
