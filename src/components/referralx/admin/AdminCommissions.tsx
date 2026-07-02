@@ -238,21 +238,24 @@ export function AdminCommissions() {
     }
   };
 
-  const handleQuickStatusChange = async (commissionId: string, newStatus: string) => {
+  const handleQuickStatusChange = async (commissionId: string, newStatus?: string, newType?: string) => {
     try {
+      const body: any = { id: commissionId }
+      if (newStatus) body.status = newStatus
+      if (newType) body.type = newType
       const res = await fetch("/api/admin/commissions", {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ id: commissionId, status: newStatus }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to update status");
+        throw new Error(errData.error || "Failed to update");
       }
-      toast({ title: "Status Updated", description: `Commission marked as ${newStatus}` });
+      toast({ title: "Updated", description: newStatus ? `Commission marked as ${newStatus}` : `Type updated` });
       fetchData();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to update status", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to update", variant: "destructive" });
     }
   };
 
@@ -434,11 +437,20 @@ export function AdminCommissions() {
                       </div>
                     </div>
 
-                    {/* Commission Amount */}
-                    <div className="lg:w-28 shrink-0">
+                    {/* Commission Amount + Type */}
+                    <div className="lg:w-36 shrink-0">
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Amount</div>
                       <p className="text-lg font-bold text-rx-gray-900">{formatCurrency(c.amount)}</p>
-                      <p className="text-xs text-rx-gray-400">{c.type === 'referral_bonus' ? 'Referral Bonus' : c.type === 'helping_bonus' ? 'Helping Bonus' : c.type === 'adjustment' ? 'Adjustment' : 'Commission'}</p>
+                      <select
+                        value={c.type}
+                        onChange={(e) => handleQuickStatusChange(c.id, undefined, e.target.value)}
+                        className="text-xs px-2 py-1 border border-rx-gray-200 rounded-lg bg-white focus:outline-none focus:border-rx-primary cursor-pointer mt-0.5"
+                      >
+                        <option value="referral_bonus">Referral Bonus</option>
+                        <option value="helping_bonus">Helping Bonus</option>
+                        <option value="adjustment">Adjustment</option>
+                        <option value="bonus">Commission</option>
+                      </select>
                     </div>
 
                     {/* Commission Status */}
@@ -446,7 +458,7 @@ export function AdminCommissions() {
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Commission Status</div>
                       <select
                         value={c.status}
-                        onChange={(e) => handleQuickStatusChange(c.id, e.target.value)}
+                        onChange={(e) => handleQuickStatusChange(c.id, e.target.value, undefined)}
                         className="text-xs px-2.5 py-1.5 border border-rx-gray-200 rounded-lg bg-white focus:outline-none focus:border-rx-primary cursor-pointer font-medium"
                       >
                         <option value="pending">Pending</option>
