@@ -76,7 +76,7 @@ export function AdminCommissions() {
   const [affiliates, setAffiliates] = useState<AffiliateOption[]>([]);
   const [affiliatesLoading, setAffiliatesLoading] = useState(false);
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
-  const [addForm, setAddForm] = useState({ affiliateId: "", programId: "", amount: "", description: "", referralId: "" });
+  const [addForm, setAddForm] = useState({ affiliateId: "", programId: "", amount: "", description: "", referralId: "", type: "referral_bonus" });
   const [submitting, setSubmitting] = useState(false);
 
   // Edit Commission modal state
@@ -163,6 +163,7 @@ export function AdminCommissions() {
           affiliateId: addForm.affiliateId,
           programId: addForm.programId,
           amount: parseFloat(addForm.amount),
+          type: addForm.type,
           description: addForm.description || undefined,
           referralId: addForm.referralId || undefined,
         }),
@@ -200,7 +201,7 @@ export function AdminCommissions() {
     setEditCommissionForm({
       amount: commission.amount.toString(),
       description: commission.description || "",
-      type: commission.type || "bonus",
+      type: commission.type || "referral_bonus",
     });
     setShowEditModal(true);
   };
@@ -419,7 +420,7 @@ export function AdminCommissions() {
                     <div className="lg:w-28 shrink-0">
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Amount</div>
                       <p className="text-lg font-bold text-rx-gray-900">{formatCurrency(c.amount)}</p>
-                      <p className="text-xs text-rx-gray-400 capitalize">{c.type}</p>
+                      <p className="text-xs text-rx-gray-400">{c.type === 'referral_bonus' ? 'Referral Bonus' : c.type === 'helping_bonus' ? 'Helping Bonus' : c.type === 'adjustment' ? 'Adjustment' : 'Commission'}</p>
                     </div>
 
                     {/* Commission Status */}
@@ -598,6 +599,20 @@ export function AdminCommissions() {
                     className="w-full pl-7 pr-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
                   />
                 </div>
+              </div>
+
+              {/* Type */}
+              <div>
+                <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Type <span className="text-rx-danger">*</span></label>
+                <select
+                  value={addForm.type}
+                  onChange={(e) => setAddForm({ ...addForm, type: e.target.value })}
+                  className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
+                >
+                  <option value="referral_bonus">Referral Bonus</option>
+                  <option value="helping_bonus">Helping Bonus</option>
+                  <option value="adjustment">Adjustment</option>
+                </select>
               </div>
 
               {/* Description */}
@@ -821,7 +836,8 @@ export function AdminCommissions() {
                   onChange={(e) => setEditCommissionForm({ ...editCommissionForm, type: e.target.value })}
                   className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
                 >
-                  <option value="bonus">Bonus</option>
+                  <option value="referral_bonus">Referral Bonus</option>
+                  <option value="helping_bonus">Helping Bonus</option>
                   <option value="adjustment">Adjustment</option>
                 </select>
               </div>
