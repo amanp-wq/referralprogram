@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatPhone } from "@/lib/utils";
 import {
   RefreshCw, AlertCircle, Loader2, Save, CheckCircle,
 } from "lucide-react";
@@ -200,7 +201,7 @@ export function AffiliateSettings() {
               <input
                 type="tel"
                 value={formPhone}
-                onChange={(e) => setFormPhone(e.target.value)}
+                onChange={(e) => setFormPhone(formatPhone(e.target.value))}
                 className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
               />
             </div>

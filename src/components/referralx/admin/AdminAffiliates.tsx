@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, getInitials } from "../shared";
+import { formatPhone } from "@/lib/utils";
 import { Users, UserPlus, UserCheck, UserX, Download, Search, Plus, Phone, Upload, FileDown, Trash2, CheckSquare } from "lucide-react";
 
 function downloadCSV(filename: string, headers: string[], rows: string[][]) {
@@ -514,7 +515,7 @@ export function AdminAffiliates() {
             <div className="space-y-4">
               <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Name</label><input type="text" value={inviteForm.name} onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" placeholder="Full name" /></div>
               <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Email</label><input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" placeholder="email@example.com" /></div>
-              <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Phone</label><input type="tel" value={inviteForm.phone} onChange={(e) => setInviteForm({ ...inviteForm, phone: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" placeholder="+1 (555) 000-0000" /></div>
+              <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Phone</label><input type="tel" value={inviteForm.phone} onChange={(e) => setInviteForm({ ...inviteForm, phone: formatPhone(e.target.value) })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" placeholder="+1 (555) 000-0000" /></div>
               <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Referral Code</label><input type="text" value={inviteForm.referralCode} onChange={(e) => setInviteForm({ ...inviteForm, referralCode: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" placeholder="e.g. john2024" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Commission Rate</label><input type="number" value={inviteForm.commissionRate} onChange={(e) => setInviteForm({ ...inviteForm, commissionRate: e.target.value })} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light" /></div>

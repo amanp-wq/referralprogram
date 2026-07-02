@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatPhone } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   UserPlus,
@@ -346,7 +347,7 @@ export default function SignupPage() {
                   <input
                     type="tel"
                     value={form.phone}
-                    onChange={(e) => handleChange("phone", e.target.value)}
+                    onChange={(e) => handleChange("phone", formatPhone(e.target.value))}
                     className="w-full pl-10 pr-4 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all"
                     placeholder="(555) 123-4567"
                   />

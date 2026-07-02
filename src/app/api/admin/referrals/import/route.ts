@@ -3,6 +3,13 @@ import { requireAdmin } from '@/lib/auth'
 import { getServerClient } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 
+function formatPhone(value: string): string {
+  const digits = (value || '').replace(/\D/g, '')
+  const ten = digits.length > 10 ? digits.slice(-10) : digits
+  if (ten.length < 10) return value // not enough digits, store as-is
+  return `+1 (${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { user, error } = await requireAdmin(request)
@@ -99,6 +106,7 @@ export async function POST(request: NextRequest) {
           referralCode: affiliate.referralCode,
           visitorEmail: row.visitorEmail || null,
           visitorName: row.visitorName || null,
+          visitorPhone: row.visitorPhone ? formatPhone(row.visitorPhone) : null,
           visitorIp: null,
           source: 'import',
           status,

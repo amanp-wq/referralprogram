@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { formatPhone } from "@/lib/utils";
 import {
   UserPlus, CheckCircle, AlertCircle, Loader2, ArrowRight, Shield, Phone, Mail, User,
 } from "lucide-react";
@@ -176,7 +177,7 @@ function EnrollForm() {
                 <input
                   type="tel"
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
                   required
                   className="w-full pl-10 pr-4 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all"
                   placeholder="(555) 123-4567"

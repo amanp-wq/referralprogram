@@ -5,6 +5,13 @@ import { v4 as uuidv4 } from 'uuid'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 
+function formatPhone(value: string): string {
+  const digits = (value || '').replace(/\D/g, '')
+  const ten = digits.length > 10 ? digits.slice(-10) : digits
+  if (ten.length < 10) return value // not enough digits, store as-is
+  return `+1 (${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`
+}
+
 function generateSecurePassword(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   const bytes = crypto.randomBytes(12)
@@ -112,7 +119,7 @@ export async function POST(request: NextRequest) {
           id: userId,
           email: row.email,
           name: row.name,
-          phone: row.phone || null,
+          phone: row.phone ? formatPhone(row.phone) : null,
           passwordHash,
           role: 'affiliate',
           status: 'active',
