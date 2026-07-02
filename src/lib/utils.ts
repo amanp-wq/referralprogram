@@ -1,3 +1,10 @@
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
 export function formatPhone(value: string): string {
   // Strip everything except digits
   const digits = value.replace(/\D/g, '')
