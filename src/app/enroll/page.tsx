@@ -14,7 +14,7 @@ function EnrollForm() {
   const source = searchParams.get("source") || "direct";
   const ambassadorName = searchParams.get("ref") || "";
 
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -42,6 +42,7 @@ function EnrollForm() {
           visitorName: form.name,
           visitorPhone: form.phone,
           source,
+          notes: form.notes || undefined,
         }),
       });
 
@@ -196,6 +197,20 @@ function EnrollForm() {
                   placeholder="(555) 123-4567"
                 />
               </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                Additional Notes <span className="text-rx-gray-400 text-xs font-normal">(Optional)</span>
+              </label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                rows={3}
+                className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:bg-white focus:ring-[3px] focus:ring-rx-primary-light transition-all resize-y"
+                placeholder="Anything else you'd like to share..."
+              />
             </div>
 
             {/* Resume Upload */}

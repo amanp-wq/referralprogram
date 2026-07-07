@@ -24,6 +24,7 @@ interface Referral {
   convertedAt: string | null;
   createdAt: string;
   resumeUrl?: string | null;
+  notes?: string | null;
 }
 
 function formatDate(dateStr: string): string {
@@ -77,7 +78,7 @@ export function AffiliateReferrals() {
 
   // Add Referral modal state
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "" });
+  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", notes: "" });
   const [addResumeFile, setAddResumeFile] = useState<File | null>(null);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export function AffiliateReferrals() {
           visitorEmail: addForm.email,
           visitorPhone: addForm.phone || undefined,
           source: "direct",
+          notes: addForm.notes || undefined,
         }),
       });
       const data = await res.json();
@@ -135,7 +137,7 @@ export function AffiliateReferrals() {
         await fetch("/api/upload/resume", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
       }
       setAddSuccess(true);
-      setAddForm({ name: "", email: "", phone: "" });
+      setAddForm({ name: "", email: "", phone: "", notes: "" });
       setAddResumeFile(null);
       await fetchReferrals();
       setTimeout(() => {
@@ -292,7 +294,7 @@ export function AffiliateReferrals() {
               <Download className="w-3 h-3" /> Export
             </button>
             <button
-              onClick={() => { setShowAddModal(true); setAddError(null); setAddSuccess(false); setAddForm({ name: "", email: "", phone: "" }); setAddResumeFile(null); }}
+              onClick={() => { setShowAddModal(true); setAddError(null); setAddSuccess(false); setAddForm({ name: "", email: "", phone: "", notes: "" }); setAddResumeFile(null); }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rx-primary text-white rounded-lg text-xs font-semibold hover:bg-rx-primary-dark"
             >
               <UserPlus className="w-3 h-3" /> Add Referral
@@ -441,6 +443,19 @@ export function AffiliateReferrals() {
                     className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all"
                     placeholder="+1 (555) 123-4567"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Notes <span className="text-rx-gray-400 text-xs font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    value={addForm.notes}
+                    onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
+                    rows={4}
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all resize-y"
+                    placeholder="Add any relevant context about this referral..."
+                  />
+                  <p className="text-xs text-rx-gray-400 mt-1">Visible to you and the admin team.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">

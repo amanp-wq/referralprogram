@@ -20,6 +20,7 @@ interface Referral {
   createdAt: string;
   updatedAt: string;
   resumeUrl?: string | null;
+  notes?: string | null;
   Affiliate?: { id: string; referralCode: string; User?: { name: string; email: string } };
   Program?: { id: string; name: string; slug: string };
 }
@@ -453,6 +454,12 @@ export function AdminReferrals() {
                       <td className="px-5 py-3.5">
                         <div className="text-sm text-rx-gray-700">{visitorName}</div>
                         {r.visitorEmail && r.visitorEmail !== visitorName && <div className="text-xs text-rx-gray-500">{r.visitorEmail}</div>}
+                        {r.notes && (
+                          <div className="mt-2 px-3 py-2 bg-rx-gray-50 rounded-lg border border-rx-gray-100">
+                            <p className="text-xs font-medium text-rx-gray-500 mb-1">Notes</p>
+                            <p className="text-sm text-rx-gray-700 leading-relaxed">{r.notes}</p>
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-3.5"><span className="text-xs bg-rx-gray-100 text-rx-gray-600 px-2 py-0.5 rounded capitalize">{r.source || "direct"}</span></td>
                       <td className="px-5 py-3.5">

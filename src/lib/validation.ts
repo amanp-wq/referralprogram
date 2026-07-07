@@ -48,6 +48,7 @@ export const referralConvertSchema = z.object({
   visitorName: z.string().max(100).optional(),
   visitorPhone: phoneSchema,
   source: z.enum(['social', 'email', 'website', 'direct', 'link']).optional(),
+  notes: z.string().max(2000).optional(),
   // Optional metadata for the conversion event
   metadata: z.record(z.string(), z.unknown()).optional(),
 })

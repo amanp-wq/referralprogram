@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return applyCors(validation.response, origin, requestOrigin)
     }
-    const { referralCode, visitorEmail, visitorName, visitorPhone, source } = validation.data
+    const { referralCode, visitorEmail, visitorName, visitorPhone, source, notes } = validation.data
 
     // Rate limit: 5 submissions per IP per minute (anti-fraud)
     const ip = getClientIp(request)
@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
     // Sanitize free-text fields
     const safeName = sanitizeText(visitorName, 100) || ''
     const safeEmail = visitorEmail.toLowerCase().trim()
+    const safeNotes = notes ? sanitizeText(notes, 2000) : null
 
     const supabase = getServerClient()
 
@@ -181,6 +182,7 @@ export async function POST(request: NextRequest) {
         visitorName: safeName,
         visitorPhone: visitorPhone || null,
         source: source || clickedReferral.source || 'direct',
+        ...(safeNotes !== null ? { notes: safeNotes } : {}),
         updatedAt: new Date().toISOString(),
       }).eq('id', clickedReferral.id)
 
@@ -203,6 +205,7 @@ export async function POST(request: NextRequest) {
         visitorName: safeName,
         visitorPhone: visitorPhone || null,
         source: source || 'direct',
+        notes: safeNotes,
         status: 'submitted',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

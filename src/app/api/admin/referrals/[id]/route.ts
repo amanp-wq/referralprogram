@@ -40,7 +40,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { visitorName, visitorEmail, visitorPhone, status } = body
+    const { visitorName, visitorEmail, visitorPhone, status, notes } = body
 
     const supabase = getServerClient()
 
@@ -54,6 +54,7 @@ export async function PUT(
     if (visitorEmail !== undefined) updateData.visitorEmail = visitorEmail
     if (visitorPhone !== undefined) updateData.visitorPhone = visitorPhone
     if (status !== undefined) updateData.status = status
+    if (notes !== undefined) updateData.notes = notes
     if (status === 'enrolled') {
       updateData.convertedAt = new Date().toISOString()
     }
