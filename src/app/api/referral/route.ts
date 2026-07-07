@@ -237,9 +237,26 @@ export async function POST(request: NextRequest) {
       console.error('[REFERRAL] Email sending failed:', emailErr)
     }
 
+    const returnedId = clickedReferral ? (clickedReferral as any).id : null
+
+    // For new inserts we need to re-query to get the id (insert didn't capture it above)
+    let finalId = returnedId
+    if (!finalId) {
+      const { data: newRef } = await supabase
+        .from('Referral')
+        .select('id')
+        .eq('affiliateId', affiliate.id)
+        .eq('visitorEmail', safeEmail)
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .single()
+      finalId = (newRef as any)?.id || null
+    }
+
     return applyCors(
       NextResponse.json({
         success: true,
+        id: finalId,
         message: 'Enrollment submitted successfully! Your referral is now being processed.',
         referralStatus: 'submitted',
       }),

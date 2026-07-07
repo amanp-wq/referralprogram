@@ -15,6 +15,7 @@ function EnrollForm() {
   const ambassadorName = searchParams.get("ref") || "";
 
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +49,18 @@ function EnrollForm() {
 
       if (!res.ok) {
         throw new Error(data.error || "Something went wrong");
+      }
+
+      // Upload resume if provided
+      if (resumeFile && data.id) {
+        try {
+          const fd = new FormData();
+          fd.append("file", resumeFile);
+          fd.append("referralId", data.id);
+          await fetch("/api/upload/resume", { method: "POST", body: fd });
+        } catch {
+          // Non-fatal: referral already saved, resume upload failure is OK
+        }
       }
 
       setSubmitted(true);
@@ -183,6 +196,19 @@ function EnrollForm() {
                   placeholder="(555) 123-4567"
                 />
               </div>
+            </div>
+
+            {/* Resume Upload */}
+            <div>
+              <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                Resume <span className="text-rx-gray-400 text-xs font-normal">(Optional — PDF or Word, max 5MB)</span>
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-rx-primary-light file:text-rx-primary"
+              />
             </div>
 
             {/* Referral Code is hidden from submitter */}

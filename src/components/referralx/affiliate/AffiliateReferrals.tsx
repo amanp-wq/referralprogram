@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, StatusBadge, Avatar, getInitials } from "../shared";
 import {
-  Users, UserCheck, Clock, UserX, Download, RefreshCw, AlertCircle, ExternalLink,
+  Users, UserCheck, Clock, UserX, Download, RefreshCw, AlertCircle, ExternalLink, UserPlus, X, FileDown,
 } from "lucide-react";
+import { formatPhone } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 
@@ -22,6 +23,7 @@ interface Referral {
   status: string;
   convertedAt: string | null;
   createdAt: string;
+  resumeUrl?: string | null;
 }
 
 function formatDate(dateStr: string): string {
@@ -67,11 +69,18 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
 type FilterTab = "All" | "Opened" | "Submitted" | "Pending" | "Enrolled" | "Not Enrolled";
 
 export function AffiliateReferrals() {
-  const { token } = useAuth();
+  const { token, affiliate } = useAuth();
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("All");
+
+  // Add Referral modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "" });
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState(false);
 
   const fetchReferrals = useCallback(async () => {
     if (!token) return;
@@ -97,6 +106,47 @@ export function AffiliateReferrals() {
   useEffect(() => {
     fetchReferrals();
   }, [fetchReferrals]);
+
+  const handleAddReferral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!affiliate?.referralCode || !token) return;
+    setAddLoading(true);
+    setAddError(null);
+    try {
+      const res = await fetch("/api/referral", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          referralCode: affiliate.referralCode,
+          visitorName: addForm.name,
+          visitorEmail: addForm.email,
+          visitorPhone: addForm.phone || undefined,
+          source: "direct",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to add referral");
+      setAddSuccess(true);
+      setAddForm({ name: "", email: "", phone: "" });
+      await fetchReferrals();
+      setTimeout(() => {
+        setShowAddModal(false);
+        setAddSuccess(false);
+      }, 1500);
+    } catch (err: any) {
+      setAddError(err.message || "Something went wrong");
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  const handleViewResume = async (fileName: string) => {
+    const res = await fetch(`/api/upload/resume-url?file=${encodeURIComponent(fileName)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.url) window.open(data.url, "_blank");
+  };
 
   // Compute statuses for each referral
   const referralsWithStatus = referrals.map((r) => ({
@@ -232,6 +282,12 @@ export function AffiliateReferrals() {
             >
               <Download className="w-3 h-3" /> Export
             </button>
+            <button
+              onClick={() => { setShowAddModal(true); setAddError(null); setAddSuccess(false); setAddForm({ name: "", email: "", phone: "" }); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rx-primary text-white rounded-lg text-xs font-semibold hover:bg-rx-primary-dark"
+            >
+              <UserPlus className="w-3 h-3" /> Add Referral
+            </button>
           </div>
         </div>
         {loading ? (
@@ -260,6 +316,7 @@ export function AffiliateReferrals() {
                   <th className="px-5 py-3">Date</th>
                   <th className="px-5 py-3">Days Since</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Resume</th>
                 </tr>
               </thead>
               <tbody>
@@ -283,6 +340,18 @@ export function AffiliateReferrals() {
                       <td className="px-5 py-3.5">
                         <StatusBadge status={r.computedStatus as any} />
                       </td>
+                      <td className="px-5 py-3.5">
+                        {r.resumeUrl ? (
+                          <button
+                            onClick={() => handleViewResume(r.resumeUrl!)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rx-primary border border-rx-primary/30 rounded-lg hover:bg-rx-primary-light transition-colors"
+                          >
+                            <FileDown className="w-3.5 h-3.5" /> View
+                          </button>
+                        ) : (
+                          <span className="text-xs text-rx-gray-400">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -300,6 +369,86 @@ export function AffiliateReferrals() {
           </div>
         )}
       </div>
+      {/* Add Referral Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Add Referral</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-rx-gray-400 hover:text-rx-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {addSuccess ? (
+              <div className="py-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-rx-secondary-light flex items-center justify-center mx-auto mb-3">
+                  <UserPlus className="w-6 h-6 text-rx-secondary" />
+                </div>
+                <p className="text-sm font-semibold text-rx-gray-800">Referral added successfully!</p>
+              </div>
+            ) : (
+              <form onSubmit={handleAddReferral} className="space-y-4">
+                {addError && (
+                  <div className="p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" /> {addError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Full Name <span className="text-rx-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.name}
+                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="Enter full name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Email <span className="text-rx-danger">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={addForm.email}
+                    onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Phone <span className="text-rx-gray-400 text-xs font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={addForm.phone}
+                    onChange={(e) => setAddForm({ ...addForm, phone: formatPhone(e.target.value) })}
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50"
+                  >Cancel</button>
+                  <button
+                    type="submit"
+                    disabled={addLoading}
+                    className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50"
+                  >{addLoading ? "Adding..." : "Add Referral"}</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ interface Referral {
   convertedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  resumeUrl?: string | null;
   Affiliate?: { id: string; referralCode: string; User?: { name: string; email: string } };
   Program?: { id: string; name: string; slug: string };
 }
@@ -291,6 +292,14 @@ export function AdminReferrals() {
     }
   };
 
+  const handleDownloadResume = async (fileName: string) => {
+    const res = await fetch(`/api/upload/resume-url?file=${encodeURIComponent(fileName)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const data = await res.json()
+    if (data.url) window.open(data.url, '_blank')
+  }
+
   if (error) {
     return <ErrorWithRetry message={error} onRetry={fetchData} />;
   }
@@ -486,13 +495,23 @@ export function AdminReferrals() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <button
-                          onClick={() => setDeleteTarget(r)}
-                          className="p-1.5 rounded-lg text-rx-gray-400 hover:text-rx-danger hover:bg-rx-danger-light transition-colors"
-                          title="Delete referral"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {r.resumeUrl && (
+                            <button
+                              onClick={() => handleDownloadResume(r.resumeUrl!)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rx-primary border border-rx-primary/30 rounded-lg hover:bg-rx-primary-light transition-colors"
+                            >
+                              <FileDown className="w-3.5 h-3.5" /> Resume
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setDeleteTarget(r)}
+                            className="p-1.5 rounded-lg text-rx-gray-400 hover:text-rx-danger hover:bg-rx-danger-light transition-colors"
+                            title="Delete referral"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
