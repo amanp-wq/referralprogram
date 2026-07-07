@@ -148,7 +148,21 @@ export function newAffiliateEmail(name: string, email: string, referralCode: str
   }
 }
 
-export function newReferralAdminEmail(visitorName: string, visitorEmail: string, ambassadorName: string, referralCode: string): EmailPayload {
+export function newReferralAdminEmail(
+  visitorName: string,
+  visitorEmail: string,
+  ambassadorName: string,
+  referralCode: string,
+  referralId?: string,
+  notes?: string | null,
+  resumeUrl?: string | null,
+): EmailPayload {
+  const notesRow = notes
+    ? `<tr><td style="padding: 8px 0; color: #64748b; font-size: 14px; vertical-align: top;">Notes:</td><td style="padding: 8px 0; color: #0f172a;">${notes}</td></tr>`
+    : ''
+  const resumeRow = resumeUrl
+    ? `<tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Resume:</td><td style="padding: 8px 0;"><a href="${resumeUrl}" style="color: #C44838; text-decoration: underline;">View Resume</a></td></tr>`
+    : ''
   return {
     to: process.env.ADMIN_EMAIL || 'admin@elevateme.pro',
     subject: `New Referral Submitted: ${visitorName}`,
@@ -157,10 +171,12 @@ export function newReferralAdminEmail(visitorName: string, visitorEmail: string,
         <h1 style="color: #C44838; font-size: 24px;">New Referral Submitted</h1>
         <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin: 20px 0;">
           <table style="width: 100%; border-collapse: collapse;">
+            ${referralId ? `<tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Referral #:</td><td style="padding: 8px 0; font-weight: 600; font-family: monospace; color: #0f172a;">${referralId}</td></tr>` : ''}
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Visitor Name:</td><td style="padding: 8px 0; font-weight: 600; color: #0f172a;">${visitorName}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Visitor Email:</td><td style="padding: 8px 0; font-weight: 600; color: #0f172a;">${visitorEmail}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Ambassador:</td><td style="padding: 8px 0; font-weight: 600; color: #0f172a;">${ambassadorName}</td></tr>
-            <tr><td style="padding: 8px 0; color: #64748b; font-size: 14px;">Referral Code:</td><td style="padding: 8px 0; font-weight: 600; font-family: monospace; color: #0f172a;">${referralCode}</td></tr>
+            ${notesRow}
+            ${resumeRow}
           </table>
         </div>
         <a href="${process.env.APP_URL || 'https://referral.elevateme.pro'}/app?tab=referrals" style="background: #C44838; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View in Dashboard</a>

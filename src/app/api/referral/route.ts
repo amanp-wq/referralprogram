@@ -231,15 +231,6 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     })
 
-    // Send email notification to admin about new referral
-    try {
-      const { sendEmail, newReferralAdminEmail } = await import('@/app/api/email/route')
-      const affiliateName = (affiliate as any).User?.name || affiliate.referralCode || 'Ambassador'
-      await sendEmail(newReferralAdminEmail(safeName, safeEmail, affiliateName, referralCode))
-    } catch (emailErr) {
-      console.error('[REFERRAL] Email sending failed:', emailErr)
-    }
-
     const returnedId = clickedReferral ? (clickedReferral as any).id : null
 
     // For new inserts we need to re-query to get the id (insert didn't capture it above)
@@ -254,6 +245,21 @@ export async function POST(request: NextRequest) {
         .limit(1)
         .single()
       finalId = (newRef as any)?.id || null
+    }
+
+    // Send email notification to admin (after finalId is resolved so we can include referral number)
+    try {
+      const { sendEmail, newReferralAdminEmail } = await import('@/app/api/email/route')
+      const affiliateName = (affiliate as any).User?.name || affiliate.referralCode || 'Ambassador'
+      // Fetch resume URL if referral has one
+      let resumeUrl: string | null = null
+      if (finalId) {
+        const { data: refData } = await supabase.from('Referral').select('resumeUrl').eq('id', finalId).single()
+        if ((refData as any)?.resumeUrl) resumeUrl = (refData as any).resumeUrl
+      }
+      await sendEmail(newReferralAdminEmail(safeName, safeEmail, affiliateName, referralCode, finalId || undefined, safeNotes, resumeUrl))
+    } catch (emailErr) {
+      console.error('[REFERRAL] Email sending failed:', emailErr)
     }
 
     return applyCors(

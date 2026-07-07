@@ -230,8 +230,8 @@ export function AffiliateReferrals() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
           <KpiCard
-            label="Total Referrals"
-            value={totalReferrals.toLocaleString()}
+            label="Links Opened"
+            value={openedCount.toLocaleString()}
             iconColor="primary"
             icon={<Users className="w-[18px] h-[18px]" />}
           />
