@@ -161,13 +161,13 @@ export default function SignupPage() {
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => router.push("/app")}
+                onClick={() => { window.location.href = "/app"; }}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-rx-primary text-white rounded-lg font-semibold text-sm hover:bg-rx-primary-dark transition-colors"
               >
                 Go to Dashboard <ArrowRight className="w-4 h-4" />
               </button>
               <button
-                onClick={() => router.push("/login")}
+                onClick={() => { window.location.href = "/app"; }}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-rx-gray-100 text-rx-gray-700 rounded-lg font-semibold text-sm hover:bg-rx-gray-200 transition-colors"
               >
                 Explore Programs
