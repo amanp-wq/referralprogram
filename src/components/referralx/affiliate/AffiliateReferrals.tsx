@@ -327,7 +327,7 @@ export function AffiliateReferrals() {
                   <th className="px-5 py-3">Date</th>
                   <th className="px-5 py-3">Days Since</th>
                   <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Resume</th>
+                  <th className="px-5 py-3">Notes / Resume</th>
                 </tr>
               </thead>
               <tbody>
@@ -352,16 +352,21 @@ export function AffiliateReferrals() {
                         <StatusBadge status={r.computedStatus as any} />
                       </td>
                       <td className="px-5 py-3.5">
-                        {r.resumeUrl ? (
-                          <button
-                            onClick={() => handleViewResume(r.resumeUrl!)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rx-primary border border-rx-primary/30 rounded-lg hover:bg-rx-primary-light transition-colors"
-                          >
-                            <FileDown className="w-3.5 h-3.5" /> View
-                          </button>
-                        ) : (
-                          <span className="text-xs text-rx-gray-400">—</span>
-                        )}
+                        <div className="flex flex-col gap-1.5">
+                          {r.notes && (
+                            <div className="text-xs text-rx-gray-500 bg-rx-gray-50 rounded-lg px-2.5 py-1.5 border border-rx-gray-100 max-w-[200px]">
+                              <span className="font-medium text-rx-gray-600 block mb-0.5">Notes</span>
+                              <span className="leading-relaxed line-clamp-2">{r.notes}</span>
+                            </div>
+                          )}
+                          {r.resumeUrl ? (
+                            <button onClick={() => handleViewResume(r.resumeUrl!)} className="inline-flex items-center gap-1 text-xs text-rx-primary hover:underline">
+                              <FileDown className="w-3 h-3" /> View resume
+                            </button>
+                          ) : (
+                            <span className="text-xs text-rx-gray-400">—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

@@ -6,8 +6,9 @@ import { KpiCard, StatusBadge, CopyButton, SectionCard, EmptyState, timeAgo } fr
 import {
   DollarSign, Users, UserCheck, Percent, Copy, BarChart3,
   RefreshCw, AlertCircle, ExternalLink, Link2, TrendingUp, Download,
-  Share2, MessageCircle, Eye, Send, ArrowRightLeft,
+  Share2, MessageCircle, Eye, Send, ArrowRightLeft, UserPlus, X, FileDown,
 } from "lucide-react";
+import { formatPhone } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 
@@ -143,6 +144,14 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<"7D" | "30D" | "90D">("30D");
 
+  // Add Referral modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  const [addResumeFile, setAddResumeFile] = useState<File | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState(false);
+
   const fetchData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
@@ -181,6 +190,47 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
   const enrolledChartData = data?.enrolledReferralsChart || [];
   const maxTotalVal = Math.max(...totalChartData.map((d) => d.value), 1);
   const maxEnrolledVal = Math.max(...enrolledChartData.map((d) => d.value), 1);
+
+  const handleAddReferral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!affiliate?.referralCode || !token) return;
+    setAddLoading(true);
+    setAddError(null);
+    try {
+      const res = await fetch("/api/referral", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          referralCode: affiliate.referralCode,
+          visitorName: addForm.name,
+          visitorEmail: addForm.email,
+          visitorPhone: addForm.phone || undefined,
+          source: "direct",
+          notes: addForm.notes || undefined,
+        }),
+      });
+      const responseData = await res.json();
+      if (!res.ok) throw new Error(responseData.error || "Failed to add referral");
+      if (addResumeFile && responseData.id) {
+        const fd = new FormData();
+        fd.append("file", addResumeFile);
+        fd.append("referralId", responseData.id);
+        await fetch("/api/upload/resume", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
+      }
+      setAddSuccess(true);
+      setAddForm({ name: "", email: "", phone: "", notes: "" });
+      setAddResumeFile(null);
+      await fetchData();
+      setTimeout(() => {
+        setShowAddModal(false);
+        setAddSuccess(false);
+      }, 1500);
+    } catch (err: any) {
+      setAddError(err.message || "Something went wrong");
+    } finally {
+      setAddLoading(false);
+    }
+  };
 
   const handleExportCSV = () => {
     const referrals = data?.recentReferrals || [];
@@ -256,6 +306,12 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
           <div className="flex gap-3">
             <CopyButton text={referralLink} label={<><Copy className="w-4 h-4" /> Copy Link</>} />
             <button
+              onClick={() => { setShowAddModal(true); setAddError(null); setAddSuccess(false); setAddForm({ name: "", email: "", phone: "", notes: "" }); setAddResumeFile(null); }}
+              className="px-4 py-2.5 bg-white/20 border border-white/40 rounded-lg text-sm font-semibold hover:bg-white/30 flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" /> Add Referral
+            </button>
+            <button
               onClick={() => onNavigate?.("earnings")}
               className="px-4 py-2.5 border border-white/40 rounded-lg text-sm font-semibold hover:bg-white/10 flex items-center gap-2"
             >
@@ -289,8 +345,8 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
             onClick={() => onNavigate?.("earnings")}
           />
           <KpiCard
-            label="Total Referrals"
-            value={totalReferrals.toLocaleString()}
+            label="Links Clicked"
+            value={(data?.kpis.totalConversions ?? 0).toLocaleString()}
             iconColor="success"
             icon={<Users className="w-[18px] h-[18px]" />}
             onClick={() => onNavigate?.("referrals")}
@@ -550,73 +606,6 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
         )}
       </div>
 
-      {/* Recent Referrals */}
-      <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
-          <h3 className="text-base font-semibold text-rx-gray-800">Recent Referrals</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={fetchData}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
-            >
-              <RefreshCw className="w-3 h-3" /> Refresh
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
-            >
-              <Download className="w-3 h-3" /> Export CSV
-            </button>
-          </div>
-        </div>
-        {loading ? (
-          <div className="p-5 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-6 w-16 rounded-full" />
-              </div>
-            ))}
-          </div>
-        ) : data?.recentReferrals && data.recentReferrals.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
-                  <th className="px-5 py-3">Visitor</th>
-                  <th className="px-5 py-3">Source</th>
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentReferrals.map((r) => (
-                  <tr key={r.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
-                    <td className="px-5 py-3.5">
-                      <div className="text-sm font-semibold text-rx-gray-800">{r.visitorName || r.visitorEmail || "Anonymous"}</div>
-                      {r.visitorEmail && <div className="text-xs text-rx-gray-500">{r.visitorEmail}</div>}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-rx-gray-700 capitalize">{r.source || "direct"}</td>
-                    <td className="px-5 py-3.5 text-sm text-rx-gray-500">{formatDate(r.createdAt)}</td>
-                    <td className="px-5 py-3.5">
-                      <StatusBadge status={getReferralStatus(r) as any} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Users className="w-10 h-10 text-rx-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-rx-gray-500">No referrals yet. Share your link to start earning!</p>
-          </div>
-        )}
-      </div>
-
       {/* Recent Referral Activity */}
       <SectionCard title="Recent Referral Activity">
         {loading ? (
@@ -652,6 +641,112 @@ export function AffiliateDashboard({ onNavigate }: { onNavigate?: (page: string)
           <EmptyState title="No activity yet" description="Referral activity will appear here as actions occur" />
         )}
       </SectionCard>
+
+      {/* Add Referral Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Add Referral</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-rx-gray-400 hover:text-rx-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {addSuccess ? (
+              <div className="py-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-rx-secondary-light flex items-center justify-center mx-auto mb-3">
+                  <UserPlus className="w-6 h-6 text-rx-secondary" />
+                </div>
+                <p className="text-sm font-semibold text-rx-gray-800">Referral added successfully!</p>
+              </div>
+            ) : (
+              <form onSubmit={handleAddReferral} className="space-y-4">
+                {addError && (
+                  <div className="p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" /> {addError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Full Name <span className="text-rx-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.name}
+                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="Enter full name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Email <span className="text-rx-danger">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={addForm.email}
+                    onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Phone <span className="text-rx-danger">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={addForm.phone}
+                    onChange={(e) => setAddForm({ ...addForm, phone: formatPhone(e.target.value) })}
+                    required
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Notes <span className="text-rx-gray-400 text-xs font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    value={addForm.notes}
+                    onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
+                    rows={4}
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all resize-y"
+                    placeholder="Add any relevant context about this referral..."
+                  />
+                  <p className="text-xs text-rx-gray-400 mt-1">Visible to you and the admin team.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Resume <span className="text-rx-gray-400 text-xs font-normal">(Optional — PDF or Word, max 5MB)</span>
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => setAddResumeFile(e.target.files?.[0] || null)}
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-rx-primary-light file:text-rx-primary"
+                  />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50"
+                  >Cancel</button>
+                  <button
+                    type="submit"
+                    disabled={addLoading}
+                    className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50"
+                  >{addLoading ? "Adding..." : "Add Referral"}</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
