@@ -5,7 +5,10 @@ import { getInitials } from "./shared";
 import {
   ChartPie, Users, Share2, DollarSign, Link2, FileText, Settings,
   HelpCircle, Bell, LogOut, Menu, X, ChevronRight, UserCircle, ShieldCheck,
+  UserPlus, AlertCircle,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatPhone } from "@/lib/utils";
 
 interface NavGroup {
   label: string;
@@ -177,6 +180,58 @@ export function AppShell({
 
   const unreadCount = activities.length;
 
+  // Add Referral modal (affiliate only)
+  const { affiliate, token } = useAuth();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  const [addResumeFile, setAddResumeFile] = useState<File | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState(false);
+
+  const openAddModal = () => {
+    setAddForm({ name: "", email: "", phone: "", notes: "" });
+    setAddResumeFile(null);
+    setAddError(null);
+    setAddSuccess(false);
+    setShowAddModal(true);
+  };
+
+  const handleAddReferral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!affiliate?.referralCode || !token) return;
+    setAddLoading(true);
+    setAddError(null);
+    try {
+      const res = await fetch("/api/referral", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          referralCode: affiliate.referralCode,
+          visitorName: addForm.name,
+          visitorEmail: addForm.email,
+          visitorPhone: addForm.phone || undefined,
+          source: "direct",
+          notes: addForm.notes || undefined,
+        }),
+      });
+      const responseData = await res.json();
+      if (!res.ok) throw new Error(responseData.error || "Failed to add referral");
+      if (addResumeFile && responseData.id) {
+        const fd = new FormData();
+        fd.append("file", addResumeFile);
+        fd.append("referralId", responseData.id);
+        await fetch("/api/upload/resume", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
+      }
+      setAddSuccess(true);
+      setTimeout(() => { setShowAddModal(false); setAddSuccess(false); }, 1500);
+    } catch (err: any) {
+      setAddError(err.message || "Something went wrong");
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-rx-gray-50">
       {mobileOpen && (
@@ -292,6 +347,16 @@ export function AppShell({
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Add Referral button — affiliate only */}
+            {role === "affiliate" && (
+              <button
+                onClick={openAddModal}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">Add Referral</span>
+              </button>
+            )}
             {/* Notifications dropdown */}
             <div className="relative" ref={notifRef}>
               <button
@@ -414,6 +479,60 @@ export function AppShell({
         </header>
         <div className="p-6 max-w-[1440px]">{children}</div>
       </main>
+
+      {/* Add Referral Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Add Referral</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-rx-gray-400 hover:text-rx-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {addSuccess ? (
+              <div className="py-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-rx-secondary-light flex items-center justify-center mx-auto mb-3">
+                  <UserPlus className="w-6 h-6 text-rx-secondary" />
+                </div>
+                <p className="text-sm font-semibold text-rx-gray-800">Referral added successfully!</p>
+              </div>
+            ) : (
+              <form onSubmit={handleAddReferral} className="space-y-4">
+                {addError && (
+                  <div className="p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" /> {addError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Full Name <span className="text-rx-danger">*</span></label>
+                  <input type="text" value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} required className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all" placeholder="Enter full name" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Email <span className="text-rx-danger">*</span></label>
+                  <input type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} required className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all" placeholder="email@example.com" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Phone <span className="text-rx-danger">*</span></label>
+                  <input type="tel" value={addForm.phone} onChange={(e) => setAddForm({ ...addForm, phone: formatPhone(e.target.value) })} required className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all" placeholder="+1 (555) 123-4567" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Notes <span className="text-rx-gray-400 text-xs font-normal">(Optional)</span></label>
+                  <textarea value={addForm.notes} onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })} rows={3} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all resize-y" placeholder="Add any relevant context about this referral..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">Resume <span className="text-rx-gray-400 text-xs font-normal">(Optional — PDF or Word, max 5MB)</span></label>
+                  <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setAddResumeFile(e.target.files?.[0] || null)} className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-rx-primary-light file:text-rx-primary" />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50">Cancel</button>
+                  <button type="submit" disabled={addLoading} className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50">{addLoading ? "Adding..." : "Add Referral"}</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
