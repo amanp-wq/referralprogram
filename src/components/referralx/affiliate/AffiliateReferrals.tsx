@@ -78,6 +78,7 @@ export function AffiliateReferrals() {
   // Add Referral modal state
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", email: "", phone: "" });
+  const [addResumeFile, setAddResumeFile] = useState<File | null>(null);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addSuccess, setAddSuccess] = useState(false);
@@ -126,8 +127,16 @@ export function AffiliateReferrals() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to add referral");
+      // Upload resume if provided
+      if (addResumeFile && data.id) {
+        const fd = new FormData();
+        fd.append("file", addResumeFile);
+        fd.append("referralId", data.id);
+        await fetch("/api/upload/resume", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
+      }
       setAddSuccess(true);
       setAddForm({ name: "", email: "", phone: "" });
+      setAddResumeFile(null);
       await fetchReferrals();
       setTimeout(() => {
         setShowAddModal(false);
@@ -283,7 +292,7 @@ export function AffiliateReferrals() {
               <Download className="w-3 h-3" /> Export
             </button>
             <button
-              onClick={() => { setShowAddModal(true); setAddError(null); setAddSuccess(false); setAddForm({ name: "", email: "", phone: "" }); }}
+              onClick={() => { setShowAddModal(true); setAddError(null); setAddSuccess(false); setAddForm({ name: "", email: "", phone: "" }); setAddResumeFile(null); }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rx-primary text-white rounded-lg text-xs font-semibold hover:bg-rx-primary-dark"
             >
               <UserPlus className="w-3 h-3" /> Add Referral
@@ -422,14 +431,26 @@ export function AffiliateReferrals() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
-                    Phone <span className="text-rx-gray-400 text-xs font-normal">(Optional)</span>
+                    Phone <span className="text-rx-danger">*</span>
                   </label>
                   <input
                     type="tel"
                     value={addForm.phone}
                     onChange={(e) => setAddForm({ ...addForm, phone: formatPhone(e.target.value) })}
+                    required
                     className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all"
-                    placeholder="(555) 123-4567"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-rx-gray-700 mb-1.5">
+                    Resume <span className="text-rx-gray-400 text-xs font-normal">(Optional — PDF or Word, max 5MB)</span>
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => setAddResumeFile(e.target.files?.[0] || null)}
+                    className="w-full px-3.5 py-2.5 border border-rx-gray-200 rounded-lg text-sm bg-rx-gray-50 focus:outline-none focus:border-rx-primary focus:ring-[3px] focus:ring-rx-primary-light transition-all file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-rx-primary-light file:text-rx-primary"
                   />
                 </div>
                 <div className="flex gap-3 pt-1">
