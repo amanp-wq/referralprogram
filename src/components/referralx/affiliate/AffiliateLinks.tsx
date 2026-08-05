@@ -81,14 +81,6 @@ export function AffiliateLinks() {
                 <div className="text-white/60 text-xs">Your Code</div>
                 <div className="text-white font-bold font-mono text-lg">{affiliate.referralCode}</div>
               </div>
-              <div>
-                <div className="text-white/60 text-xs">Tier</div>
-                <div className="text-white font-bold capitalize text-lg">{affiliate.tier}</div>
-              </div>
-              <div>
-                <div className="text-white/60 text-xs">Commission</div>
-                <div className="text-white font-bold text-lg">{affiliate.commissionRate}%</div>
-              </div>
             </div>
           )}
         </div>
