@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatDate, getInitials } from "../shared";
-import { Share2, UserPlus, RefreshCw, ArrowRight, Download, Clock, UserCheck, UserX, Upload, FileDown, Trash2, ChevronDown, Eye, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Share2, UserPlus, RefreshCw, ArrowRight, Download, Clock, UserCheck, UserX, Upload, FileDown, Trash2, ChevronDown, Eye, Search, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 
 interface Referral {
   id: string;
@@ -195,6 +195,12 @@ export function AdminReferrals() {
   const [deleteTarget, setDeleteTarget] = useState<Referral | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Edit contact state
+  const [editTarget, setEditTarget] = useState<Referral | null>(null);
+  const [editForm, setEditForm] = useState({ visitorName: "", visitorEmail: "", visitorPhone: "" });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   // Status change state
   const [statusLoading, setStatusLoading] = useState<string | null>(null);
   const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
@@ -334,6 +340,37 @@ export function AdminReferrals() {
 
   const downloadSkipped = (details: { row: number; ambassadorEmail: string; reason: string }[]) => {
     downloadCSV("skipped_referrals.csv", ["Row", "Ambassador Email", "Reason"], details.map(s => [String(s.row), s.ambassadorEmail, s.reason]));
+  };
+
+  const openEdit = (r: Referral) => {
+    setEditTarget(r);
+    setEditForm({ visitorName: r.visitorName || "", visitorEmail: r.visitorEmail || "", visitorPhone: r.visitorPhone || "" });
+    setEditError(null);
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    setEditLoading(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/admin/referrals/${editTarget.id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          visitorName: editForm.visitorName.trim() || null,
+          visitorEmail: editForm.visitorEmail.trim() || null,
+          visitorPhone: editForm.visitorPhone.trim() || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update");
+      setEditTarget(null);
+      fetchData();
+    } catch (err: any) {
+      setEditError(err.message);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -672,6 +709,13 @@ export function AdminReferrals() {
                             </button>
                           )}
                           <button
+                            onClick={() => openEdit(r)}
+                            className="p-1.5 rounded-lg text-rx-gray-400 hover:text-rx-primary hover:bg-rx-primary-light transition-colors"
+                            title="Edit contact details"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => setDeleteTarget(r)}
                             className="p-1.5 rounded-lg text-rx-gray-400 hover:text-rx-danger hover:bg-rx-danger-light transition-colors"
                             title="Delete referral"
@@ -930,6 +974,40 @@ export function AdminReferrals() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Contact Dialog */}
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Edit Referred Person</h3>
+              <button onClick={() => setEditTarget(null)} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
+            </div>
+            {editError && <div className="mb-4 p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg">{editError}</div>}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-rx-gray-500 mb-1">Name</label>
+                <input value={editForm.visitorName} onChange={(e) => setEditForm({ ...editForm, visitorName: e.target.value })}
+                  className="w-full px-3 py-2 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-rx-gray-500 mb-1">Email</label>
+                <input type="email" value={editForm.visitorEmail} onChange={(e) => setEditForm({ ...editForm, visitorEmail: e.target.value })}
+                  className="w-full px-3 py-2 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-rx-gray-500 mb-1">Phone</label>
+                <input value={editForm.visitorPhone} onChange={(e) => setEditForm({ ...editForm, visitorPhone: e.target.value })}
+                  className="w-full px-3 py-2 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditTarget(null)} className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50">Cancel</button>
+              <button onClick={handleEditSave} disabled={editLoading} className="flex-1 py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50">{editLoading ? "Saving…" : "Save"}</button>
+            </div>
           </div>
         </div>
       )}
