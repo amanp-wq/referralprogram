@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatDate, getInitials } from "../shared";
-import { Share2, UserPlus, RefreshCw, ArrowRight, Download, Clock, UserCheck, UserX, Upload, FileDown, Trash2, ChevronDown, Eye } from "lucide-react";
+import { Share2, UserPlus, RefreshCw, ArrowRight, Download, Clock, UserCheck, UserX, Upload, FileDown, Trash2, ChevronDown, Eye, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Referral {
   id: string;
@@ -95,12 +95,38 @@ function getDaysSinceReferral(createdAt: string): number {
   return Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+// Windowed page numbers, e.g. [1, '...', 4, 5, 6, '...', 20]
+function getPageNumbers(current: number, totalPages: number): (number | string)[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  const pages: (number | string)[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(totalPages - 1, current + 1);
+  if (start > 2) pages.push("...");
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < totalPages - 1) pages.push("...");
+  pages.push(totalPages);
+  return pages;
+}
+
+interface ReferralCounts {
+  all: number;
+  opened: number;
+  submitted: number;
+  pending: number;
+  enrolled: number;
+  notEnrolled: number;
+  cancelled: number;
+}
+
 interface ReferralsResponse {
   referrals: Referral[];
   total: number;
   page: number;
   limit: number;
+  counts?: ReferralCounts;
 }
+
+const PER_PAGE_OPTIONS = [25, 50, 100, 200];
 
 export function AdminReferrals() {
   const { token } = useAuth();
@@ -108,6 +134,12 @@ export function AdminReferrals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
+
+  // Search + pagination state
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
 
   // Import modal state
   const [showImport, setShowImport] = useState(false);
@@ -133,9 +165,10 @@ export function AdminReferrals() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (statusFilter) {
-        params.set("status", statusFilter);
-      }
+      if (statusFilter) params.set("status", statusFilter);
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      params.set("page", String(page));
+      params.set("limit", String(perPage));
       const res = await fetch(`/api/admin/referrals?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
@@ -150,9 +183,15 @@ export function AdminReferrals() {
     } finally {
       setLoading(false);
     }
-  }, [token, statusFilter]);
+  }, [token, statusFilter, debouncedSearch, page, perPage]);
 
   useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
+
+  // Debounce the search box; reset to page 1 on a new search
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search.trim()); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const handleImport = async (file: File) => {
     setImportLoading(true);
@@ -308,16 +347,19 @@ export function AdminReferrals() {
   const referrals = data?.referrals || [];
   const total = data?.total || 0;
 
-  const realReferrals = referrals.filter(r => r.status !== "opened");
-  const submittedCount = realReferrals.filter(r => getReferralStatus(r).status === "submitted").length;
-  const enrolledCount = realReferrals.filter(r => getReferralStatus(r).status === "enrolled").length;
-  const pendingCount = realReferrals.filter(r => getReferralStatus(r).status === "pending").length;
-  const notEnrolledCount = realReferrals.filter(r => getReferralStatus(r).status === "not_enrolled").length;
-  const openedCount = referrals.filter(r => r.status === "opened").length;
+  // KPI counts come from the server (whole dataset), not just the current page.
+  const counts: ReferralCounts = data?.counts || {
+    all: 0, opened: 0, submitted: 0, pending: 0, enrolled: 0, notEnrolled: 0, cancelled: 0,
+  };
 
-  const filteredReferrals = statusFilter === ""
-    ? referrals
-    : referrals.filter(r => getReferralStatus(r).status === statusFilter);
+  // The server already applies the status filter + search, so render rows as-is.
+  const filteredReferrals = referrals;
+
+  // Pagination math
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const rangeStart = total === 0 ? 0 : (page - 1) * perPage + 1;
+  const rangeEnd = Math.min(page * perPage, total);
+  const gotoPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
   const statusOptions = [
     { value: 'submitted', label: 'Submitted' },
@@ -335,12 +377,12 @@ export function AdminReferrals() {
           Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
-            <KpiCard label="Total Referrals" value={realReferrals.length.toLocaleString()} iconColor="primary" icon={<Share2 className="w-[18px] h-[18px]" />} />
-            <KpiCard label="Opened" value={openedCount.toLocaleString()} iconColor="info" icon={<Eye className="w-[18px] h-[18px]" />} />
-            <KpiCard label="Submitted" value={submittedCount.toLocaleString()} iconColor="info" icon={<Upload className="w-[18px] h-[18px]" />} />
-            <KpiCard label="Enrolled" value={enrolledCount.toLocaleString()} iconColor="success" icon={<UserCheck className="w-[18px] h-[18px]" />} />
-            <KpiCard label="Pending" value={pendingCount.toLocaleString()} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
-            <KpiCard label="Not Enrolled" value={notEnrolledCount.toLocaleString()} iconColor="danger" icon={<UserX className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Total Referrals" value={counts.all.toLocaleString()} iconColor="primary" icon={<Share2 className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Opened" value={counts.opened.toLocaleString()} iconColor="info" icon={<Eye className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Submitted" value={counts.submitted.toLocaleString()} iconColor="info" icon={<Upload className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Enrolled" value={counts.enrolled.toLocaleString()} iconColor="success" icon={<UserCheck className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Pending" value={counts.pending.toLocaleString()} iconColor="warning" icon={<Clock className="w-[18px] h-[18px]" />} />
+            <KpiCard label="Not Enrolled" value={counts.notEnrolled.toLocaleString()} iconColor="danger" icon={<UserX className="w-[18px] h-[18px]" />} />
           </>
         )}
       </div>
@@ -349,10 +391,20 @@ export function AdminReferrals() {
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Referral List</h3>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-rx-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name, email, phone…"
+                className="pl-8 pr-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white w-56 focus:outline-none focus:border-rx-primary"
+              />
+            </div>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
               className="px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 bg-white hover:bg-rx-gray-50"
             >
               <option value="">All Status</option>
@@ -525,6 +577,49 @@ export function AdminReferrals() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination footer */}
+        {!loading && total > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-rx-gray-100">
+            <div className="flex items-center gap-2 text-xs text-rx-gray-500 flex-wrap">
+              <span>Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of {total.toLocaleString()}</span>
+              <span className="mx-1">·</span>
+              <label className="flex items-center gap-1.5">
+                Show per page
+                <select
+                  value={perPage}
+                  onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
+                  className="px-2 py-1 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white"
+                >
+                  {PER_PAGE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="flex items-center gap-1 flex-wrap">
+              <button
+                onClick={() => gotoPage(page - 1)}
+                disabled={page <= 1}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              ><ChevronLeft className="w-3.5 h-3.5" /> Prev</button>
+              {getPageNumbers(page, totalPages).map((p, i) =>
+                p === "..." ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-xs text-rx-gray-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => gotoPage(p as number)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium ${p === page ? "bg-rx-primary text-white" : "border border-rx-gray-200 text-rx-gray-600 hover:bg-rx-gray-50"}`}
+                  >{p}</button>
+                )
+              )}
+              <button
+                onClick={() => gotoPage(page + 1)}
+                disabled={page >= totalPages}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >Next <ChevronRight className="w-3.5 h-3.5" /></button>
+            </div>
           </div>
         )}
       </div>
