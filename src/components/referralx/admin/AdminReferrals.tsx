@@ -128,6 +128,36 @@ interface ReferralsResponse {
 
 const PER_PAGE_OPTIONS = [25, 50, 100, 200];
 
+// System fields the import can fill / update. ambassadorEmail is required to
+// resolve which ambassador the reference belongs to.
+const IMPORT_FIELDS: { key: string; label: string; required?: boolean }[] = [
+  { key: "ambassadorEmail", label: "Ambassador Email", required: true },
+  { key: "visitorName", label: "Visitor Name" },
+  { key: "visitorEmail", label: "Visitor Email" },
+  { key: "visitorPhone", label: "Visitor Phone" },
+  { key: "status", label: "Status" },
+  { key: "notes", label: "Notes" },
+];
+
+// Best-guess a CSV column index for a given system field, by header name.
+function guessColumn(headers: string[], field: string): number {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+  const targets: Record<string, string[]> = {
+    ambassadorEmail: ["ambassadoremail", "ambassador", "affiliateemail"],
+    visitorName: ["visitorname", "name", "leadname", "referredname", "fullname"],
+    visitorEmail: ["visitoremail", "email", "leademail", "referredemail"],
+    visitorPhone: ["visitorphone", "phone", "mobile", "contact", "phonenumber"],
+    status: ["status"],
+    notes: ["notes", "note", "remark", "remarks", "comment"],
+  };
+  const cands = targets[field] || [];
+  for (let i = 0; i < headers.length; i++) {
+    const h = norm(headers[i]);
+    if (cands.some((c) => h === c || h.includes(c))) return i;
+  }
+  return -1;
+}
+
 export function AdminReferrals() {
   const { token } = useAuth();
   const [data, setData] = useState<ReferralsResponse | null>(null);
@@ -141,12 +171,25 @@ export function AdminReferrals() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
-  // Import modal state
+  // Import wizard state
   const [showImport, setShowImport] = useState(false);
+  const [importStep, setImportStep] = useState<1 | 2 | 3 | 4>(1);
   const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; skipped?: number; failed: number; errors: { row: number; message: string }[]; skippedDetails?: { row: number; ambassadorEmail: string; reason: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: number; updated?: number; skipped?: number; failed: number; errors: { row: number; message: string }[]; skippedDetails?: { row: number; ambassadorEmail: string; reason: string }[] } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvRows, setCsvRows] = useState<string[][]>([]);
+  const [csvFileName, setCsvFileName] = useState("");
+  const [importMode, setImportMode] = useState<"update" | "fresh">("update");
+  const [matchBy, setMatchBy] = useState<"email" | "phone" | "email_phone">("email");
+  const [fieldMap, setFieldMap] = useState<Record<string, number>>({}); // system field -> csv column index (-1 = none)
+  const [updateFieldsSel, setUpdateFieldsSel] = useState<Record<string, boolean>>({});
+
+  // Import/Export history modal state
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<Referral | null>(null);
@@ -193,49 +236,104 @@ export function AdminReferrals() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const handleImport = async (file: File) => {
-    setImportLoading(true);
+  const openImport = () => {
+    setShowImport(true);
+    setImportStep(1);
     setImportResult(null);
     setImportError(null);
+    setCsvHeaders([]);
+    setCsvRows([]);
+    setCsvFileName("");
+    setImportMode("update");
+    setMatchBy("email");
+    setFieldMap({});
+    setUpdateFieldsSel({});
+  };
+
+  // Step 1 → parse the uploaded CSV and auto-guess the field mapping
+  const handleFileSelected = async (file: File) => {
+    setImportError(null);
+    setImportResult(null);
     try {
       const text = await file.text();
       const rows = parseCSV(text);
-      if (rows.length < 2) {
-        setImportError("CSV file is empty or has no data rows");
+      if (rows.length < 2) { setImportError("CSV file is empty or has no data rows"); return; }
+      const headers = rows[0];
+      setCsvHeaders(headers);
+      setCsvRows(rows.slice(1).filter(r => r.some(c => c && c.trim())));
+      setCsvFileName(file.name);
+      const map: Record<string, number> = {};
+      const sel: Record<string, boolean> = {};
+      IMPORT_FIELDS.forEach(f => {
+        map[f.key] = guessColumn(headers, f.key);
+        if (f.key !== "ambassadorEmail") sel[f.key] = map[f.key] !== -1;
+      });
+      setFieldMap(map);
+      setUpdateFieldsSel(sel);
+      setImportStep(2);
+    } catch (err: any) {
+      setImportError(err.message || "Could not read the file");
+    }
+  };
+
+  // Final step → build rows from the mapping and send to the server
+  const runImport = async () => {
+    setImportLoading(true);
+    setImportError(null);
+    try {
+      if (fieldMap.ambassadorEmail == null || fieldMap.ambassadorEmail < 0) {
+        setImportError("Please map the 'Ambassador Email' column — it's required.");
         setImportLoading(false);
         return;
       }
-
-      const headers = rows[0];
-      const referrals = rows.slice(1).map(row => ({
-        ambassadorEmail: row[headers.indexOf('Ambassador Email')] || '',
-        visitorName: row[headers.indexOf('Visitor Name')] || '',
-        visitorEmail: row[headers.indexOf('Visitor Email')] || '',
-        visitorPhone: row[headers.indexOf('Visitor Phone')] || '',
-        status: row[headers.indexOf('Status')] || 'submitted',
+      const get = (row: string[], key: string) => {
+        const i = fieldMap[key];
+        return i != null && i >= 0 ? (row[i] || "").trim() : "";
+      };
+      const referrals = csvRows.map(row => ({
+        ambassadorEmail: get(row, "ambassadorEmail"),
+        visitorName: get(row, "visitorName"),
+        visitorEmail: get(row, "visitorEmail"),
+        visitorPhone: get(row, "visitorPhone"),
+        status: get(row, "status") || "submitted",
+        notes: get(row, "notes"),
       })).filter(r => r.ambassadorEmail);
 
-      if (referrals.length === 0) {
-        setImportError("No valid rows found in CSV");
-        setImportLoading(false);
-        return;
-      }
+      if (referrals.length === 0) { setImportError("No rows with an Ambassador Email were found."); setImportLoading(false); return; }
+
+      const updateFields = importMode === "update"
+        ? Object.keys(updateFieldsSel).filter(k => updateFieldsSel[k])
+        : [];
 
       const res = await fetch("/api/admin/referrals/import", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ referrals }),
+        body: JSON.stringify({ referrals, mode: importMode, matchBy, updateFields, fileName: csvFileName }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Import failed");
-
       setImportResult(json);
+      setImportStep(4);
       fetchData();
     } catch (err: any) {
       setImportError(err.message);
     } finally {
       setImportLoading(false);
     }
+  };
+
+  const loadHistory = async () => {
+    setShowHistory(true);
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/admin/import-history?limit=50", { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      setHistoryLogs(json.logs || []);
+    } catch { setHistoryLogs([]); } finally { setHistoryLoading(false); }
+  };
+
+  const downloadSkipped = (details: { row: number; ambassadorEmail: string; reason: string }[]) => {
+    downloadCSV("skipped_referrals.csv", ["Row", "Ambassador Email", "Reason"], details.map(s => [String(s.row), s.ambassadorEmail, s.reason]));
   };
 
   const handleDelete = async () => {
@@ -415,7 +513,7 @@ export function AdminReferrals() {
               <option value="not_enrolled">Not Enrolled</option>
             </select>
             <button
-              onClick={() => setShowImport(true)}
+              onClick={openImport}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
             ><Upload className="w-3 h-3" /> Import</button>
             <button
@@ -432,9 +530,19 @@ export function AdminReferrals() {
                   ];
                 });
                 downloadCSV("referrals.csv", headers, rows);
+                // Log the export to Import/Export history (best-effort)
+                fetch("/api/admin/import-history", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ type: "export", entity: "referral", fileName: "referrals.csv", total: rows.length }),
+                }).catch(() => {});
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
             ><Download className="w-3 h-3" /> Export</button>
+            <button
+              onClick={loadHistory}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            ><Clock className="w-3 h-3" /> History</button>
           </div>
         </div>
 
@@ -624,99 +732,202 @@ export function AdminReferrals() {
         )}
       </div>
 
-      {/* Import Dialog */}
+      {/* Import Wizard */}
       {showImport && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between mb-5">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-rx-gray-800">Import Referrals</h3>
               <button onClick={() => { setShowImport(false); setImportResult(null); setImportError(null); }} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
             </div>
 
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 mb-5">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className="flex items-center gap-2">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${importStep >= n ? "bg-rx-primary text-white" : "bg-rx-gray-100 text-rx-gray-400"}`}>{n}</div>
+                  {n < 4 && <div className={`w-8 h-0.5 ${importStep > n ? "bg-rx-primary" : "bg-rx-gray-100"}`} />}
+                </div>
+              ))}
+              <span className="ml-2 text-xs text-rx-gray-500">
+                {importStep === 1 ? "Upload CSV" : importStep === 2 ? "Import options" : importStep === 3 ? "Map fields" : "Results"}
+              </span>
+            </div>
+
             {importError && <div className="mb-4 p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg">{importError}</div>}
 
-            {importResult ? (
-              <div className="space-y-3">
-                <div className="p-4 bg-rx-secondary-light rounded-lg">
-                  <div className="text-sm font-semibold text-rx-secondary">Import Complete</div>
-                  <div className="mt-2 text-sm text-rx-gray-700">
-                    <span className="font-semibold text-rx-secondary">{importResult.created}</span> created,{' '}
-                    {importResult.skipped ? <><span className="font-semibold text-rx-warning">{importResult.skipped}</span> skipped (ambassador not found),{' '}</> : null}
-                    <span className="font-semibold text-rx-danger">{importResult.failed}</span> failed
-                  </div>
-                </div>
-                {importResult.errors.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto">
-                    <div className="text-xs font-semibold text-rx-gray-600 mb-2">Errors:</div>
-                    {importResult.errors.map((e, i) => (
-                      <div key={i} className="text-xs text-rx-danger mb-1">Row {e.row}: {e.message}</div>
-                    ))}
-                  </div>
-                )}
-                {importResult.skippedDetails && importResult.skippedDetails.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-xs font-semibold text-rx-gray-600">Skipped rows:</div>
-                      <button
-                        onClick={() => {
-                          const rows = importResult.skippedDetails!.map(s => [String(s.row), s.ambassadorEmail, s.reason]);
-                          downloadCSV("skipped_referrals.csv", ["Row", "Ambassador Email", "Reason"], rows);
-                        }}
-                        className="inline-flex items-center gap-1 text-xs text-rx-primary hover:underline font-medium"
-                      ><FileDown className="w-3.5 h-3.5" /> Download skipped</button>
-                    </div>
-                    <div className="max-h-40 overflow-y-auto">
-                      {importResult.skippedDetails.map((s, i) => (
-                        <div key={i} className="text-xs text-rx-warning mb-1">Row {s.row} ({s.ambassadorEmail}): {s.reason}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <button
-                  onClick={() => { setShowImport(false); setImportResult(null); }}
-                  className="w-full py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark"
-                >Done</button>
-              </div>
-            ) : (
+            {/* STEP 1 — Upload */}
+            {importStep === 1 && (
               <div className="space-y-4">
-                <div>
-                  <button
-                    onClick={() => {
-                      const headers = ["Ambassador Email", "Visitor Name", "Visitor Email", "Visitor Phone", "Status"];
-                      downloadCSV("referral_template.csv", headers, []);
-                    }}
-                    className="inline-flex items-center gap-1.5 text-sm text-rx-primary hover:underline font-medium"
-                  ><FileDown className="w-4 h-4" /> Download Template</button>
-                  <p className="text-xs text-rx-gray-500 mt-1">Required: Ambassador Email. Optional: Visitor Name, Visitor Email, Visitor Phone, Status (defaults to submitted).</p>
-                </div>
-
+                <button
+                  onClick={() => downloadCSV("referral_template.csv", ["Ambassador Email", "Visitor Name", "Visitor Email", "Visitor Phone", "Status", "Notes"], [])}
+                  className="inline-flex items-center gap-1.5 text-sm text-rx-primary hover:underline font-medium"
+                ><FileDown className="w-4 h-4" /> Download template</button>
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-rx-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-rx-primary hover:bg-rx-primary-light/20 transition-colors"
                 >
                   <Upload className="w-8 h-8 text-rx-gray-400 mx-auto mb-2" />
-                  <div className="text-sm font-medium text-rx-gray-600">
-                    {importLoading ? "Uploading..." : "Click to upload CSV file"}
-                  </div>
+                  <div className="text-sm font-medium text-rx-gray-600">Click to choose a CSV file</div>
                   <div className="text-xs text-rx-gray-400 mt-1">.csv files only</div>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImport(file);
-                  }}
-                />
+                <input ref={fileInputRef} type="file" accept=".csv" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelected(f); e.target.value = ""; }} />
+              </div>
+            )}
 
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => { setShowImport(false); setImportError(null); }}
-                    className="flex-1 py-2.5 border border-rx-gray-200 rounded-lg text-sm font-medium text-rx-gray-600 hover:bg-rx-gray-50"
-                  >Cancel</button>
+            {/* STEP 2 — Mode + match */}
+            {importStep === 2 && (
+              <div className="space-y-5">
+                <div className="text-xs text-rx-gray-500">File: <span className="font-semibold text-rx-gray-700">{csvFileName}</span> · {csvRows.length} row(s)</div>
+                <div>
+                  <div className="text-sm font-semibold text-rx-gray-700 mb-2">What do you want to do?</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button onClick={() => setImportMode("update")} className={`text-left p-3 rounded-xl border ${importMode === "update" ? "border-rx-primary bg-rx-primary-light/30" : "border-rx-gray-200 hover:bg-rx-gray-50"}`}>
+                      <div className="text-sm font-semibold text-rx-gray-800">Update existing</div>
+                      <div className="text-xs text-rx-gray-500 mt-0.5">Match leads by email/phone and update them; create the ones that don&apos;t exist.</div>
+                    </button>
+                    <button onClick={() => setImportMode("fresh")} className={`text-left p-3 rounded-xl border ${importMode === "fresh" ? "border-rx-primary bg-rx-primary-light/30" : "border-rx-gray-200 hover:bg-rx-gray-50"}`}>
+                      <div className="text-sm font-semibold text-rx-gray-800">Fresh import</div>
+                      <div className="text-xs text-rx-gray-500 mt-0.5">Always create new records (no matching).</div>
+                    </button>
+                  </div>
                 </div>
+                {importMode === "update" && (
+                  <div>
+                    <div className="text-sm font-semibold text-rx-gray-700 mb-2">Match existing leads by</div>
+                    <div className="flex gap-2 flex-wrap">
+                      {([["email", "Email"], ["phone", "Phone"], ["email_phone", "Email + Phone"]] as const).map(([v, l]) => (
+                        <button key={v} onClick={() => setMatchBy(v)} className={`px-3 py-1.5 rounded-lg text-sm border ${matchBy === v ? "border-rx-primary bg-rx-primary-light/30 text-rx-primary font-semibold" : "border-rx-gray-200 text-rx-gray-600 hover:bg-rx-gray-50"}`}>{l}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3 justify-between pt-2">
+                  <button onClick={() => setImportStep(1)} className="px-4 py-2 border border-rx-gray-200 rounded-lg text-sm text-rx-gray-600 hover:bg-rx-gray-50">Back</button>
+                  <button onClick={() => setImportStep(3)} className="px-5 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">Next</button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3 — Field mapping */}
+            {importStep === 3 && (
+              <div className="space-y-4">
+                <div className="text-sm font-semibold text-rx-gray-700">Map your CSV columns</div>
+                <div className="space-y-2">
+                  {IMPORT_FIELDS.map((f) => (
+                    <div key={f.key} className="flex items-center gap-3">
+                      <div className="w-40 text-sm text-rx-gray-700">
+                        {f.label}{f.required && <span className="text-rx-danger"> *</span>}
+                      </div>
+                      <select
+                        value={fieldMap[f.key] ?? -1}
+                        onChange={(e) => setFieldMap({ ...fieldMap, [f.key]: Number(e.target.value) })}
+                        className="flex-1 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-sm text-rx-gray-700 bg-white"
+                      >
+                        <option value={-1}>— Not mapped —</option>
+                        {csvHeaders.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                      </select>
+                      {importMode === "update" && f.key !== "ambassadorEmail" && (
+                        <label className="flex items-center gap-1 text-xs text-rx-gray-500 w-24">
+                          <input type="checkbox" checked={!!updateFieldsSel[f.key]} onChange={(e) => setUpdateFieldsSel({ ...updateFieldsSel, [f.key]: e.target.checked })} />
+                          update
+                        </label>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {importMode === "update" && (
+                  <p className="text-xs text-rx-gray-500">Tick &ldquo;update&rdquo; for the fields you want overwritten on matched leads. Unticked fields stay unchanged.</p>
+                )}
+                <div className="flex gap-3 justify-between pt-2">
+                  <button onClick={() => setImportStep(2)} className="px-4 py-2 border border-rx-gray-200 rounded-lg text-sm text-rx-gray-600 hover:bg-rx-gray-50">Back</button>
+                  <button onClick={runImport} disabled={importLoading} className="px-5 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50">
+                    {importLoading ? "Importing…" : `Import ${csvRows.length} row(s)`}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4 — Results */}
+            {importStep === 4 && importResult && (
+              <div className="space-y-3">
+                <div className="p-4 bg-rx-secondary-light rounded-lg text-sm text-rx-gray-700">
+                  <span className="font-semibold text-rx-secondary">{importResult.created}</span> created
+                  {typeof importResult.updated === "number" && <>, <span className="font-semibold text-rx-info">{importResult.updated}</span> updated</>}
+                  {importResult.skipped ? <>, <span className="font-semibold text-rx-warning">{importResult.skipped}</span> skipped</> : null}
+                  , <span className="font-semibold text-rx-danger">{importResult.failed}</span> failed
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="max-h-32 overflow-y-auto">
+                    <div className="text-xs font-semibold text-rx-gray-600 mb-1">Errors:</div>
+                    {importResult.errors.map((e, i) => <div key={i} className="text-xs text-rx-danger mb-1">Row {e.row}: {e.message}</div>)}
+                  </div>
+                )}
+                {importResult.skippedDetails && importResult.skippedDetails.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs font-semibold text-rx-gray-600">Skipped rows:</div>
+                      <button onClick={() => downloadSkipped(importResult.skippedDetails!)} className="inline-flex items-center gap-1 text-xs text-rx-primary hover:underline font-medium"><FileDown className="w-3.5 h-3.5" /> Download skipped</button>
+                    </div>
+                    <div className="max-h-32 overflow-y-auto">
+                      {importResult.skippedDetails.map((s, i) => <div key={i} className="text-xs text-rx-warning mb-1">Row {s.row} ({s.ambassadorEmail}): {s.reason}</div>)}
+                    </div>
+                  </div>
+                )}
+                <button onClick={() => { setShowImport(false); setImportResult(null); }} className="w-full py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">Done</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Import/Export History */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Import / Export History</h3>
+              <button onClick={() => setShowHistory(false)} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
+            </div>
+            {historyLoading ? (
+              <div className="py-10 text-center text-sm text-rx-gray-500">Loading…</div>
+            ) : historyLogs.length === 0 ? (
+              <div className="py-10 text-center text-sm text-rx-gray-500">No import/export history yet.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wider text-rx-gray-500 bg-rx-gray-50">
+                      <th className="px-3 py-2">When</th>
+                      <th className="px-3 py-2">Type</th>
+                      <th className="px-3 py-2">By</th>
+                      <th className="px-3 py-2">File</th>
+                      <th className="px-3 py-2">Result</th>
+                      <th className="px-3 py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyLogs.map((log) => (
+                      <tr key={log.id} className="border-b border-rx-gray-100 last:border-0">
+                        <td className="px-3 py-2 text-xs text-rx-gray-600 whitespace-nowrap">{formatDate(log.createdAt)}</td>
+                        <td className="px-3 py-2"><span className={`text-xs px-2 py-0.5 rounded ${log.type === "import" ? "bg-rx-info/10 text-rx-info" : "bg-rx-gray-100 text-rx-gray-600"}`}>{log.type}</span></td>
+                        <td className="px-3 py-2 text-xs text-rx-gray-700">{log.userName || "—"}</td>
+                        <td className="px-3 py-2 text-xs text-rx-gray-500">{log.fileName || "—"}</td>
+                        <td className="px-3 py-2 text-xs text-rx-gray-700">
+                          {log.type === "import"
+                            ? `${log.created} created, ${log.updated} updated, ${log.skipped} skipped, ${log.failed} failed`
+                            : `${log.total} rows`}
+                        </td>
+                        <td className="px-3 py-2">
+                          {log.type === "import" && log.details?.skippedRows?.length > 0 && (
+                            <button onClick={() => downloadSkipped(log.details.skippedRows)} className="text-xs text-rx-primary hover:underline">Skipped CSV</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
