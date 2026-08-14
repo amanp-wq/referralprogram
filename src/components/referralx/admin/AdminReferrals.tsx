@@ -144,7 +144,7 @@ export function AdminReferrals() {
   // Import modal state
   const [showImport, setShowImport] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; skipped?: number; failed: number; errors: { row: number; message: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: number; skipped?: number; failed: number; errors: { row: number; message: string }[]; skippedDetails?: { row: number; ambassadorEmail: string; reason: string }[] } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -646,11 +646,30 @@ export function AdminReferrals() {
                   </div>
                 </div>
                 {importResult.errors.length > 0 && (
-                  <div className="max-h-48 overflow-y-auto">
+                  <div className="max-h-40 overflow-y-auto">
                     <div className="text-xs font-semibold text-rx-gray-600 mb-2">Errors:</div>
                     {importResult.errors.map((e, i) => (
                       <div key={i} className="text-xs text-rx-danger mb-1">Row {e.row}: {e.message}</div>
                     ))}
+                  </div>
+                )}
+                {importResult.skippedDetails && importResult.skippedDetails.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-semibold text-rx-gray-600">Skipped rows:</div>
+                      <button
+                        onClick={() => {
+                          const rows = importResult.skippedDetails!.map(s => [String(s.row), s.ambassadorEmail, s.reason]);
+                          downloadCSV("skipped_referrals.csv", ["Row", "Ambassador Email", "Reason"], rows);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs text-rx-primary hover:underline font-medium"
+                      ><FileDown className="w-3.5 h-3.5" /> Download skipped</button>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      {importResult.skippedDetails.map((s, i) => (
+                        <div key={i} className="text-xs text-rx-warning mb-1">Row {s.row} ({s.ambassadorEmail}): {s.reason}</div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <button

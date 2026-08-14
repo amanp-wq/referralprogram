@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
 
     const adminName = adminUser?.name || 'Unknown'
     const errors: { row: number; message: string }[] = []
+    const skippedDetails: { row: number; ambassadorEmail: string; reason: string }[] = []
     let created = 0
     let skipped = 0
 
@@ -71,15 +72,18 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Look up affiliate by ambassadorEmail
+        // Look up affiliate by ambassadorEmail (case-insensitive, trimmed —
+        // avoids false skips from spelling/case differences in the CSV)
+        const emailNorm = row.ambassadorEmail.trim()
         const { data: ambassadorUser } = await supabase
           .from('User')
           .select('id')
-          .eq('email', row.ambassadorEmail)
+          .ilike('email', emailNorm)
           .single()
 
         if (!ambassadorUser) {
           skipped++
+          skippedDetails.push({ row: rowNum, ambassadorEmail: emailNorm, reason: 'No ambassador account found with this email' })
           continue
         }
 
@@ -91,6 +95,7 @@ export async function POST(request: NextRequest) {
 
         if (!affiliate) {
           skipped++
+          skippedDetails.push({ row: rowNum, ambassadorEmail: emailNorm, reason: 'User exists but has no ambassador/affiliate profile' })
           continue
         }
 
@@ -137,7 +142,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     })
 
-    return NextResponse.json({ created, skipped, failed: errors.length, errors })
+    return NextResponse.json({ created, skipped, failed: errors.length, errors, skippedDetails })
   } catch (error: any) {
     console.error('Import referrals error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
