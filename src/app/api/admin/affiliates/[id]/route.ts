@@ -3,6 +3,48 @@ import { requireAdmin } from '@/lib/auth'
 import { getServerClient } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 
+// Full ambassador detail (for the detail page).
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { user, error } = await requireAdmin(request)
+    if (!user) return NextResponse.json({ error }, { status: 401 })
+
+    const { id } = await params
+    const supabase = getServerClient()
+
+    const { data: affiliate, error: dbError } = await supabase
+      .from('Affiliate')
+      .select('*, User!Affiliate_userId_fkey(id, name, email, phone, avatarUrl, status, createdAt)')
+      .eq('id', id)
+      .single()
+    if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
+    if (!affiliate) return NextResponse.json({ error: 'Affiliate not found' }, { status: 404 })
+
+    // Recent references from this ambassador
+    const { data: referrals } = await supabase
+      .from('Referral')
+      .select('id, visitorName, visitorEmail, visitorPhone, status, createdAt')
+      .eq('affiliateId', id)
+      .order('createdAt', { ascending: false })
+      .limit(50)
+
+    // Advisor label
+    let advisorLabel: string | null = null
+    if ((affiliate as any).admissionAdvisorId) {
+      const { data: adv } = await supabase.from('DropdownOption').select('label').eq('id', (affiliate as any).admissionAdvisorId).single()
+      advisorLabel = (adv as any)?.label || null
+    }
+
+    return NextResponse.json({ affiliate, referrals: referrals || [], advisorLabel })
+  } catch (error: any) {
+    console.error('Affiliate detail error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 // Edit an ambassador's contact details (name / email / phone).
 // Email lives on the User table and is the login identity, so changing it
 // updates the login email too.

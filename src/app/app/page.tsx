@@ -18,8 +18,11 @@ import { AffiliateEarnings } from "@/components/referralx/affiliate/AffiliateEar
 import { AffiliateSettings } from "@/components/referralx/affiliate/AffiliateSettings";
 import { AffiliateHelp } from "@/components/referralx/affiliate/AffiliateHelp";
 import { AppShell } from "@/components/referralx/AppShell";
+import { AmbassadorDetail, ReferenceDetail } from "@/components/referralx/admin/DetailViews";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+
+type DetailTarget = { type: "ambassador" | "reference"; id: string } | null;
 
 type AdminPage =
   | "dashboard"
@@ -46,6 +49,16 @@ export default function AppPage() {
   const [adminPage, setAdminPage] = useState<AdminPage>("dashboard");
   const [affiliatePage, setAffiliatePage] = useState<AffiliatePage>("dashboard");
   const [referralCount, setReferralCount] = useState<number>(0);
+  const [detail, setDetail] = useState<DetailTarget>(null);
+
+  const openDetail = (type: "ambassador" | "reference", id: string) => {
+    setDetail({ type, id });
+    router.replace(`/app?detail=${type}&id=${id}`);
+  };
+  const closeDetail = () => {
+    setDetail(null);
+    router.replace(`/app?tab=${adminPage}`);
+  };
 
   // Auth guard — if not logged in, redirect to /login
   useEffect(() => {
@@ -65,6 +78,15 @@ export default function AppPage() {
       const validAffiliatePages: AffiliatePage[] = ["dashboard", "links", "referrals", "earnings", "settings", "help"];
       if (validAffiliatePages.includes(tab as AffiliatePage)) setAffiliatePage(tab as AffiliatePage);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Deep-link to a detail page via ?detail=ambassador|reference&id=...
+  useEffect(() => {
+    if (!user || user.role !== "admin") return;
+    const d = searchParams.get("detail");
+    const idp = searchParams.get("id");
+    if ((d === "ambassador" || d === "reference") && idp) setDetail({ type: d, id: idp });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -148,17 +170,23 @@ export default function AppPage() {
       reports: "Reports",
       settings: "Settings",
     };
+    const detailTitle = detail ? (detail.type === "ambassador" ? "Ambassador Details" : "Reference Details") : null;
     return (
       <AppShell
         role="admin"
         activePage={adminPage}
-        onPageChange={(p) => { setAdminPage(p as AdminPage); router.replace(`/app?tab=${p}`); }}
-        pageTitle={pageTitles[adminPage]}
+        onPageChange={(p) => { setDetail(null); setAdminPage(p as AdminPage); router.replace(`/app?tab=${p}`); }}
+        pageTitle={detailTitle || pageTitles[adminPage]}
         onLogout={logout}
         userName={user.name}
         referralCount={referralCount}
+        onOpenDetail={openDetail}
       >
-        {renderPage()}
+        {detail
+          ? (detail.type === "ambassador"
+              ? <AmbassadorDetail id={detail.id} onBack={closeDetail} />
+              : <ReferenceDetail id={detail.id} onBack={closeDetail} />)
+          : renderPage()}
       </AppShell>
     );
   }

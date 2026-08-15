@@ -5,10 +5,95 @@ import { getInitials } from "./shared";
 import {
   ChartPie, Users, Share2, DollarSign, Link2, FileText, Settings,
   HelpCircle, Bell, LogOut, Menu, X, ChevronRight, UserCircle, ShieldCheck,
-  UserPlus, AlertCircle,
+  UserPlus, AlertCircle, Search, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone } from "@/lib/utils";
+
+// Global CRM search — searches ambassadors + references, click opens detail page.
+function GlobalSearch({ onOpenDetail }: { onOpenDetail?: (type: "ambassador" | "reference", id: string) => void }) {
+  const { token } = useAuth();
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<{ ambassadors: any[]; references: any[] }>({ ambassadors: [], references: [] });
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) { setResults({ ambassadors: [], references: [] }); return; }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/admin/search?q=${encodeURIComponent(term)}`, { headers: { Authorization: `Bearer ${token}` } });
+        const json = await res.json();
+        setResults({ ambassadors: json.ambassadors || [], references: json.references || [] });
+        setOpen(true);
+      } catch { /* ignore */ } finally { setLoading(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, token]);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const pick = (type: "ambassador" | "reference", id: string) => {
+    setOpen(false); setQ("");
+    onOpenDetail?.(type, id);
+  };
+
+  const total = results.ambassadors.length + results.references.length;
+
+  return (
+    <div ref={boxRef} className="relative hidden md:block w-72">
+      <Search className="w-4 h-4 text-rx-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {loading && <Loader2 className="w-4 h-4 text-rx-gray-400 absolute right-3 top-1/2 -translate-y-1/2 animate-spin" />}
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onFocus={() => { if (total > 0) setOpen(true); }}
+        placeholder="Search ambassadors or references…"
+        className="w-full pl-9 pr-8 py-2 border border-rx-gray-200 rounded-lg text-sm text-rx-gray-700 bg-rx-gray-50 focus:bg-white focus:outline-none focus:border-rx-primary"
+      />
+      {open && q.trim().length >= 2 && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-rx-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto py-1">
+          {total === 0 && !loading && <div className="px-4 py-4 text-sm text-rx-gray-400 text-center">No matches found</div>}
+          {results.ambassadors.length > 0 && (
+            <div>
+              <div className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-rx-gray-400">Ambassadors</div>
+              {results.ambassadors.map((a) => (
+                <button key={a.affiliateId} onClick={() => pick("ambassador", a.affiliateId)} className="w-full text-left px-4 py-2 hover:bg-rx-gray-50 flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-rx-primary-light text-rx-primary text-xs font-bold flex items-center justify-center flex-shrink-0">{getInitials(a.name || a.email || "?")}</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-rx-gray-800 truncate">{a.name || a.email}</span>
+                    <span className="block text-xs text-rx-gray-500 truncate">{a.email}{a.referralCode ? ` · ${a.referralCode}` : ""}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {results.references.length > 0 && (
+            <div>
+              <div className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-rx-gray-400">References</div>
+              {results.references.map((r) => (
+                <button key={r.id} onClick={() => pick("reference", r.id)} className="w-full text-left px-4 py-2 hover:bg-rx-gray-50 flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-rx-secondary-light text-rx-secondary text-xs font-bold flex items-center justify-center flex-shrink-0">{getInitials(r.name || "?")}</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-rx-gray-800 truncate">{r.name}</span>
+                    <span className="block text-xs text-rx-gray-500 truncate">{r.email || r.phone || ""}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface NavGroup {
   label: string;
@@ -80,6 +165,7 @@ interface AppShellProps {
   children: React.ReactNode;
   userName?: string;
   referralCount?: number;
+  onOpenDetail?: (type: "ambassador" | "reference", id: string) => void;
 }
 
 interface ActivityItem {
@@ -100,6 +186,7 @@ export function AppShell({
   children,
   userName,
   referralCount,
+  onOpenDetail,
 }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -347,6 +434,8 @@ export function AppShell({
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Global search — admin only */}
+            {role === "admin" && <GlobalSearch onOpenDetail={onOpenDetail} />}
             {/* Add Referral button — affiliate only */}
             {role === "affiliate" && (
               <button
