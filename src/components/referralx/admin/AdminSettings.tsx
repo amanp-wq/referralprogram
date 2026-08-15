@@ -2,10 +2,101 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SectionCard, ErrorWithRetry } from "../shared";
-import { Save, CheckCircle } from "lucide-react";
+import { Save, CheckCircle, Plus, Trash2, Pencil } from "lucide-react";
 
 interface SettingsMap {
   [key: string]: string;
+}
+
+// Manage the dynamic Admission Advisor dropdown options (add/edit/remove).
+function AdmissionAdvisorsCard() {
+  const { token } = useAuth();
+  const [options, setOptions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newLabel, setNewLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/dropdowns?category=admission_advisor", { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      setOptions(json.options || []);
+    } catch { setOptions([]); } finally { setLoading(false); }
+  }, [token]);
+  useEffect(() => { if (token) load(); }, [token, load]);
+
+  const add = async () => {
+    if (!newLabel.trim()) return;
+    setBusy(true); setErr(null);
+    try {
+      const res = await fetch("/api/admin/dropdowns", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ category: "admission_advisor", label: newLabel.trim() }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to add");
+      setNewLabel(""); load();
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  const saveEdit = async (id: string) => {
+    if (!editingLabel.trim()) return;
+    setBusy(true); setErr(null);
+    try {
+      const res = await fetch("/api/admin/dropdowns", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ id, label: editingLabel.trim() }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update");
+      setEditingId(null); load();
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  const remove = async (id: string, label: string) => {
+    if (!window.confirm(`Remove advisor "${label}"? Ambassadors/references assigned to them will become unassigned.`)) return;
+    setBusy(true); setErr(null);
+    try {
+      const res = await fetch(`/api/admin/dropdowns?id=${encodeURIComponent(id)}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to remove");
+      load();
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <SectionCard title="Admission Advisors">
+      <p className="text-xs text-rx-gray-500 mb-4">Manage the sales team advisors available for assignment to ambassadors.</p>
+      {err && <div className="mb-3 p-2.5 bg-rx-danger-light text-rx-danger text-sm rounded-lg">{err}</div>}
+      <div className="flex gap-2 mb-4">
+        <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="Add advisor name…" className="flex-1 px-3 py-2 border border-rx-gray-200 rounded-lg text-sm focus:outline-none focus:border-rx-primary" />
+        <button onClick={add} disabled={busy || !newLabel.trim()} className="inline-flex items-center gap-1.5 px-4 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50"><Plus className="w-4 h-4" /> Add</button>
+      </div>
+      {loading ? (
+        <div className="text-sm text-rx-gray-400 py-4">Loading…</div>
+      ) : options.length === 0 ? (
+        <div className="text-sm text-rx-gray-400 py-4">No advisors yet. Add your first one above.</div>
+      ) : (
+        <div className="divide-y divide-rx-gray-100">
+          {options.map((o) => (
+            <div key={o.id} className="flex items-center gap-2 py-2.5">
+              {editingId === o.id ? (
+                <>
+                  <input value={editingLabel} onChange={(e) => setEditingLabel(e.target.value)} className="flex-1 px-2.5 py-1.5 border border-rx-gray-200 rounded-lg text-sm" />
+                  <button onClick={() => saveEdit(o.id)} disabled={busy} className="px-3 py-1.5 bg-rx-primary text-white rounded-lg text-xs font-semibold">Save</button>
+                  <button onClick={() => setEditingId(null)} className="px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs">Cancel</button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm text-rx-gray-800">{o.label}</span>
+                  <button onClick={() => { setEditingId(o.id); setEditingLabel(o.label); }} className="p-1.5 rounded-lg text-rx-gray-400 hover:text-rx-primary hover:bg-rx-primary-light" title="Edit"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => remove(o.id, o.label)} className="p-1.5 rounded-lg text-rx-gray-400 hover:text-rx-danger hover:bg-rx-danger-light" title="Remove"><Trash2 className="w-4 h-4" /></button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionCard>
+  );
 }
 
 export function AdminSettings() {
@@ -137,6 +228,8 @@ export function AdminSettings() {
               {boolToggle("twoFactor", "Two-Factor Authentication", "Require 2FA for admin access")}
             </div>
           </SectionCard>
+
+          <AdmissionAdvisorsCard />
 
           <div className="flex justify-end items-center gap-3">
             {saveSuccess && (
