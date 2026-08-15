@@ -16,7 +16,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json().catch(() => ({}))
-    const { name, email, phone } = body as { name?: string; email?: string; phone?: string }
+    const { name, email, phone, admissionAdvisorId } = body as { name?: string; email?: string; phone?: string; admissionAdvisorId?: string | null }
 
     const supabase = getServerClient()
 
@@ -28,6 +28,16 @@ export async function PATCH(
     if (!affiliate) return NextResponse.json({ error: 'Affiliate not found' }, { status: 404 })
 
     const userId = (affiliate as any).userId
+
+    // Admission Advisor lives on the Affiliate row (not User)
+    if (admissionAdvisorId !== undefined) {
+      const { error: advErr } = await supabase
+        .from('Affiliate')
+        .update({ admissionAdvisorId: admissionAdvisorId || null, updatedAt: new Date().toISOString() })
+        .eq('id', id)
+      if (advErr) return NextResponse.json({ error: advErr.message }, { status: 500 })
+    }
+
     const update: Record<string, any> = { updatedAt: new Date().toISOString() }
 
     if (name !== undefined) update.name = name.trim()

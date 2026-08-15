@@ -133,6 +133,13 @@ export async function GET(request: NextRequest) {
     const referralId = `ref_${uuidv4().substring(0, 12)}`
     const visitorIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null
 
+    // Auto-map the ambassador's Admission Advisor onto the referral
+    let admissionAdvisorId: string | null = null
+    if (affiliateId) {
+      const { data: advAff } = await supabase.from('Affiliate').select('admissionAdvisorId').eq('id', affiliateId).single()
+      admissionAdvisorId = (advAff as any)?.admissionAdvisorId || null
+    }
+
     await supabase.from('Referral').insert({
       id: referralId,
       affiliateId,
@@ -142,6 +149,7 @@ export async function GET(request: NextRequest) {
       visitorIp,
       source,
       status: 'opened',
+      admissionAdvisorId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })

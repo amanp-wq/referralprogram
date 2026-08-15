@@ -59,6 +59,7 @@ interface Affiliate {
   balance: number;
   status: string;
   joinedAt: string;
+  admissionAdvisorId?: string | null;
   User: AffiliateUser;
 }
 
@@ -98,6 +99,11 @@ export function AdminAffiliates() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  // Admission advisor state
+  const [advisors, setAdvisors] = useState<any[]>([]);
+  const [advisorLoadingId, setAdvisorLoadingId] = useState<string | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+
   // Status toggle loading
   const [statusLoading, setStatusLoading] = useState<string | null>(null);
 
@@ -129,6 +135,15 @@ export function AdminAffiliates() {
   }, [token, search, statusFilter]);
 
   useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
+
+  // Load active Admission Advisors for the assignment dropdown
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/admin/dropdowns?category=admission_advisor&activeOnly=1", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((j) => setAdvisors(j.options || []))
+      .catch(() => {});
+  }, [token]);
 
   const handleInvite = async () => {
     setInviteLoading(true);
@@ -192,6 +207,30 @@ export function AdminAffiliates() {
     } finally {
       setImportLoading(false);
     }
+  };
+
+  const changeAdvisor = async (a: Affiliate, advisorId: string) => {
+    setAdvisorLoadingId(a.id);
+    try {
+      const res = await fetch(`/api/admin/affiliates/${a.id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ admissionAdvisorId: advisorId || null }),
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || "Failed to assign advisor"); }
+      fetchData();
+    } catch (e: any) { alert(e.message); } finally { setAdvisorLoadingId(null); }
+  };
+
+  const bulkAssignAdvisors = async () => {
+    if (!window.confirm("Assign each existing reference to its ambassador's Admission Advisor? Ambassadors without an advisor are left as-is.")) return;
+    setBackfilling(true);
+    try {
+      const res = await fetch("/api/admin/referrals/backfill-advisors", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Failed");
+      alert(`Done: ${j.referralsUpdated} reference(s) updated across ${j.affiliatesProcessed} ambassador(s).`);
+    } catch (e: any) { alert(e.message); } finally { setBackfilling(false); }
   };
 
   const openEdit = (a: Affiliate) => {
@@ -382,6 +421,12 @@ export function AdminAffiliates() {
               <option value="suspended">Suspended</option>
             </select>
             <button
+              onClick={bulkAssignAdvisors}
+              disabled={backfilling}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50 disabled:opacity-50"
+              title="Assign each existing reference to its ambassador's advisor"
+            ><CheckSquare className="w-3 h-3" /> {backfilling ? "Assigning…" : "Bulk assign advisors"}</button>
+            <button
               onClick={() => setShowImport(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
             ><Upload className="w-3 h-3" /> Import</button>
@@ -461,6 +506,7 @@ export function AdminAffiliates() {
                   <th className="px-5 py-3">Referrals</th>
                   <th className="px-5 py-3">Earnings</th>
                   <th className="px-5 py-3">Conversion Ratio</th>
+                  <th className="px-5 py-3">Admission Advisor</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Actions</th>
                 </tr>
@@ -507,6 +553,18 @@ export function AdminAffiliates() {
                             <div className="h-full rounded-full bg-rx-primary" style={{ width: `${Math.min(100, parseFloat(conversionRatio))}%` }} />
                           </div>
                         </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <select
+                          value={a.admissionAdvisorId || ""}
+                          onChange={(e) => changeAdvisor(a, e.target.value)}
+                          disabled={advisorLoadingId === a.id}
+                          className="px-2.5 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white max-w-[150px] disabled:opacity-50"
+                          title="Assign admission advisor"
+                        >
+                          <option value="">— Unassigned —</option>
+                          {advisors.map((adv) => <option key={adv.id} value={adv.id}>{adv.label}</option>)}
+                        </select>
                       </td>
                       <td className="px-5 py-3.5">
                         <button

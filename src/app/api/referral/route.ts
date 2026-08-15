@@ -207,6 +207,8 @@ export async function POST(request: NextRequest) {
         source: source || 'direct',
         notes: safeNotes,
         status: 'submitted',
+        // Auto-map the ambassador's Admission Advisor onto the new reference
+        admissionAdvisorId: (affiliate as any).admissionAdvisorId || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })
