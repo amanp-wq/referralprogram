@@ -1,10 +1,58 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
 import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info, User, Mail, ArrowRight, ChevronLeft, ChevronRight, Upload, FileDown } from "lucide-react";
 
 const PER_PAGE_OPTIONS = [25, 50, 100, 200];
+
+// Bonus import: system fields + CSV parsing
+const BONUS_IMPORT_FIELDS: { key: string; label: string; note?: string }[] = [
+  { key: "id", label: "Bonus ID", note: "match & update" },
+  { key: "ambassadorEmail", label: "Ambassador Email", note: "for new bonuses" },
+  { key: "amount", label: "Amount" },
+  { key: "type", label: "Type" },
+  { key: "status", label: "Status" },
+  { key: "description", label: "Description" },
+];
+
+function parseBonusCSV(text: string): string[][] {
+  text = text.replace(/^﻿/, "");
+  const rows: string[][] = []; let row: string[] = []; let field = ""; let inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+      else if (c === "\r") { /* ignore */ }
+      else field += c;
+    }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((v) => v.trim() !== ""));
+}
+
+function guessBonusColumn(headers: string[], field: string): number {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+  const targets: Record<string, string[]> = {
+    id: ["bonusid", "id", "commissionid"],
+    ambassadorEmail: ["ambassadoremail", "ambassador", "affiliateemail", "email"],
+    amount: ["amount"],
+    type: ["type"],
+    status: ["status", "commissionstatus"],
+    description: ["description", "notes", "note"],
+  };
+  const cands = targets[field] || [];
+  for (let i = 0; i < headers.length; i++) {
+    const h = norm(headers[i]);
+    if (cands.some((c) => h === c || h.includes(c))) return i;
+  }
+  return -1;
+}
 
 function getPageNumbers(current: number, totalPages: number): (number | string)[] {
   if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -80,6 +128,19 @@ export function AdminCommissions() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
+  // Bonus import wizard state
+  const [showImport, setShowImport] = useState(false);
+  const [importStep, setImportStep] = useState<1 | 2 | 3>(1);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; updated?: number; skipped?: number; failed: number; errors: { row: number; message: string }[]; skippedDetails?: { row: number; ambassadorEmail: string; reason: string }[] } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvRows, setCsvRows] = useState<string[][]>([]);
+  const [csvFileName, setCsvFileName] = useState("");
+  const [fieldMap, setFieldMap] = useState<Record<string, number>>({});
+  const [updateFieldsSel, setUpdateFieldsSel] = useState<Record<string, boolean>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Referral detail modal state
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [selectedReferral, setSelectedReferral] = useState<ReferralDetail | null>(null);
@@ -128,6 +189,49 @@ export function AdminCommissions() {
 
   useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
   useEffect(() => { setPage(1); }, [statusFilter]);
+
+  // ── Bonus import wizard ──
+  const openImport = () => {
+    setShowImport(true); setImportStep(1); setImportResult(null); setImportError(null);
+    setCsvHeaders([]); setCsvRows([]); setCsvFileName(""); setFieldMap({}); setUpdateFieldsSel({});
+  };
+  const handleFileSelected = async (file: File) => {
+    setImportError(null); setImportResult(null);
+    try {
+      const rows = parseBonusCSV(await file.text());
+      if (rows.length < 2) { setImportError("CSV file is empty or has no data rows"); return; }
+      const headers = rows[0];
+      setCsvHeaders(headers);
+      setCsvRows(rows.slice(1));
+      setCsvFileName(file.name);
+      const map: Record<string, number> = {}; const sel: Record<string, boolean> = {};
+      BONUS_IMPORT_FIELDS.forEach((f) => { map[f.key] = guessBonusColumn(headers, f.key); if (["amount", "type", "status", "description"].includes(f.key)) sel[f.key] = map[f.key] !== -1; });
+      setFieldMap(map); setUpdateFieldsSel(sel);
+      setImportStep(2);
+    } catch (e: any) { setImportError(e.message || "Could not read the file"); }
+  };
+  const runBonusImport = async () => {
+    setImportLoading(true); setImportError(null);
+    try {
+      const get = (row: string[], key: string) => { const i = fieldMap[key]; return i != null && i >= 0 ? (row[i] || "").trim() : ""; };
+      const commissions = csvRows.map((row) => ({
+        id: get(row, "id"), ambassadorEmail: get(row, "ambassadorEmail"), amount: get(row, "amount"),
+        type: get(row, "type"), status: get(row, "status"), description: get(row, "description"),
+      })).filter((r) => r.id || r.ambassadorEmail);
+      if (commissions.length === 0) { setImportError("No rows with a Bonus ID or Ambassador Email found."); setImportLoading(false); return; }
+      const updateFields = Object.keys(updateFieldsSel).filter((k) => updateFieldsSel[k]);
+      const res = await fetch("/api/admin/commissions/import", {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ commissions, updateFields, fileName: csvFileName }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Import failed");
+      setImportResult(json); setImportStep(3); fetchData();
+    } catch (e: any) { setImportError(e.message); } finally { setImportLoading(false); }
+  };
+  const downloadSkipped = (details: { row: number; ambassadorEmail: string; reason: string }[]) => {
+    downloadCSV("skipped_bonuses.csv", ["Row", "Ambassador Email", "Reason"], details.map((s) => [String(s.row), s.ambassadorEmail, s.reason]));
+  };
 
   const fetchAffiliates = useCallback(async () => {
     setAffiliatesLoading(true);
@@ -400,17 +504,22 @@ export function AdminCommissions() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rx-primary text-white rounded-lg text-xs font-semibold hover:bg-rx-primary-dark transition-colors"
             ><Plus className="w-3 h-3" /> Add Bonus</button>
             <button
+              onClick={openImport}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
+            ><Upload className="w-3 h-3" /> Import</button>
+            <button
               onClick={() => {
-                const headers = ["Referral Name", "Referral Email", "Referral Phone", "Referral Status", "Ambassador", "Amount", "Type", "Commission Status", "Date"];
+                // Columns are import-compatible: keep "Bonus ID" to update rows on re-import.
+                const headers = ["Bonus ID", "Ambassador Email", "Amount", "Type", "Status", "Description", "Referral Name", "Referral Email", "Date"];
                 const rows = commissions.map(c => [
-                  c.Referral?.visitorName || "-",
-                  c.Referral?.visitorEmail || "-",
-                  (c.Referral as any)?.visitorPhone || "-",
-                  c.Referral?.status || "-",
-                  c.Affiliate?.User?.name || c.Affiliate?.referralCode || "Unknown",
+                  c.id,
+                  c.Affiliate?.User?.email || "",
                   c.amount.toString(),
                   c.type,
                   c.status,
+                  (c as any).description || "",
+                  c.Referral?.visitorName || "-",
+                  c.Referral?.visitorEmail || "-",
                   formatDate(c.createdAt),
                 ]);
                 downloadCSV("commissions.csv", headers, rows);
@@ -665,6 +774,79 @@ export function AdminCommissions() {
           </div>
         </div>
       </div>
+
+      {/* Bonus Import Wizard */}
+      {showImport && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-rx-gray-800">Import Bonuses</h3>
+              <button onClick={() => { setShowImport(false); setImportResult(null); setImportError(null); }} className="text-rx-gray-400 hover:text-rx-gray-600 text-xl">&times;</button>
+            </div>
+            {importError && <div className="mb-4 p-3 bg-rx-danger-light text-rx-danger text-sm rounded-lg">{importError}</div>}
+
+            {importStep === 1 && (
+              <div className="space-y-4">
+                <p className="text-sm text-rx-gray-500">Rows with a <b>Bonus ID</b> update that bonus; rows without one create a new bonus (needs Ambassador Email + Amount). Tip: use the <b>Export</b> button to get a CSV with Bonus IDs, edit it, then re-import.</p>
+                <button onClick={() => downloadCSV("bonus_template.csv", ["Bonus ID", "Ambassador Email", "Amount", "Type", "Status", "Description"], [])} className="inline-flex items-center gap-1.5 text-sm text-rx-primary hover:underline font-medium"><FileDown className="w-4 h-4" /> Download template</button>
+                <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-rx-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-rx-primary hover:bg-rx-primary-light/20 transition-colors">
+                  <Upload className="w-8 h-8 text-rx-gray-400 mx-auto mb-2" />
+                  <div className="text-sm font-medium text-rx-gray-600">Click to choose a CSV file</div>
+                  <div className="text-xs text-rx-gray-400 mt-1">.csv files only</div>
+                </div>
+                <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelected(f); e.target.value = ""; }} />
+              </div>
+            )}
+
+            {importStep === 2 && (
+              <div className="space-y-4">
+                <div className="text-xs text-rx-gray-500">File: <span className="font-semibold text-rx-gray-700">{csvFileName}</span> · {csvRows.length} row(s)</div>
+                <div className="text-sm font-semibold text-rx-gray-700">Map your CSV columns</div>
+                <div className="space-y-2">
+                  {BONUS_IMPORT_FIELDS.map((f) => (
+                    <div key={f.key} className="flex items-center gap-3">
+                      <div className="w-44 text-sm text-rx-gray-700">{f.label}{f.note && <span className="text-xs text-rx-gray-400"> ({f.note})</span>}</div>
+                      <select value={fieldMap[f.key] ?? -1} onChange={(e) => setFieldMap({ ...fieldMap, [f.key]: Number(e.target.value) })} className="flex-1 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-sm text-rx-gray-700 bg-white">
+                        <option value={-1}>— Not mapped —</option>
+                        {csvHeaders.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                      </select>
+                      {["amount", "type", "status", "description"].includes(f.key) && (
+                        <label className="flex items-center gap-1 text-xs text-rx-gray-500 w-24"><input type="checkbox" checked={!!updateFieldsSel[f.key]} onChange={(e) => setUpdateFieldsSel({ ...updateFieldsSel, [f.key]: e.target.checked })} /> update</label>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-rx-gray-500">For matched (Bonus ID) rows, only the ticked fields are overwritten.</p>
+                <div className="flex gap-3 justify-between pt-2">
+                  <button onClick={() => setImportStep(1)} className="px-4 py-2 border border-rx-gray-200 rounded-lg text-sm text-rx-gray-600 hover:bg-rx-gray-50">Back</button>
+                  <button onClick={runBonusImport} disabled={importLoading} className="px-5 py-2 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark disabled:opacity-50">{importLoading ? "Importing…" : `Import ${csvRows.length} row(s)`}</button>
+                </div>
+              </div>
+            )}
+
+            {importStep === 3 && importResult && (
+              <div className="space-y-3">
+                <div className="p-4 bg-rx-secondary-light rounded-lg text-sm text-rx-gray-700">
+                  <span className="font-semibold text-rx-secondary">{importResult.created}</span> created
+                  {typeof importResult.updated === "number" && <>, <span className="font-semibold text-rx-info">{importResult.updated}</span> updated</>}
+                  {importResult.skipped ? <>, <span className="font-semibold text-rx-warning">{importResult.skipped}</span> skipped</> : null}
+                  , <span className="font-semibold text-rx-danger">{importResult.failed}</span> failed
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="max-h-32 overflow-y-auto"><div className="text-xs font-semibold text-rx-gray-600 mb-1">Errors:</div>{importResult.errors.map((e, i) => <div key={i} className="text-xs text-rx-danger mb-1">Row {e.row}: {e.message}</div>)}</div>
+                )}
+                {importResult.skippedDetails && importResult.skippedDetails.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1"><div className="text-xs font-semibold text-rx-gray-600">Skipped rows:</div><button onClick={() => downloadSkipped(importResult.skippedDetails!)} className="inline-flex items-center gap-1 text-xs text-rx-primary hover:underline font-medium"><FileDown className="w-3.5 h-3.5" /> Download skipped</button></div>
+                    <div className="max-h-32 overflow-y-auto">{importResult.skippedDetails.map((s, i) => <div key={i} className="text-xs text-rx-warning mb-1">Row {s.row}: {s.reason}</div>)}</div>
+                  </div>
+                )}
+                <button onClick={() => { setShowImport(false); setImportResult(null); }} className="w-full py-2.5 bg-rx-primary text-white rounded-lg text-sm font-semibold hover:bg-rx-primary-dark">Done</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Add Commission Modal */}
       {showAddModal && (
