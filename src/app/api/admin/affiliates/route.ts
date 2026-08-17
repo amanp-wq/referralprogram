@@ -60,6 +60,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: dbError.message }, { status: 500 })
     }
 
+    // Aggregate counts across ALL ambassadors (independent of the current
+    // page) so the KPI tiles stay accurate once the list is paginated.
+    const headCount = async (build: (q: any) => any) => {
+      const { count: c } = await build(supabase.from('Affiliate').select('*', { count: 'exact', head: true }))
+      return c || 0
+    }
+    const [allCount, activeCount, inactiveCount, withEarningsCount] = await Promise.all([
+      headCount((q) => q),
+      headCount((q) => q.eq('status', 'active')),
+      headCount((q) => q.eq('status', 'inactive')),
+      headCount((q) => q.gt('totalEarnings', 0)),
+    ])
+
     return NextResponse.json({
       affiliates: (affiliates || []).map((a: any) => ({
         ...a,
@@ -68,6 +81,7 @@ export async function GET(request: NextRequest) {
       total: count || 0,
       page,
       limit,
+      counts: { all: allCount, active: activeCount, inactive: inactiveCount, withEarnings: withEarningsCount },
     })
   } catch (error: any) {
     console.error('Affiliates list error:', error)
