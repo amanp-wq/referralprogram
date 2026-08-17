@@ -26,11 +26,26 @@ export async function GET(request: NextRequest) {
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
 
+    // Aggregate amount sums across ALL bonuses (independent of page/filter)
+    // so the KPI tiles show real totals once the list is paginated.
+    const sums = { total: 0, pending: 0, approved: 0, released: 0, failed: 0 }
+    const { data: allRows } = await supabase.from('Commission').select('amount, status')
+    for (const r of allRows || []) {
+      const amt = (r as any).amount || 0
+      const st = (r as any).status
+      sums.total += amt
+      if (st === 'pending') sums.pending += amt
+      else if (st === 'approved') sums.approved += amt
+      else if (st === 'released' || st === 'paid') sums.released += amt
+      else if (st === 'failed') sums.failed += amt
+    }
+
     return NextResponse.json({
       commissions: commissions || [],
       total: count || 0,
       page,
       limit,
+      sums,
     })
   } catch (error: any) {
     console.error('Commissions list error:', error)

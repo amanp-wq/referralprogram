@@ -2,7 +2,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
-import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info, User, Mail, ArrowRight } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info, User, Mail, ArrowRight, ChevronLeft, ChevronRight, Upload, FileDown } from "lucide-react";
+
+const PER_PAGE_OPTIONS = [25, 50, 100, 200];
+
+function getPageNumbers(current: number, totalPages: number): (number | string)[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  const pages: (number | string)[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(totalPages - 1, current + 1);
+  if (start > 2) pages.push("...");
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < totalPages - 1) pages.push("...");
+  pages.push(totalPages);
+  return pages;
+}
 import { toast } from "@/hooks/use-toast";
 
 interface ReferralDetail {
@@ -54,6 +68,7 @@ interface CommissionsResponse {
   total: number;
   page: number;
   limit: number;
+  sums?: { total: number; pending: number; approved: number; released: number; failed: number };
 }
 
 export function AdminCommissions() {
@@ -62,6 +77,8 @@ export function AdminCommissions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
 
   // Referral detail modal state
   const [showReferralModal, setShowReferralModal] = useState(false);
@@ -91,6 +108,8 @@ export function AdminCommissions() {
     try {
       const params = new URLSearchParams();
       if (statusFilter) params.set("status", statusFilter);
+      params.set("page", String(page));
+      params.set("limit", String(perPage));
       const res = await fetch(`/api/admin/commissions?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
@@ -105,9 +124,10 @@ export function AdminCommissions() {
     } finally {
       setLoading(false);
     }
-  }, [token, statusFilter]);
+  }, [token, statusFilter, page, perPage]);
 
   useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
+  useEffect(() => { setPage(1); }, [statusFilter]);
 
   const fetchAffiliates = useCallback(async () => {
     setAffiliatesLoading(true);
@@ -332,11 +352,20 @@ export function AdminCommissions() {
   }
 
   const commissions = data?.commissions || [];
-  const totalAmount = commissions.reduce((s, c) => s + c.amount, 0);
-  const pendingAmount = commissions.filter((c) => c.status === "pending").reduce((s, c) => s + c.amount, 0);
-  const approvedAmount = commissions.filter((c) => c.status === "approved").reduce((s, c) => s + c.amount, 0);
-  const releasedAmount = commissions.filter((c) => c.status === "released" || c.status === "paid").reduce((s, c) => s + c.amount, 0);
-  const failedAmount = commissions.filter((c) => c.status === "failed").reduce((s, c) => s + c.amount, 0);
+  // KPI sums come from the server (whole dataset), not just the current page.
+  const sums = data?.sums || { total: 0, pending: 0, approved: 0, released: 0, failed: 0 };
+  const totalAmount = sums.total;
+  const pendingAmount = sums.pending;
+  const approvedAmount = sums.approved;
+  const releasedAmount = sums.released;
+  const failedAmount = sums.failed;
+
+  // Pagination math
+  const total = data?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const rangeStart = total === 0 ? 0 : (page - 1) * perPage + 1;
+  const rangeEnd = Math.min(page * perPage, total);
+  const gotoPage = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
   return (
     <div className="space-y-6">
@@ -398,12 +427,12 @@ export function AdminCommissions() {
         ) : (
           <div>
             {/* Table Header */}
-            <div className="hidden lg:flex items-center px-5 py-2.5 bg-rx-gray-50 border-b border-rx-gray-200 text-xs font-semibold text-rx-gray-500 uppercase tracking-wide">
-              <div className="flex-1">Referral</div>
-              <div className="w-44 shrink-0">Ambassador</div>
-              <div className="w-36 shrink-0">Amount / Type</div>
-              <div className="w-36 shrink-0">Status</div>
-              <div className="w-64 shrink-0 text-right">Actions</div>
+            <div className="hidden lg:grid items-center gap-4 px-5 py-2.5 bg-rx-gray-50 border-b border-rx-gray-200 text-xs font-semibold text-rx-gray-500 uppercase tracking-wide" style={{ gridTemplateColumns: "1fr 11rem 9rem 9rem 16rem" }}>
+              <div>Referral</div>
+              <div>Ambassador</div>
+              <div>Amount / Type</div>
+              <div>Status</div>
+              <div className="text-right">Actions</div>
             </div>
           <div className="divide-y divide-rx-gray-100">
             {commissions.map((c) => {
@@ -417,9 +446,9 @@ export function AdminCommissions() {
 
               return (
                 <div key={c.id} className="px-5 py-4 hover:bg-rx-gray-50/50 transition-colors">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  <div className="flex flex-col lg:grid lg:items-center gap-4" style={{ gridTemplateColumns: "1fr 11rem 9rem 9rem 16rem" }}>
                     {/* Referral Info — Primary */}
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0">
                       {hasReferral ? (
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2">
@@ -456,16 +485,16 @@ export function AdminCommissions() {
                     </div>
 
                     {/* Ambassador — who referred */}
-                    <div className="flex items-center gap-2 lg:w-44 shrink-0">
+                    <div className="flex items-center gap-2 min-w-0">
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Ambassador</div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-medium text-rx-gray-700 truncate">{affName}</p>
                         {affEmail && <p className="text-xs text-rx-gray-400 truncate">{affEmail}</p>}
                       </div>
                     </div>
 
                     {/* Commission Amount + Type */}
-                    <div className="lg:w-36 shrink-0">
+                    <div className="min-w-0">
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Amount</div>
                       <p className="text-lg font-bold text-rx-gray-900">{formatCurrency(c.amount)}</p>
                       <select
@@ -481,7 +510,7 @@ export function AdminCommissions() {
                     </div>
 
                     {/* Commission Status */}
-                    <div className="lg:w-36 shrink-0">
+                    <div className="min-w-0">
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Commission Status</div>
                       <select
                         value={c.status}
@@ -498,7 +527,7 @@ export function AdminCommissions() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-wrap items-center gap-1.5 lg:w-64 lg:justify-end shrink-0">
+                    <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
                       <button
                         onClick={() => handleOpenEditModal(c)}
                         className="text-xs px-2.5 py-1.5 bg-rx-gray-100 text-rx-gray-700 rounded-lg hover:bg-rx-gray-200 font-medium flex items-center gap-1 transition-colors"
@@ -541,6 +570,30 @@ export function AdminCommissions() {
               );
             })}
           </div>
+          </div>
+        )}
+
+        {/* Pagination footer */}
+        {!loading && total > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-rx-gray-100">
+            <div className="flex items-center gap-2 text-xs text-rx-gray-500 flex-wrap">
+              <span>Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of {total.toLocaleString()}</span>
+              <span className="mx-1">·</span>
+              <label className="flex items-center gap-1.5">
+                Show per page
+                <select value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }} className="px-2 py-1 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white">
+                  {PER_PAGE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="flex items-center gap-1 flex-wrap">
+              <button onClick={() => gotoPage(page - 1)} disabled={page <= 1} className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"><ChevronLeft className="w-3.5 h-3.5" /> Prev</button>
+              {getPageNumbers(page, totalPages).map((p, i) =>
+                p === "..." ? <span key={`e${i}`} className="px-2 text-xs text-rx-gray-400">…</span>
+                  : <button key={p} onClick={() => gotoPage(p as number)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${p === page ? "bg-rx-primary text-white" : "border border-rx-gray-200 text-rx-gray-600 hover:bg-rx-gray-50"}`}>{p}</button>
+              )}
+              <button onClick={() => gotoPage(page + 1)} disabled={page >= totalPages} className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">Next <ChevronRight className="w-3.5 h-3.5" /></button>
+            </div>
           </div>
         )}
       </div>
