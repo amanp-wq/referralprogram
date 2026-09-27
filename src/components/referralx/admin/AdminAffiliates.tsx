@@ -427,17 +427,17 @@ export function AdminAffiliates() {
 
       {/* Ambassador List Table */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Ambassador List</h3>
           <div className="flex gap-2 flex-wrap">
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rx-gray-400" />
               <input
                 type="text"
                 placeholder="Search ambassadors..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-3 py-1.5 border border-rx-gray-200 rounded-lg text-sm w-[200px] focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
+                className="pl-9 pr-3 py-1.5 border border-rx-gray-200 rounded-lg text-sm w-full sm:w-[200px] focus:outline-none focus:border-rx-primary focus:ring-2 focus:ring-rx-primary-light"
               />
             </div>
             <select

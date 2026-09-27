@@ -524,17 +524,17 @@ export function AdminReferrals() {
 
       {/* Referral List Table */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Referral List</h3>
           <div className="flex gap-2 flex-wrap items-center">
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Search className="w-3.5 h-3.5 text-rx-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search name, email, phone…"
-                className="pl-8 pr-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white w-56 focus:outline-none focus:border-rx-primary"
+                className="pl-8 pr-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white w-full sm:w-56 focus:outline-none focus:border-rx-primary"
               />
             </div>
             <select

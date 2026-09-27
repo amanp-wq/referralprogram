@@ -405,7 +405,7 @@ export function AppShell({
           sidebarCollapsed ? "md:ml-[72px]" : "md:ml-[260px]"
         }`}
       >
-        <header className="h-16 bg-white border-b border-rx-gray-200 flex items-center justify-between px-6 sticky top-0 z-30">
+        <header className="h-16 bg-white border-b border-rx-gray-200 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <button
               onClick={() => {
@@ -566,7 +566,7 @@ export function AppShell({
             </div>
           </div>
         </header>
-        <div className="p-6 max-w-[1440px]">{children}</div>
+        <div className="p-4 sm:p-6 max-w-[1440px]">{children}</div>
       </main>
 
       {/* Add Referral Modal */}

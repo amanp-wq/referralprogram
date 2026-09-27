@@ -490,7 +490,7 @@ export function AdminCommissions() {
 
       {/* Referral-wise Commission Cards */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-rx-gray-100">
           <div className="flex gap-1">
             {["", "pending", "approved", "released", "failed", "cancelled"].map((s) => (
               <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 text-sm font-medium rounded-lg ${statusFilter === s ? "bg-rx-primary-light text-rx-primary font-semibold" : "text-rx-gray-500 hover:bg-rx-gray-50"}`}>

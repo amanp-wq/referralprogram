@@ -278,7 +278,7 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
       {/* Top Ambassadors + Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-rx-gray-100">
             <h3 className="text-base font-semibold text-rx-gray-800">Top Ambassadors</h3>
             <div className="flex gap-2">
               <button onClick={() => fetchData(chartPeriod)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><RefreshCw className="w-3 h-3" /> Refresh</button>
@@ -343,7 +343,7 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
 
       {/* Recent Referral Activity */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Recent Referral Activity</h3>
           <button onClick={() => onNavigate?.('activity')} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"><Zap className="w-3 h-3" /> View All</button>
         </div>

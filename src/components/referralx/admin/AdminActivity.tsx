@@ -188,7 +188,7 @@ export function AdminActivity() {
 
       {/* Activity Table */}
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-rx-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-rx-gray-100">
           <h3 className="text-base font-semibold text-rx-gray-800">Activity Log</h3>
           <div className="flex gap-2 flex-wrap">
             <select
