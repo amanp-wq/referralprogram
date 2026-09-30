@@ -36,7 +36,7 @@ export const rewards: {
 
 export const bonus = {
   label: "BONUS CHALLENGE",
-  line1: "15 SUCCESSFUL ENROLLMENTS =",
+  line1: "15 SUCCESSFUL ENROLLMENTS =",
   line2: "iPHONE 18 PRO",
   trophyImage: "/campaign/trophy.webp",
   periodLabel: "Campaign Period",

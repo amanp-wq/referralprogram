@@ -9,16 +9,16 @@ const confetti = [
   { l: "90%", t: "80%", c: "#689775", w: 10, h: 16, r: "-40deg", d: "1.5s" },
 ];
 
-export function Hero() {
+export function Hero({ hideLogoOnMobile = false }: { hideLogoOnMobile?: boolean }) {
   return (
     <section className="em-hero">
       <div className="em-hero-inner">
         {/* Text column */}
         <div className="em-hero-text relative z-10">
-          <div className="em-rise" style={{ animationDelay: "0.05s" }}>
+          <div className={`em-rise ${hideLogoOnMobile ? "hidden xl:block" : ""}`} style={{ animationDelay: "0.05s" }}>
             <img src="/logo.svg" alt="ElevateMe" className="em-logo" draggable={false} />
           </div>
-          <p className="em-rise em-kicker mt-4 font-semibold text-[#1d1d1d]" style={{ animationDelay: "0.15s" }}>
+          <p className={`em-rise em-kicker font-semibold text-[#1d1d1d] ${hideLogoOnMobile ? "xl:mt-4" : "mt-4"}`} style={{ animationDelay: "0.15s" }}>
             AMBASSADOR CHALLENGE
           </p>
           <div
