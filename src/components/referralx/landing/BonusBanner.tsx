@@ -24,7 +24,7 @@ export function BonusBanner() {
               <Gift className="h-[1.1em] w-[1.1em] text-[#e0674f]" strokeWidth={2.4} />
               {bonus.label}
             </p>
-            <p className="em-display em-b-line1 mt-1 whitespace-nowrap leading-tight">{bonus.line1}</p>
+            <p className="em-display em-b-line1 mt-1 leading-tight">{bonus.line1}</p>
             <p className="em-display em-iphone-text em-b-title whitespace-nowrap leading-[1]">{bonus.line2}</p>
           </div>
         </div>
