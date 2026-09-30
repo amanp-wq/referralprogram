@@ -22,7 +22,7 @@ export function Hero() {
             AMBASSADOR CHALLENGE
           </p>
           <div
-            className="em-rise em-pill mt-2 inline-flex items-center gap-[0.55em] rounded-full text-white shadow-[0_8px_20px_-8px_rgba(199,73,58,0.7)]"
+            className="em-rise em-pill mt-3 sm:mt-2 inline-flex items-center gap-[0.55em] rounded-full text-white shadow-[0_8px_20px_-8px_rgba(199,73,58,0.7)]"
             style={{ animationDelay: "0.25s", background: "linear-gradient(180deg,#d25a4a 0%,#b33f31 100%)" }}
           >
             <CalendarDays className="h-[1em] w-[1em]" strokeWidth={2} />
@@ -31,7 +31,7 @@ export function Hero() {
             </span>
           </div>
 
-          <h1 className="em-display em-headline mt-[0.3em] leading-[0.95]">
+          <h1 className="em-display em-headline mt-[0.5em] sm:mt-[0.3em] leading-[0.95]">
             <span className="em-rise block whitespace-nowrap text-[#161616]" style={{ animationDelay: "0.35s" }}>
               {hero.line1}
             </span>

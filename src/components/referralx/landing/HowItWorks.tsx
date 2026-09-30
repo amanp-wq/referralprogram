@@ -41,7 +41,7 @@ function Arrow({ extra = "" }: { extra?: string }) {
 
 export function HowItWorks() {
   return (
-    <section className="grid grid-cols-1 min-[1400px]:grid-cols-[1.31fr_1fr] gap-3 min-[1400px]:gap-[6px]">
+    <section className="grid grid-cols-1 min-[1400px]:grid-cols-[1.31fr_1fr] gap-6 sm:gap-4 min-[1400px]:gap-[6px]">
       {/* Steps */}
       <div className="min-w-0 rounded-[18px] bg-white/60 backdrop-blur-sm border border-white/70 px-4 sm:px-[18px] pt-5 pb-3 shadow-[0_10px_30px_-20px_rgba(60,40,30,0.3)]">
         <h2 className="pl-1 text-[16px] sm:text-[17px] font-bold tracking-[0.34em] text-[#161616]">HOW IT WORKS</h2>
@@ -55,7 +55,7 @@ export function HowItWorks() {
 
       {/* Rewards */}
       <div
-        className="min-w-0 rounded-[18px] border-2 border-[#f6d3cc] px-4 sm:px-5 pt-3 pb-5 shadow-[0_10px_30px_-20px_rgba(199,73,58,0.35)]"
+        className="min-w-0 rounded-[18px] border-2 border-[#f6d3cc] px-4 sm:px-5 pt-4 sm:pt-3 pb-5 shadow-[0_10px_30px_-20px_rgba(199,73,58,0.35)]"
         style={{ background: "linear-gradient(180deg,#fff5f3 0%,#fdecea 100%)" }}
       >
         <h2 className="text-center text-[15px] sm:text-[16px] font-bold tracking-[0.04em] text-[#c7493a]">{rewards.title}</h2>

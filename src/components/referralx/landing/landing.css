@@ -85,7 +85,15 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-.em-phone { animation: em-phone 7s ease-in-out infinite; }
+.em-phone {
+  animation: em-phone 7s ease-in-out infinite;
+  /* The hero PNG carries its own soft background; fade its edges so no
+     rectangular seam shows against the page background. */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 6%, #000 90%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 6%, #000 90%, transparent 100%);
+  mask-composite: intersect;
+}
 @keyframes em-phone {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -168,7 +176,8 @@
 /* ================= Fluid bonus banner ================= */
 .em-banner { container-type: inline-size; }
 .em-trophy { height: clamp(64px, 22cqi, 140px); }
-.em-b-label { font-size: clamp(13px, 4cqi, 22px); }
+.em-b-label { font-size: clamp(13px, 4cqi, 22px); letter-spacing: 0.03em; }
+.em-b-line1 { letter-spacing: 0; }
 .em-b-line1 { font-size: clamp(14px, 4.4cqi, 26px); }
 @container (min-width: 560px) { .em-b-line1 { font-size: 3.4cqi; white-space: nowrap; } }
 .em-b-title { font-size: clamp(22px, 8.4cqi, 58px); }
