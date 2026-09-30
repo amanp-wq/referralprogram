@@ -1,0 +1,191 @@
+/* ElevateMe Ambassador Challenge landing page.
+   Brand: Inter (body) + Plus Jakarta Sans (display), terracotta #C7493A,
+   sage #689775 / #488A6D — same tokens as globals.css and logo.svg. */
+
+.em-page {
+  --em-red: #c7493a;
+  --em-red-top: #d25a4a;
+  --em-red-dark: #a83a2d;
+  --em-green: #689775;
+  --em-green-dark: #488a6d;
+  --em-ink: #161616;
+
+  font-family: var(--font-inter), "Inter", sans-serif;
+  color: var(--em-ink);
+  background: #fbf8f5;
+  position: relative;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+.em-display {
+  font-family: var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+/* Background swooshes */
+.em-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.em-bg span {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+}
+.em-bg .peach-1 {
+  width: 900px; height: 520px; left: -380px; top: 80px;
+  background: radial-gradient(closest-side, rgba(238, 186, 172, 0.5), transparent);
+}
+.em-bg .green-1 {
+  width: 420px; height: 900px; left: 57%; top: -420px;
+  transform: rotate(-38deg);
+  background: linear-gradient(90deg, rgba(104, 151, 117, 0), rgba(104, 151, 117, 0.5), rgba(104, 151, 117, 0));
+  filter: blur(26px);
+}
+.em-bg .peach-2 {
+  width: 520px; height: 1100px; right: -300px; top: -200px;
+  transform: rotate(-24deg);
+  background: linear-gradient(90deg, rgba(236, 176, 160, 0), rgba(236, 176, 160, 0.55), rgba(253, 236, 234, 0));
+  filter: blur(30px);
+}
+.em-bg .peach-3 {
+  width: 700px; height: 700px; left: 22%; top: -120px;
+  background: radial-gradient(closest-side, rgba(250, 214, 200, 0.5), transparent);
+}
+.em-bg .green-2 {
+  width: 360px; height: 520px; left: -180px; top: 120px;
+  transform: rotate(30deg);
+  background: radial-gradient(closest-side, rgba(115, 175, 149, 0.32), transparent);
+}
+
+/* Confetti */
+.em-confetti {
+  position: absolute;
+  border-radius: 2px;
+  animation: em-float 6s ease-in-out infinite;
+  opacity: 0.9;
+}
+@keyframes em-float {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 20deg)); }
+  50% { transform: translateY(-10px) rotate(calc(var(--r, 20deg) + 25deg)); }
+}
+
+/* Entrance */
+.em-rise {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: em-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+@keyframes em-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.em-phone { animation: em-phone 7s ease-in-out infinite; }
+@keyframes em-phone {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.em-arrow { animation: em-nudge 1.8s ease-in-out infinite; }
+@keyframes em-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+.em-card-hover { transition: box-shadow 0.3s ease, transform 0.3s ease; }
+.em-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px -18px rgba(60, 40, 30, 0.25);
+}
+
+.em-input { transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease; }
+.em-input:focus-within {
+  border-color: var(--em-green);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(104, 151, 117, 0.16);
+}
+
+.em-shine { position: relative; overflow: hidden; }
+.em-shine::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: skewX(-20deg);
+  animation: em-shine 3.8s ease-in-out infinite;
+}
+@keyframes em-shine {
+  0% { left: -60%; }
+  55%, 100% { left: 130%; }
+}
+
+.em-iphone-text {
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 55%, #f3dccc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.em-red-text {
+  background: linear-gradient(180deg, var(--em-red-top) 0%, var(--em-red-dark) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .em-confetti, .em-phone, .em-arrow, .em-shine::after { animation: none; }
+  .em-rise { animation: none; opacity: 1; transform: none; }
+}
+
+/* ================= Fluid hero (container queries) ================= */
+.em-hero { container-type: inline-size; position: relative; }
+.em-hero-inner { display: flex; flex-direction: column; }
+.em-hero-text { width: 100%; }
+.em-logo { display: block; height: clamp(34px, 9.5cqi, 50px); width: auto; }
+.em-kicker { font-size: clamp(12px, 3.6cqi, 17px); letter-spacing: 0.42em; }
+.em-pill { font-size: clamp(15px, 4.4cqi, 21px); padding: 0.42em 1.15em; }
+.em-headline { font-size: clamp(38px, 12.6cqi, 80px); }
+.em-subcopy { font-size: clamp(16px, 4.6cqi, 22px); max-width: min(100%, 30em); }
+.em-hero-phone { width: 100%; max-width: 480px; margin: 24px auto 0; }
+
+@container (min-width: 700px) {
+  .em-hero-inner { flex-direction: row; align-items: flex-start; }
+  .em-hero-text { width: 52%; flex: none; }
+  .em-hero-phone { width: 54%; max-width: none; flex: none; margin: -3% 0 0 -6%; }
+  .em-logo { height: 5.1cqi; }
+  .em-kicker { font-size: max(11px, 1.77cqi); }
+  .em-pill { font-size: max(14px, 2.2cqi); }
+  .em-headline { font-size: 7.1cqi; }
+  .em-subcopy { font-size: max(15px, 2.2cqi); max-width: 47cqi; }
+}
+
+/* ================= Fluid bonus banner ================= */
+.em-banner { container-type: inline-size; }
+.em-trophy { height: clamp(64px, 22cqi, 140px); }
+.em-b-label { font-size: clamp(13px, 4cqi, 22px); }
+.em-b-line1 { font-size: clamp(11px, 3.6cqi, 26px); }
+.em-b-title { font-size: clamp(22px, 8.4cqi, 58px); }
+.em-banner-divider { height: 1px; margin: 0 20px; }
+.em-banner-info { display: flex; flex-direction: column; gap: 12px; }
+.em-banner-info .em-info-item:first-child { padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+
+@container (min-width: 560px) and (max-width: 879px) {
+  .em-banner-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .em-banner-info .em-info-item:first-child { padding-bottom: 0; border-bottom: 0; }
+}
+
+@container (min-width: 880px) {
+  .em-banner-row { flex-direction: row; }
+  .em-trophy { height: min(140px, 15cqi); }
+  .em-b-label { font-size: 2.3cqi; }
+  .em-b-line1 { font-size: 2.5cqi; }
+  .em-b-title { font-size: 5.8cqi; }
+  .em-banner-divider { width: 1px; height: auto; margin: 20px 0; }
+  .em-banner-info { padding-left: 20px; padding-right: 24px; justify-content: center; }
+}
