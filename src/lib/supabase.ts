@@ -42,6 +42,7 @@ export interface DbUser {
   emailVerified: boolean
   emailVerificationToken: string | null
   emailVerificationExpiry: string | null
+  lastLoginAt?: string | null
   createdAt: string
   updatedAt: string
 }

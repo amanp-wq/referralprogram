@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { StatusBadge, Avatar, ErrorWithRetry, formatDate, getInitials, formatCurrency } from "../shared";
-import { ArrowLeft, Mail, Phone, Hash, Award, UserCircle2 } from "lucide-react";
+import { StatusBadge, Avatar, ErrorWithRetry, formatDate, formatDateTime, getInitials, formatCurrency } from "../shared";
+import { ArrowLeft, Mail, Phone, Hash, Award, UserCircle2, Clock } from "lucide-react";
 
 function Field({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
@@ -62,6 +62,7 @@ export function AmbassadorDetail({ id, onBack }: { id: string; onBack: () => voi
           <Field icon={<Hash className="w-4 h-4" />} label="Referral Code" value={a.referralCode} />
           <Field icon={<Award className="w-4 h-4" />} label="Tier" value={<span className="capitalize">{a.tier}</span>} />
           <Field icon={<UserCircle2 className="w-4 h-4" />} label="Admission Advisor" value={data.advisorLabel || "Unassigned"} />
+          <Field icon={<Clock className="w-4 h-4" />} label="Last Login" value={data.lastLoginAt ? formatDateTime(data.lastLoginAt) : "Never"} />
           <Field icon={<Award className="w-4 h-4" />} label="Total Earnings" value={formatCurrency(a.totalEarnings || 0)} />
         </div>
       </div>

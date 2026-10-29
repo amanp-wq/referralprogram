@@ -45,7 +45,19 @@ export async function authenticateUser(email: string, password: string): Promise
     return null
   }
 
+  await recordLogin(user.id)
+
   return { user, token }
+}
+
+// Stamp the user's last-login time (shown in the admin Ambassadors list).
+// Never blocks sign-in: if the column is missing or the write fails, log and move on.
+export async function recordLogin(userId: string): Promise<void> {
+  const { error } = await getServerClient()
+    .from('User')
+    .update({ lastLoginAt: new Date().toISOString() })
+    .eq('id', userId)
+  if (error) console.error('lastLoginAt update failed:', error.message)
 }
 
 export async function getSessionUser(token: string): Promise<DbUser | null> {

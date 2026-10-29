@@ -38,7 +38,10 @@ export async function GET(
       advisorLabel = (adv as any)?.label || null
     }
 
-    return NextResponse.json({ affiliate, referrals: referrals || [], advisorLabel })
+    const { data: login } = await supabase.from('User').select('lastLoginAt').eq('id', (affiliate as any).userId).single()
+    const lastLoginAt: string | null = (login as any)?.lastLoginAt || null
+
+    return NextResponse.json({ affiliate, referrals: referrals || [], advisorLabel, lastLoginAt })
   } catch (error: any) {
     console.error('Affiliate detail error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

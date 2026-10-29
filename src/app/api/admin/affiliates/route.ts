@@ -73,10 +73,21 @@ export async function GET(request: NextRequest) {
       headCount((q) => q.gt('totalEarnings', 0)),
     ])
 
+    // Last login is fetched separately so the list still loads if the
+    // "lastLoginAt" column hasn't been added yet (supabase-last-login.sql).
+    const userIds = (affiliates || []).map((a: any) => a.userId).filter(Boolean)
+    const lastLogin: Record<string, string | null> = {}
+    if (userIds.length > 0) {
+      const { data: logins, error: loginErr } = await supabase.from('User').select('id, lastLoginAt').in('id', userIds)
+      if (loginErr) console.error('lastLoginAt lookup failed:', loginErr.message)
+      ;(logins || []).forEach((u: any) => { lastLogin[u.id] = u.lastLoginAt })
+    }
+
     return NextResponse.json({
       affiliates: (affiliates || []).map((a: any) => ({
         ...a,
         referralCount: a.Referral?.length ?? 0,
+        lastLoginAt: lastLogin[a.userId] ?? null,
       })),
       total: count || 0,
       page,

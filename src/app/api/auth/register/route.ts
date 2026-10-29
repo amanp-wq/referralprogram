@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerClient } from '@/lib/supabase'
+import { recordLogin } from '@/lib/auth'
 import { validateBody, affiliateSignupSchema, sanitizeText } from '@/lib/validation'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import bcrypt from 'bcryptjs'
@@ -191,6 +192,7 @@ export async function POST(request: NextRequest) {
       token,
       expiresAt,
     })
+    await recordLogin(userId)
 
     // Return success with token and user data
     const response = NextResponse.json(

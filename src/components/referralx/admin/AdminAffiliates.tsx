@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, getInitials } from "../shared";
+import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, formatDateTime, timeAgo, getInitials } from "../shared";
 import { formatPhone } from "@/lib/utils";
 import { Users, UserPlus, UserCheck, UserX, Download, Search, Plus, Phone, Upload, FileDown, Trash2, CheckSquare, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -75,6 +75,7 @@ interface Affiliate {
   status: string;
   joinedAt: string;
   admissionAdvisorId?: string | null;
+  lastLoginAt?: string | null;
   User: AffiliateUser;
 }
 
@@ -537,6 +538,7 @@ export function AdminAffiliates() {
                   <th className="px-5 py-3">Referrals</th>
                   <th className="px-5 py-3">Earnings</th>
                   <th className="px-5 py-3">Conversion Ratio</th>
+                  <th className="px-5 py-3">Last Login</th>
                   <th className="px-5 py-3">Admission Advisor</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Actions</th>
@@ -584,6 +586,9 @@ export function AdminAffiliates() {
                             <div className="h-full rounded-full bg-rx-primary" style={{ width: `${Math.min(100, parseFloat(conversionRatio))}%` }} />
                           </div>
                         </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm whitespace-nowrap" title={a.lastLoginAt ? formatDateTime(a.lastLoginAt) : "Has not signed in since login tracking started"}>
+                        {a.lastLoginAt ? <span className="text-rx-gray-700">{timeAgo(a.lastLoginAt)}</span> : <span className="text-rx-gray-400">Never</span>}
                       </td>
                       <td className="px-5 py-3.5">
                         <select
