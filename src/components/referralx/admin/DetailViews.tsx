@@ -99,7 +99,14 @@ export function AmbassadorDetail({ id, onBack }: { id: string; onBack: () => voi
       <p className="text-xs text-rx-gray-500 -mt-3">Total Earnings = Paid out + Approved. Pending and cancelled bonuses are not counted.</p>
 
       <div className="bg-white rounded-2xl border border-rx-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-rx-gray-100"><h3 className="text-base font-semibold text-rx-gray-800">References ({referrals.length})</h3></div>
+        <div className="px-5 py-4 border-b border-rx-gray-100 flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="text-base font-semibold text-rx-gray-800">References ({referrals.length})</h3>
+          {data.linkVisits > 0 && (
+            <span className="text-xs text-rx-gray-500" title="Someone opened this ambassador's referral link but did not submit the form. These are not counted as references.">
+              + {data.linkVisits} link {data.linkVisits === 1 ? "visit" : "visits"} without a submitted form
+            </span>
+          )}
+        </div>
         {referrals.length === 0 ? (
           <div className="py-10 text-center text-sm text-rx-gray-400">No references yet.</div>
         ) : (

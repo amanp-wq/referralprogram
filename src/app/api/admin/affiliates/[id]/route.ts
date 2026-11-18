@@ -23,13 +23,21 @@ export async function GET(
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
     if (!affiliate) return NextResponse.json({ error: 'Affiliate not found' }, { status: 404 })
 
-    // Recent references from this ambassador
+    // References from this ambassador. "Opened" rows are only link visits
+    // (someone opened the referral link but never submitted the form), so
+    // they're counted separately instead of listed as blank references.
     const { data: referrals } = await supabase
       .from('Referral')
       .select('id, visitorName, visitorEmail, visitorPhone, status, convertedAt, createdAt')
       .eq('affiliateId', id)
+      .neq('status', 'opened')
       .order('createdAt', { ascending: false })
-      .limit(50)
+      .limit(1000)
+    const { count: linkVisits } = await supabase
+      .from('Referral')
+      .select('id', { count: 'exact', head: true })
+      .eq('affiliateId', id)
+      .eq('status', 'opened')
 
     // Advisor label
     let advisorLabel: string | null = null
@@ -59,7 +67,7 @@ export async function GET(
       else earnings.cancelled += amt // cancelled / failed
     }
 
-    return NextResponse.json({ affiliate, referrals: referrals || [], advisorLabel, lastLoginAt, bonuses: bonuses || [], earnings })
+    return NextResponse.json({ affiliate, referrals: referrals || [], linkVisits: linkVisits || 0, advisorLabel, lastLoginAt, bonuses: bonuses || [], earnings })
   } catch (error: any) {
     console.error('Affiliate detail error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
