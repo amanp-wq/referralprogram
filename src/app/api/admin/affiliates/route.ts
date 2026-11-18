@@ -83,9 +83,23 @@ export async function GET(request: NextRequest) {
       ;(logins || []).forEach((u: any) => { lastLogin[u.id] = u.lastLoginAt })
     }
 
+    // Earnings = approved + released/paid bonuses, calculated from the bonus
+    // records so the list matches the ambassador detail page breakdown.
+    const affIds = (affiliates || []).map((a: any) => a.id)
+    const earned: Record<string, number> = {}
+    if (affIds.length > 0) {
+      const { data: bonusRows } = await supabase
+        .from('Commission')
+        .select('affiliateId, amount')
+        .in('affiliateId', affIds)
+        .in('status', ['approved', 'released', 'paid'])
+      ;(bonusRows || []).forEach((b: any) => { earned[b.affiliateId] = (earned[b.affiliateId] || 0) + (b.amount || 0) })
+    }
+
     return NextResponse.json({
       affiliates: (affiliates || []).map((a: any) => ({
         ...a,
+        totalEarnings: earned[a.id] ?? 0,
         referralCount: a.Referral?.length ?? 0,
         lastLoginAt: lastLogin[a.userId] ?? null,
       })),

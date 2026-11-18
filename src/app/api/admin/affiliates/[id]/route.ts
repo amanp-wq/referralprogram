@@ -26,7 +26,7 @@ export async function GET(
     // Recent references from this ambassador
     const { data: referrals } = await supabase
       .from('Referral')
-      .select('id, visitorName, visitorEmail, visitorPhone, status, createdAt')
+      .select('id, visitorName, visitorEmail, visitorPhone, status, convertedAt, createdAt')
       .eq('affiliateId', id)
       .order('createdAt', { ascending: false })
       .limit(50)
@@ -41,7 +41,25 @@ export async function GET(
     const { data: login } = await supabase.from('User').select('lastLoginAt').eq('id', (affiliate as any).userId).single()
     const lastLoginAt: string | null = (login as any)?.lastLoginAt || null
 
-    return NextResponse.json({ affiliate, referrals: referrals || [], advisorLabel, lastLoginAt })
+    // Every bonus for this ambassador, so the page can show what each
+    // reference earned and how the earnings total is made up.
+    const { data: bonuses } = await supabase
+      .from('Commission')
+      .select('id, referralId, amount, type, status, description, createdAt, updatedAt, Referral!Commission_referralId_fkey(visitorName)')
+      .eq('affiliateId', id)
+      .order('createdAt', { ascending: false })
+
+    const earnings = { paid: 0, approved: 0, pending: 0, cancelled: 0 }
+    for (const b of bonuses || []) {
+      const amt = (b as any).amount || 0
+      const st = (b as any).status
+      if (st === 'released' || st === 'paid') earnings.paid += amt
+      else if (st === 'approved') earnings.approved += amt
+      else if (st === 'pending') earnings.pending += amt
+      else earnings.cancelled += amt // cancelled / failed
+    }
+
+    return NextResponse.json({ affiliate, referrals: referrals || [], advisorLabel, lastLoginAt, bonuses: bonuses || [], earnings })
   } catch (error: any) {
     console.error('Affiliate detail error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

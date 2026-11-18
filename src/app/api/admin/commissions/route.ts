@@ -14,31 +14,71 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
+    // Filters
+    const clean = (v: string | null) => (v || '').replace(/[(),%*]/g, '').trim()
+    const ambassador = clean(searchParams.get('ambassador'))  // ambassador name/email
+    const search = clean(searchParams.get('search'))          // referred student name/email
+    const type = searchParams.get('type')
+    const referralStatus = searchParams.get('referralStatus')
+    const from = searchParams.get('from')                     // YYYY-MM-DD, bonus created on/after
+    const to = searchParams.get('to')                         // YYYY-MM-DD, bonus created on/before
+
+    // Aggregate amount sums across ALL bonuses (independent of page/filter)
+    // so the KPI tiles show real totals once the list is paginated.
+    const computeSums = async () => {
+      const sums = { total: 0, pending: 0, approved: 0, released: 0, failed: 0 }
+      const { data: allRows } = await supabase.from('Commission').select('amount, status')
+      for (const r of allRows || []) {
+        const amt = (r as any).amount || 0
+        const st = (r as any).status
+        sums.total += amt
+        if (st === 'pending') sums.pending += amt
+        else if (st === 'approved') sums.approved += amt
+        else if (st === 'released' || st === 'paid') sums.released += amt
+        else if (st === 'failed') sums.failed += amt
+      }
+      return sums
+    }
+    const emptyResponse = async () => NextResponse.json({ commissions: [], total: 0, page, limit, sums: await computeSums() })
+
+    // Ambassador name/email -> affiliate ids
+    let affiliateIds: string[] | null = null
+    if (ambassador) {
+      const { data: users } = await supabase
+        .from('User')
+        .select('id')
+        .or(`name.ilike.%${ambassador}%,email.ilike.%${ambassador}%`)
+      const userIds = (users || []).map((u: any) => u.id)
+      if (userIds.length === 0) return emptyResponse()
+      const { data: affs } = await supabase.from('Affiliate').select('id').in('userId', userIds)
+      affiliateIds = (affs || []).map((a: any) => a.id)
+      if (affiliateIds.length === 0) return emptyResponse()
+    }
+
+    // Filtering on the referral needs an inner join so non-matching bonuses drop out.
+    const referralEmbed = search || referralStatus
+      ? 'Referral!Commission_referralId_fkey!inner(id, visitorName, visitorEmail, status, createdAt)'
+      : 'Referral!Commission_referralId_fkey(id, visitorName, visitorEmail, status, createdAt)'
+
     let query = supabase
       .from('Commission')
-      .select('*, Affiliate!Commission_affiliateId_fkey(id, referralCode, User!Affiliate_userId_fkey(name, email)), Program!Commission_programId_fkey(id, name, commissionType, commissionValue), Referral!Commission_referralId_fkey(id, visitorName, visitorEmail, status, createdAt)', { count: 'exact' })
+      .select(`*, Affiliate!Commission_affiliateId_fkey(id, referralCode, User!Affiliate_userId_fkey(name, email)), Program!Commission_programId_fkey(id, name, commissionType, commissionValue), ${referralEmbed}`, { count: 'exact' })
       .order('createdAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
     if (status) query = query.eq('status', status)
+    if (type) query = query.eq('type', type)
+    if (affiliateIds) query = query.in('affiliateId', affiliateIds)
+    if (from) query = query.gte('createdAt', `${from}T00:00:00`)
+    if (to) query = query.lte('createdAt', `${to}T23:59:59.999`)
+    if (referralStatus) query = query.eq('Referral.status', referralStatus)
+    if (search) query = query.or(`visitorName.ilike.%${search}%,visitorEmail.ilike.%${search}%`, { referencedTable: 'Referral' })
 
     const { data: commissions, error: dbError, count } = await query
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
 
-    // Aggregate amount sums across ALL bonuses (independent of page/filter)
-    // so the KPI tiles show real totals once the list is paginated.
-    const sums = { total: 0, pending: 0, approved: 0, released: 0, failed: 0 }
-    const { data: allRows } = await supabase.from('Commission').select('amount, status')
-    for (const r of allRows || []) {
-      const amt = (r as any).amount || 0
-      const st = (r as any).status
-      sums.total += amt
-      if (st === 'pending') sums.pending += amt
-      else if (st === 'approved') sums.approved += amt
-      else if (st === 'released' || st === 'paid') sums.released += amt
-      else if (st === 'failed') sums.failed += amt
-    }
+    const sums = await computeSums()
 
     return NextResponse.json({
       commissions: commissions || [],

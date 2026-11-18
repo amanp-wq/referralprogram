@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KpiCard, KpiCardSkeleton, StatusBadge, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate } from "../shared";
-import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info, User, Mail, ArrowRight, ChevronLeft, ChevronRight, Upload, FileDown } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, AlertCircle, Download, CheckCircle, XCircle, Send, Eye, Pencil, X, Save, Plus, Gift, Info, User, Mail, ArrowRight, ChevronLeft, ChevronRight, Upload, FileDown, Search, Filter } from "lucide-react";
 
 const PER_PAGE_OPTIONS = [25, 50, 100, 200];
 
@@ -128,6 +128,17 @@ export function AdminCommissions() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
+  // Filters (text boxes are debounced before hitting the API)
+  const [filters, setFilters] = useState({ ambassador: "", search: "", type: "", referralStatus: "", from: "", to: "" });
+  const [appliedFilters, setAppliedFilters] = useState(filters);
+  useEffect(() => {
+    const t = setTimeout(() => setAppliedFilters(filters), 350);
+    return () => clearTimeout(t);
+  }, [filters]);
+  const setFilter = (key: keyof typeof filters, value: string) => setFilters((f) => ({ ...f, [key]: value }));
+  const hasFilters = Object.values(filters).some(Boolean);
+  const clearFilters = () => { const empty = { ambassador: "", search: "", type: "", referralStatus: "", from: "", to: "" }; setFilters(empty); setAppliedFilters(empty); };
+
   // Bonus import wizard state
   const [showImport, setShowImport] = useState(false);
   const [importStep, setImportStep] = useState<1 | 2 | 3>(1);
@@ -169,6 +180,7 @@ export function AdminCommissions() {
     try {
       const params = new URLSearchParams();
       if (statusFilter) params.set("status", statusFilter);
+      Object.entries(appliedFilters).forEach(([k, v]) => { if (v) params.set(k, v.trim()); });
       params.set("page", String(page));
       params.set("limit", String(perPage));
       const res = await fetch(`/api/admin/commissions?${params.toString()}`, {
@@ -185,10 +197,10 @@ export function AdminCommissions() {
     } finally {
       setLoading(false);
     }
-  }, [token, statusFilter, page, perPage]);
+  }, [token, statusFilter, appliedFilters, page, perPage]);
 
   useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
-  useEffect(() => { setPage(1); }, [statusFilter]);
+  useEffect(() => { setPage(1); }, [statusFilter, appliedFilters]);
 
   // ── Bonus import wizard ──
   const openImport = () => {
@@ -260,7 +272,7 @@ export function AdminCommissions() {
   }, [token]);
 
   const handleOpenAddModal = () => {
-    setAddForm({ affiliateId: "", programId: "", amount: "", description: "", referralId: "" });
+    setAddForm({ affiliateId: "", programId: "", amount: "", description: "", referralId: "", type: "referral_bonus" });
     setShowAddModal(true);
     fetchAffiliates();
   };
@@ -529,10 +541,48 @@ export function AdminCommissions() {
           </div>
         </div>
 
+        {/* Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[1.3fr_1.3fr_1fr_1fr_auto] gap-2 px-5 py-3 border-b border-rx-gray-100 bg-rx-gray-50/60">
+          <label className="relative">
+            <Search className="w-3.5 h-3.5 text-rx-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input value={filters.ambassador} onChange={(e) => setFilter("ambassador", e.target.value)} placeholder="Ambassador name or email" className="w-full pl-8 pr-2.5 py-2 border border-rx-gray-200 rounded-lg text-xs bg-white" />
+          </label>
+          <label className="relative">
+            <Search className="w-3.5 h-3.5 text-rx-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input value={filters.search} onChange={(e) => setFilter("search", e.target.value)} placeholder="Referred student name or email" className="w-full pl-8 pr-2.5 py-2 border border-rx-gray-200 rounded-lg text-xs bg-white" />
+          </label>
+          <select value={filters.type} onChange={(e) => setFilter("type", e.target.value)} className="px-2.5 py-2 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white">
+            <option value="">All bonus types</option>
+            <option value="referral_bonus">Referral Bonus</option>
+            <option value="helping_bonus">Helping Bonus</option>
+            <option value="adjustment">Adjustment</option>
+            <option value="bonus">Commission</option>
+          </select>
+          <select value={filters.referralStatus} onChange={(e) => setFilter("referralStatus", e.target.value)} className="px-2.5 py-2 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white">
+            <option value="">All referral statuses</option>
+            <option value="submitted">Submitted</option>
+            <option value="pending">Pending</option>
+            <option value="enrolled">Enrolled</option>
+            <option value="not_enrolled">Not Enrolled</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <div className="flex items-center gap-1.5 sm:col-span-2 lg:col-span-1 xl:col-span-1">
+            <input type="date" value={filters.from} onChange={(e) => setFilter("from", e.target.value)} title="Bonus date from" className="min-w-0 flex-1 px-2 py-2 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white" />
+            <span className="text-xs text-rx-gray-400">to</span>
+            <input type="date" value={filters.to} onChange={(e) => setFilter("to", e.target.value)} title="Bonus date to" className="min-w-0 flex-1 px-2 py-2 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-700 bg-white" />
+          </div>
+          {hasFilters && (
+            <div className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-between text-xs text-rx-gray-500">
+              <span className="inline-flex items-center gap-1.5"><Filter className="w-3.5 h-3.5" /> {(data?.total ?? 0).toLocaleString()} matching bonuses</span>
+              <button onClick={clearFilters} className="inline-flex items-center gap-1 text-rx-primary font-medium hover:underline"><X className="w-3 h-3" /> Clear filters</button>
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
         ) : commissions.length === 0 ? (
-          <EmptyState title="No bonuses found" description={statusFilter ? "Try adjusting your filter" : "Bonuses will appear here once referrals are marked as enrolled"} />
+          <EmptyState title="No bonuses found" description={statusFilter || hasFilters ? "Try adjusting your filters" : "Bonuses will appear here once referrals are marked as enrolled"} />
         ) : (
           <div>
             {/* Table Header */}
