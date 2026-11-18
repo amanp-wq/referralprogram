@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('Affiliate')
-      .select('*, User!Affiliate_userId_fkey(id, email, name, phone, avatarUrl, status, createdAt), Referral!Referral_affiliateId_fkey(id)', { count: 'exact' })
+      .select('*, User!Affiliate_userId_fkey(id, email, name, phone, avatarUrl, status, createdAt), Referral!Referral_affiliateId_fkey(id, status)', { count: 'exact' })
       .order('joinedAt', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
@@ -101,6 +101,9 @@ export async function GET(request: NextRequest) {
         ...a,
         totalEarnings: earned[a.id] ?? 0,
         referralCount: a.Referral?.length ?? 0,
+        // Conversion ratio inputs, from actual referral records
+        totalReferrals: (a.Referral || []).filter((r: any) => r.status !== 'opened').length,
+        totalConversions: (a.Referral || []).filter((r: any) => r.status === 'enrolled').length,
         lastLoginAt: lastLogin[a.userId] ?? null,
       })),
       total: count || 0,

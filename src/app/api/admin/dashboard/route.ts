@@ -12,11 +12,22 @@ export async function GET(request: NextRequest) {
     const period = (request.nextUrl.searchParams.get('period') || '30D') as '7D' | '30D' | '90D'
     const supabase = getServerClient()
 
+    // Supabase returns at most 1000 rows per request, so page through big tables.
+    const fetchAll = async (table: string, columns: string) => {
+      const rows: any[] = []
+      for (let from = 0; ; from += 1000) {
+        const { data } = await supabase.from(table).select(columns).range(from, from + 999)
+        rows.push(...(data || []))
+        if (!data || data.length < 1000) break
+      }
+      return rows
+    }
+
     // Get counts
     const [affiliatesRes, referralsRes, commissionsRes, payoutsRes, programsRes, pendingPayoutsRes, activitiesRes, referralActivitiesRes] = await Promise.all([
       supabase.from('Affiliate').select('id, referralCode, totalEarnings, totalReferrals, totalConversions, status, tier, userId, User!Affiliate_userId_fkey(id, name, email, phone, avatarUrl)', { count: 'exact' }),
-      supabase.from('Referral').select('id, status, createdAt', { count: 'exact' }),
-      supabase.from('Commission').select('id, amount, status, createdAt'),
+      fetchAll('Referral', 'id, affiliateId, status, source, createdAt').then((data) => ({ data })),
+      fetchAll('Commission', 'id, affiliateId, amount, status, createdAt').then((data) => ({ data })),
       supabase.from('Payout').select('id, amount, status, createdAt'),
       supabase.from('Program').select('id, name, commissionType, commissionValue, isActive'),
       supabase.from('Payout').select('id, amount').eq('status', 'pending'),
@@ -34,7 +45,8 @@ export async function GET(request: NextRequest) {
     const referralActivities = referralActivitiesRes.data || []
 
     // Calculate KPIs
-    const totalRevenue = commissions.reduce((sum: number, c: any) => sum + (c.status === 'approved' || c.status === 'paid' ? c.amount : 0), 0)
+    const isEarned = (st: string) => st === 'approved' || st === 'released' || st === 'paid'
+    const totalRevenue = commissions.reduce((sum: number, c: any) => sum + (isEarned(c.status) ? c.amount : 0), 0)
     const activeAffiliates = affiliates.filter((a: any) => a.status === 'active').length
     const inactiveAffiliates = affiliates.filter((a: any) => a.status === 'inactive' || a.status === 'suspended').length
     const submittedReferrals = referrals.filter((r: any) => r.status !== 'opened')
@@ -43,17 +55,29 @@ export async function GET(request: NextRequest) {
     const conversionRate = totalReferrals > 0 ? ((conversions / totalReferrals) * 100).toFixed(1) : '0'
     const pendingPayoutAmount = pendingPayouts.reduce((sum: number, p: any) => sum + p.amount, 0)
 
+    // Per-ambassador stats calculated from the actual referral and bonus
+    // records (the counters stored on Affiliate drift and aren't trusted).
+    const stats: Record<string, { earnings: number; referrals: number; conversions: number }> = {}
+    const statFor = (id: string) => (stats[id] ||= { earnings: 0, referrals: 0, conversions: 0 })
+    for (const c of commissions) if (c.affiliateId && isEarned(c.status)) statFor(c.affiliateId).earnings += c.amount || 0
+    for (const r of submittedReferrals) {
+      if (!r.affiliateId) continue
+      statFor(r.affiliateId).referrals += 1
+      if (r.status === 'enrolled') statFor(r.affiliateId).conversions += 1
+    }
+
     // Top affiliates by earnings (include user name/email)
     const topAffiliates = [...affiliates]
-      .sort((a: any, b: any) => b.totalEarnings - a.totalEarnings)
+      .map((a: any) => ({ a, st: stats[a.id] || { earnings: 0, referrals: 0, conversions: 0 } }))
+      .sort((x, y) => y.st.earnings - x.st.earnings || y.st.conversions - x.st.conversions)
       .slice(0, 5)
-      .map((a: any) => ({
+      .map(({ a, st }: any) => ({
         id: a.id,
         referralCode: a.referralCode || '',
         tier: a.tier,
-        totalEarnings: a.totalEarnings || 0,
-        totalReferrals: a.totalReferrals || 0,
-        totalConversions: a.totalConversions || 0,
+        totalEarnings: st.earnings,
+        totalReferrals: st.referrals,
+        totalConversions: st.conversions,
         status: a.status,
         name: (a as any).User?.name || a.referralCode || 'Unknown',
         email: (a as any).User?.email || '',
@@ -72,7 +96,7 @@ export async function GET(request: NextRequest) {
           .from('Commission')
           .select('amount')
           .eq('programId', p.id)
-          .in('status', ['approved', 'paid'])
+          .in('status', ['approved', 'released', 'paid'])
         const revenue = (progCommissions || []).reduce((s: number, c: any) => s + c.amount, 0)
         return {
           id: p.id,
