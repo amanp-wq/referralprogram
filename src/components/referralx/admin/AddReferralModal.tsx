@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, getInitials } from "../shared";
-import { Search, X, AlertTriangle } from "lucide-react";
+import { Search, X, AlertTriangle, ChevronDown } from "lucide-react";
 
 interface AmbassadorOption {
   id: string;
@@ -23,29 +23,43 @@ const EMPTY_FORM = { visitorName: "", visitorEmail: "", visitorPhone: "", status
 export function AddReferralModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const { token } = useAuth();
   const [query, setQuery] = useState("");
-  const [options, setOptions] = useState<AmbassadorOption[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [allAmbassadors, setAllAmbassadors] = useState<AmbassadorOption[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [listOpen, setListOpen] = useState(false);
   const [ambassador, setAmbassador] = useState<AmbassadorOption | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<Duplicate | null>(null);
 
-  // Ambassador search (debounced)
+  // Load every ambassador once (sorted by name) for the dropdown
   useEffect(() => {
-    if (ambassador) return;
-    const q = query.trim();
-    if (q.length < 2) { setOptions([]); return; }
-    const t = setTimeout(async () => {
-      setSearching(true);
+    (async () => {
       try {
-        const res = await fetch(`/api/admin/affiliates?search=${encodeURIComponent(q)}&limit=8`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch("/api/admin/affiliates?options=1", { headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
-        setOptions(res.ok ? json.affiliates || [] : []);
-      } catch { setOptions([]); } finally { setSearching(false); }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query, ambassador, token]);
+        if (res.ok) setAllAmbassadors(json.affiliates || []);
+      } catch { /* list stays empty; error shows on save */ } finally { setLoadingList(false); }
+    })();
+  }, [token]);
+
+  // Close the dropdown when clicking outside it
+  useEffect(() => {
+    if (!listOpen) return;
+    const onDown = (e: MouseEvent) => { if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setListOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [listOpen]);
+
+  const options = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return allAmbassadors;
+    return allAmbassadors.filter((o) =>
+      (o.User?.name || "").toLowerCase().includes(q) ||
+      (o.User?.email || "").toLowerCase().includes(q) ||
+      (o.referralCode || "").toLowerCase().includes(q));
+  }, [allAmbassadors, query]);
 
   const set = (key: keyof typeof EMPTY_FORM, value: string) => { setForm((f) => ({ ...f, [key]: value })); setDuplicate(null); setError(null); };
 
@@ -93,17 +107,27 @@ export function AddReferralModal({ onClose, onAdded }: { onClose: () => void; on
                 <button onClick={() => { setAmbassador(null); setQuery(""); setDuplicate(null); }} className="text-xs text-rx-primary font-medium hover:underline">Change</button>
               </div>
             ) : (
-              <div className="relative">
-                <Search className="w-4 h-4 text-rx-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by ambassador name, email or code" className={`${input} pl-9`} />
-                {query.trim().length >= 2 && (
-                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-rx-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                    {searching ? (
-                      <div className="px-3 py-3 text-sm text-rx-gray-400">Searching…</div>
+              <div className="relative" ref={pickerRef}>
+                <Search className="w-4 h-4 text-rx-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); setListOpen(true); }}
+                  onFocus={() => setListOpen(true)}
+                  onClick={() => setListOpen(true)}
+                  placeholder={loadingList ? "Loading ambassadors…" : `Select an ambassador (${allAmbassadors.length}) — or type to filter`}
+                  className={`${input} pl-9 pr-9 cursor-pointer`}
+                />
+                <button type="button" onClick={() => setListOpen((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-rx-gray-400 hover:text-rx-gray-600" aria-label="Show all ambassadors">
+                  <ChevronDown className={`w-4 h-4 transition-transform ${listOpen ? "rotate-180" : ""}`} />
+                </button>
+                {listOpen && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-rx-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                    {loadingList ? (
+                      <div className="px-3 py-3 text-sm text-rx-gray-400">Loading…</div>
                     ) : options.length === 0 ? (
                       <div className="px-3 py-3 text-sm text-rx-gray-400">No ambassador found</div>
                     ) : options.map((o) => (
-                      <button key={o.id} onClick={() => { setAmbassador(o); setOptions([]); setError(null); }} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-rx-gray-50">
+                      <button key={o.id} onClick={() => { setAmbassador(o); setListOpen(false); setQuery(""); setError(null); }} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-rx-gray-50">
                         <Avatar initials={getInitials(o.User?.name || "?")} src={o.User?.avatarUrl || undefined} />
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-rx-gray-800 truncate">{o.User?.name || "Unknown"}</div>

@@ -249,7 +249,7 @@ export function AdminCommissions({ onOpenDetail }: { onOpenDetail?: (type: "amba
     setAffiliatesLoading(true);
     try {
       const [affiliatesRes, programsRes] = await Promise.all([
-        fetch("/api/admin/affiliates?limit=100", { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }),
+        fetch("/api/admin/affiliates?options=1", { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }),
         fetch("/api/admin/programs?isActive=true", { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }),
       ]);
       if (!affiliatesRes.ok) throw new Error("Failed to load affiliates");

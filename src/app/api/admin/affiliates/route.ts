@@ -20,6 +20,24 @@ export async function GET(request: NextRequest) {
 
     const supabase = getServerClient()
     const { searchParams } = new URL(request.url)
+
+    // ?options=1 — every ambassador (id, code, name, email), sorted by name,
+    // for dropdown pickers like Add Referral / Add Bonus.
+    if (searchParams.get('options')) {
+      const rows: any[] = []
+      for (let from = 0; ; from += 1000) {
+        const { data, error: optErr } = await supabase
+          .from('Affiliate')
+          .select('id, referralCode, status, User!Affiliate_userId_fkey(name, email, avatarUrl)')
+          .range(from, from + 999)
+        if (optErr) return NextResponse.json({ error: optErr.message }, { status: 500 })
+        rows.push(...(data || []))
+        if (!data || data.length < 1000) break
+      }
+      rows.sort((a, b) => (a.User?.name || a.referralCode || '').localeCompare(b.User?.name || b.referralCode || ''))
+      return NextResponse.json({ affiliates: rows })
+    }
+
     const status = searchParams.get('status')
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
