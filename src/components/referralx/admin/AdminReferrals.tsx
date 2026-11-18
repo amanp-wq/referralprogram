@@ -158,7 +158,7 @@ function guessColumn(headers: string[], field: string): number {
   return -1;
 }
 
-export function AdminReferrals() {
+export function AdminReferrals({ onOpenDetail }: { onOpenDetail?: (type: "ambassador" | "reference", id: string) => void } = {}) {
   const { token } = useAuth();
   const [data, setData] = useState<ReferralsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -643,13 +643,13 @@ export function AdminReferrals() {
                         <div className="flex items-center gap-3">
                           <Avatar initials={initials} />
                           <div>
-                            <div className="text-sm font-semibold text-rx-gray-800">{affName}</div>
+                            <button type="button" onClick={() => r.affiliateId && onOpenDetail?.("ambassador", r.affiliateId)} className="text-sm font-semibold text-rx-gray-800 hover:text-rx-primary hover:underline cursor-pointer text-left">{affName}</button>
                             <div className="text-xs text-rx-gray-500">{affEmail}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="text-sm text-rx-gray-700">{visitorName}</div>
+                        <button type="button" onClick={() => onOpenDetail?.("reference", r.id)} className="text-sm text-rx-gray-700 hover:text-rx-primary hover:underline cursor-pointer text-left">{visitorName}</button>
                         {r.visitorEmail && r.visitorEmail !== visitorName && <div className="text-xs text-rx-gray-500">{r.visitorEmail}</div>}
                         {r.notes && (
                           <div className="mt-2 px-3 py-2 bg-rx-gray-50 rounded-lg border border-rx-gray-100">

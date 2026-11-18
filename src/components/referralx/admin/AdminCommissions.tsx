@@ -119,7 +119,7 @@ interface CommissionsResponse {
   sums?: { total: number; pending: number; approved: number; released: number; failed: number };
 }
 
-export function AdminCommissions() {
+export function AdminCommissions({ onOpenDetail }: { onOpenDetail?: (type: "ambassador" | "reference", id: string) => void } = {}) {
   const { token } = useAuth();
   const [data, setData] = useState<CommissionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -615,7 +615,7 @@ export function AdminCommissions() {
                               <User className="w-4 h-4 text-rx-primary" />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-rx-gray-800 truncate">{refName || "Unknown"}</p>
+                              <button type="button" onClick={() => ref?.id && onOpenDetail?.("reference", ref.id)} className="block max-w-full truncate text-sm font-semibold text-rx-gray-800 hover:text-rx-primary hover:underline cursor-pointer text-left">{refName || "Unknown"}</button>
                               <div className="flex items-center gap-3 flex-wrap">
                                 {refEmail && (
                                   <span className="inline-flex items-center gap-1 text-xs text-rx-gray-500">
@@ -647,7 +647,7 @@ export function AdminCommissions() {
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="text-xs text-rx-gray-400 uppercase tracking-wide font-medium lg:hidden">Ambassador</div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-rx-gray-700 truncate">{affName}</p>
+                        <button type="button" onClick={() => onOpenDetail?.("ambassador", c.affiliateId)} className="block max-w-full truncate text-sm font-medium text-rx-gray-700 hover:text-rx-primary hover:underline cursor-pointer text-left">{affName}</button>
                         {affEmail && <p className="text-xs text-rx-gray-400 truncate">{affEmail}</p>}
                       </div>
                     </div>

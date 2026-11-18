@@ -87,7 +87,7 @@ interface AffiliatesResponse {
   counts?: { all: number; active: number; inactive: number; withEarnings: number };
 }
 
-export function AdminAffiliates() {
+export function AdminAffiliates({ onOpenDetail }: { onOpenDetail?: (type: "ambassador" | "reference", id: string) => void } = {}) {
   const { token } = useAuth();
   const [data, setData] = useState<AffiliatesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -562,18 +562,18 @@ export function AdminAffiliates() {
                         />
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
+                        <button type="button" onClick={() => onOpenDetail?.("ambassador", a.id)} className="group flex items-center gap-3 text-left cursor-pointer" title="Open ambassador details">
                           <Avatar initials={initials} src={a.User?.avatarUrl} />
                           <div>
-                            <div className="text-sm font-semibold text-rx-gray-800">{name}</div>
+                            <div className="text-sm font-semibold text-rx-gray-800 group-hover:text-rx-primary group-hover:underline">{name}</div>
                             <div className="text-xs text-rx-gray-500">{email}</div>
                           </div>
-                        </div>
+                        </button>
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5">
                           <Phone className="w-3.5 h-3.5 text-rx-gray-400" />
-                          <span className="text-sm text-rx-gray-700">{phone ? formatPhone(phone) : "-"}</span>
+                          <span className="text-sm text-rx-gray-700 whitespace-nowrap">{phone ? formatPhone(phone) : "-"}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3.5"><span className="text-xs font-mono bg-rx-gray-100 px-2 py-0.5 rounded">/ref/{a.referralCode}</span></td>

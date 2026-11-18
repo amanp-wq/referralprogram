@@ -139,14 +139,15 @@ export default function AppPage() {
           return (
             <AdminDashboard
               onNavigate={(p) => setAdminPage(p as AdminPage)}
+              onOpenDetail={openDetail}
             />
           );
         case "affiliates":
-          return <AdminAffiliates />;
+          return <AdminAffiliates onOpenDetail={openDetail} />;
         case "commissions":
-          return <AdminCommissions />;
+          return <AdminCommissions onOpenDetail={openDetail} />;
         case "referrals":
-          return <AdminReferrals />;
+          return <AdminReferrals onOpenDetail={openDetail} />;
         case "links":
           return <AdminLinks />;
         case "activity":

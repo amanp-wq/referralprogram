@@ -91,7 +91,7 @@ function downloadCSV(filename: string, headers: string[], rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => void }) {
+export function AdminDashboard({ onNavigate, onOpenDetail }: { onNavigate?: (page: string) => void; onOpenDetail?: (type: "ambassador" | "reference", id: string) => void }) {
   const { token } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -302,8 +302,8 @@ export function AdminDashboard({ onNavigate }: { onNavigate?: (page: string) => 
                     const conversionRatio = a.totalReferrals > 0 ? ((a.totalConversions / a.totalReferrals) * 100).toFixed(1) : "0.0";
                     return (
                       <tr key={a.id} className="border-b border-rx-gray-100 last:border-0 hover:bg-rx-gray-50">
-                        <td className="px-5 py-3.5"><div className="flex items-center gap-3"><Avatar initials={initials} src={(a as any).avatarUrl || (a as any).User?.avatarUrl} /><div><div className="text-sm font-semibold text-rx-gray-800">{name}</div><div className="text-xs text-rx-gray-500">{email}</div></div></div></td>
-                        <td className="px-5 py-3.5 text-sm text-rx-gray-700">{phone}</td>
+                        <td className="px-5 py-3.5"><button type="button" onClick={() => onOpenDetail?.("ambassador", a.id)} className="group flex items-center gap-3 text-left cursor-pointer" title="Open ambassador details"><Avatar initials={initials} src={(a as any).avatarUrl || (a as any).User?.avatarUrl} /><div><div className="text-sm font-semibold text-rx-gray-800 group-hover:text-rx-primary group-hover:underline">{name}</div><div className="text-xs text-rx-gray-500">{email}</div></div></button></td>
+                        <td className="px-5 py-3.5 text-sm text-rx-gray-700 whitespace-nowrap">{phone}</td>
                         <td className="px-5 py-3.5 text-sm text-rx-gray-700">{a.totalReferrals || 0}</td>
                         <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(a.totalEarnings || 0)}</td>
                         <td className="px-5 py-3.5"><div className="flex items-center gap-2"><span className="text-sm font-semibold text-rx-gray-800">{conversionRatio}%</span><div className="w-16 h-1.5 bg-rx-gray-200 rounded-full overflow-hidden"><div className="h-full rounded-full bg-rx-primary" style={{ width: `${Math.min(100, parseFloat(conversionRatio))}%` }} /></div></div></td>
