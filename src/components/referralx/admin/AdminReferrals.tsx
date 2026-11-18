@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AddReferralModal } from "./AddReferralModal";
 import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatDate, getInitials } from "../shared";
-import { Share2, UserPlus, RefreshCw, ArrowRight, Download, Clock, UserCheck, UserX, Upload, FileDown, Trash2, ChevronDown, Eye, Search, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { Share2, UserPlus, RefreshCw, ArrowRight, Download, Clock, UserCheck, UserX, Upload, FileDown, Trash2, ChevronDown, Eye, Search, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
 
 interface Referral {
   id: string;
@@ -164,6 +165,8 @@ export function AdminReferrals({ onOpenDetail }: { onOpenDetail?: (type: "ambass
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [addedNotice, setAddedNotice] = useState(false);
 
   // Search + pagination state
   const [search, setSearch] = useState("");
@@ -549,6 +552,10 @@ export function AdminReferrals({ onOpenDetail }: { onOpenDetail?: (type: "ambass
               <option value="enrolled">Enrolled</option>
               <option value="not_enrolled">Not Enrolled</option>
             </select>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rx-primary text-white rounded-lg text-xs font-semibold hover:bg-rx-primary-dark"
+            ><Plus className="w-3 h-3" /> Add Referral</button>
             <button
               onClick={openImport}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rx-gray-200 rounded-lg text-xs text-rx-gray-600 hover:bg-rx-gray-50"
@@ -1010,6 +1017,16 @@ export function AdminReferrals({ onOpenDetail }: { onOpenDetail?: (type: "ambass
             </div>
           </div>
         </div>
+      )}
+
+      {showAdd && (
+        <AddReferralModal
+          onClose={() => setShowAdd(false)}
+          onAdded={() => { setShowAdd(false); setAddedNotice(true); setTimeout(() => setAddedNotice(false), 4000); fetchData(); }}
+        />
+      )}
+      {addedNotice && (
+        <div className="fixed bottom-5 right-5 z-50 px-4 py-3 rounded-lg bg-rx-gray-900 text-white text-sm shadow-lg">Referral added</div>
       )}
 
       {/* Delete Confirmation Dialog */}
