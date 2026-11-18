@@ -70,7 +70,9 @@ export async function GET(request: NextRequest) {
       headCount((q) => q),
       headCount((q) => q.eq('status', 'active')),
       headCount((q) => q.eq('status', 'inactive')),
-      headCount((q) => q.gt('totalEarnings', 0)),
+      // Ambassadors with at least one approved/released bonus
+      supabase.from('Commission').select('affiliateId').in('status', ['approved', 'released', 'paid'])
+        .then(({ data }) => new Set((data || []).map((c: any) => c.affiliateId)).size),
     ])
 
     // Last login is fetched separately so the list still loads if the
@@ -100,7 +102,9 @@ export async function GET(request: NextRequest) {
       affiliates: (affiliates || []).map((a: any) => ({
         ...a,
         totalEarnings: earned[a.id] ?? 0,
-        referralCount: a.Referral?.length ?? 0,
+        // "Opened" rows are link visits with no form submitted — not references
+        referralCount: (a.Referral || []).filter((r: any) => r.status !== 'opened').length,
+        linkVisits: (a.Referral || []).filter((r: any) => r.status === 'opened').length,
         // Conversion ratio inputs, from actual referral records
         totalReferrals: (a.Referral || []).filter((r: any) => r.status !== 'opened').length,
         totalConversions: (a.Referral || []).filter((r: any) => r.status === 'enrolled').length,

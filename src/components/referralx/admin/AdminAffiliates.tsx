@@ -577,7 +577,7 @@ export function AdminAffiliates({ onOpenDetail }: { onOpenDetail?: (type: "ambas
                         </div>
                       </td>
                       <td className="px-5 py-3.5"><span className="text-xs font-mono bg-rx-gray-100 px-2 py-0.5 rounded">/ref/{a.referralCode}</span></td>
-                      <td className="px-5 py-3.5 text-sm text-rx-gray-700">{(a as any).referralCount ?? a.totalReferrals}</td>
+                      <td className="px-5 py-3.5 text-sm text-rx-gray-700" title={(a as any).linkVisits ? `${(a as any).linkVisits} link visits without a submitted form are not counted` : undefined}>{(a as any).referralCount ?? a.totalReferrals}</td>
                       <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(a.totalEarnings)}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
