@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, formatDateTime, timeAgo, getInitials } from "../shared";
+import { KpiCard, KpiCardSkeleton, StatusBadge, Avatar, ErrorWithRetry, EmptyState, TableSkeleton, formatCurrency, formatDate, formatDateTime, timeAgo, getInitials, ReferralLinkChip, referralUrl } from "../shared";
 import { formatPhone } from "@/lib/utils";
 import { Users, UserPlus, UserCheck, UserX, Download, Search, Plus, Phone, Upload, FileDown, Trash2, CheckSquare, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -469,7 +469,7 @@ export function AdminAffiliates({ onOpenDetail }: { onOpenDetail?: (type: "ambas
                   a.User?.name || "Unknown",
                   a.User?.email || "-",
                   a.User?.phone || "-",
-                  `/ref/${a.referralCode}`,
+                  referralUrl(a.referralCode),
                   (((a as any).referralCount ?? a.totalReferrals) as number).toString(),
                   a.totalEarnings.toString(),
                   a.totalReferrals > 0 ? ((a.totalConversions / a.totalReferrals) * 100).toFixed(1) + "%" : "0%",
@@ -576,7 +576,7 @@ export function AdminAffiliates({ onOpenDetail }: { onOpenDetail?: (type: "ambas
                           <span className="text-sm text-rx-gray-700 whitespace-nowrap">{phone ? formatPhone(phone) : "-"}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5"><span className="text-xs font-mono bg-rx-gray-100 px-2 py-0.5 rounded">/ref/{a.referralCode}</span></td>
+                      <td className="px-5 py-3.5"><ReferralLinkChip code={a.referralCode} /></td>
                       <td className="px-5 py-3.5 text-sm text-rx-gray-700" title={(a as any).linkVisits ? `${(a as any).linkVisits} link visits without a submitted form are not counted` : undefined}>{(a as any).referralCount ?? a.totalReferrals}</td>
                       <td className="px-5 py-3.5 text-sm font-semibold text-rx-gray-900">{formatCurrency(a.totalEarnings)}</td>
                       <td className="px-5 py-3.5">

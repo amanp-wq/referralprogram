@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { StatusBadge, Avatar, ErrorWithRetry, formatDate, formatDateTime, getInitials, formatCurrency } from "../shared";
+import { StatusBadge, Avatar, ErrorWithRetry, formatDate, formatDateTime, getInitials, formatCurrency, ReferralLinkChip } from "../shared";
 import { ArrowLeft, Mail, Phone, Hash, Award, UserCircle2, Clock } from "lucide-react";
 
 const BONUS_TYPE_LABEL: Record<string, string> = {
@@ -74,7 +74,7 @@ export function AmbassadorDetail({ id, onBack }: { id: string; onBack: () => voi
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <Field icon={<Mail className="w-4 h-4" />} label="Email" value={u.email} />
           <Field icon={<Phone className="w-4 h-4" />} label="Phone" value={u.phone} />
-          <Field icon={<Hash className="w-4 h-4" />} label="Referral Code" value={a.referralCode} />
+          <Field icon={<Hash className="w-4 h-4" />} label="Referral Link" value={<ReferralLinkChip code={a.referralCode} />} />
           <Field icon={<Award className="w-4 h-4" />} label="Tier" value={<span className="capitalize">{a.tier}</span>} />
           <Field icon={<UserCircle2 className="w-4 h-4" />} label="Admission Advisor" value={data.advisorLabel || "Unassigned"} />
           <Field icon={<Clock className="w-4 h-4" />} label="Last Login" value={data.lastLoginAt ? formatDateTime(data.lastLoginAt) : "Never"} />

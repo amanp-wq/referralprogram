@@ -1,7 +1,44 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Copy, Check, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Copy, Check, RefreshCw, ExternalLink } from "lucide-react";
 import { useState } from "react";
+
+/* ─── Referral link (admin) ─── */
+// Full public referral URL for an ambassador, e.g. https://referral.elevateme.pro/ref/SB7175
+export function referralUrl(code: string): string {
+  return `${typeof window !== "undefined" ? window.location.origin : ""}/ref/${code}`;
+}
+
+// "/ref/CODE" chip: click copies the full link to share with the ambassador;
+// the arrow opens it in a new tab.
+export function ReferralLinkChip({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = referralUrl(code);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      window.prompt("Copy this referral link:", url);
+    }
+  };
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      <button
+        type="button"
+        onClick={copy}
+        title={`Copy ${url}`}
+        className={`inline-flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded cursor-pointer transition-colors ${copied ? "bg-rx-secondary-light text-rx-secondary" : "bg-rx-gray-100 text-rx-gray-700 hover:bg-rx-primary-light hover:text-rx-primary"}`}
+      >
+        {copied ? <><Check className="w-3 h-3" /> Copied!</> : <>/ref/{code} <Copy className="w-3 h-3 opacity-60" /></>}
+      </button>
+      <a href={url} target="_blank" rel="noopener noreferrer" title="Open link in a new tab" className="p-0.5 text-rx-gray-400 hover:text-rx-primary">
+        <ExternalLink className="w-3.5 h-3.5" />
+      </a>
+    </span>
+  );
+}
 
 /* ─── KpiCard ─── */
 interface KpiCardProps {
