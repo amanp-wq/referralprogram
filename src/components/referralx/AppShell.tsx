@@ -110,7 +110,7 @@ const adminNavGroups: NavGroup[] = [
     label: "Main",
     items: [
       { id: "dashboard", label: "Dashboard", icon: <ChartPie className="w-[18px] h-[18px]" /> },
-      { id: "affiliates", label: "Ambassadors", icon: <Users className="w-[18px] h-[18px]" />, badge: 3 },
+      { id: "affiliates", label: "Ambassadors", icon: <Users className="w-[18px] h-[18px]" /> },
       { id: "referrals", label: "Referrals", icon: <Share2 className="w-[18px] h-[18px]" /> },
     ],
   },
@@ -367,7 +367,10 @@ export function AppShell({
                       <span className="text-sm whitespace-nowrap">{item.label}</span>
                     )}
                     {!sidebarCollapsed && badge && (
-                      <span className="ml-auto bg-rx-danger text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-full">
+                      <span
+                        className="ml-auto bg-rx-danger text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
+                        title={item.id === "referrals" ? (role === "admin" ? "New referrals waiting for review (status: Submitted)" : "Your total referrals") : undefined}
+                      >
                         {badge}
                       </span>
                     )}

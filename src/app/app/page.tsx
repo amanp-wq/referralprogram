@@ -104,7 +104,8 @@ export default function AppPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          setReferralCount(data.referrals?.length ?? 0);
+          // Admin: new referrals still waiting for review. Ambassador: all their referrals.
+          setReferralCount(user.role === "admin" ? (data.counts?.submitted ?? 0) : (data.total ?? 0));
         }
       } catch {
         // ignore — sidebar badge is non-critical
